@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-
 import { useEffect } from 'react'
 import P100 from '../pages/P100'
 import P200 from '../pages/P200'
-import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
@@ -110,15 +109,6 @@ const Router = () => {
         />
         
         
-        {/* P300 - Messaging Inbox */}
-        <Route
-          path="/p/300"
-          element={
-            <PageRoute>
-              <P300 />
-            </PageRoute>
-          }
-        />
         {/* P400 - Tactical Map */}
         <Route
           path="/p/400"
