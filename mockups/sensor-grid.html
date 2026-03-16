@@ -163,7 +163,7 @@
         </header>
         
         <div class="alert" id="alert" style="display: none;">
-            ⚠ ALERT: Temperature spike detected at SCLER-03
+            ⚠ ALERT: Temperature spike detected at RHIZOME-03
         </div>
         
         <table>
@@ -193,12 +193,12 @@
     
     <script>
         const sensors = [
-            { id: 'SPOR3-01', callsign: 'Nexus', temp: 6.4, humidity: 87, pressure: 1013, aqi: 12 },
-            { id: 'SCLER-02', callsign: 'Ravine Stream', temp: 6.3, humidity: 69, pressure: 1007, aqi: 8 },
-            { id: 'SCLER-03', callsign: 'Ridge Overlook', temp: 18.2, humidity: 45, pressure: 1015, aqi: 15 },
-            { id: 'SCLER-08', callsign: 'Valley Floor', temp: 7.1, humidity: 82, pressure: 1011, aqi: 10 },
-            { id: 'SCLER-12', callsign: 'Storm Watch', temp: 5.8, humidity: 91, pressure: 1009, aqi: 7 },
-            { id: 'SCLER-15', callsign: 'Treeline', temp: 4.2, humidity: 78, pressure: 1012, aqi: 9 }
+            { id: 'SPORE-01', callsign: 'Nexus', temp: 6.4, humidity: 87, pressure: 1013, aqi: 12 },
+            { id: 'RHIZOME-02', callsign: 'Ravine Stream', temp: 6.3, humidity: 69, pressure: 1007, aqi: 8 },
+            { id: 'RHIZOME-03', callsign: 'Ridge Overlook', temp: 18.2, humidity: 45, pressure: 1015, aqi: 15 },
+            { id: 'RHIZOME-08', callsign: 'Valley Floor', temp: 7.1, humidity: 82, pressure: 1011, aqi: 10 },
+            { id: 'RHIZOME-12', callsign: 'Storm Watch', temp: 5.8, humidity: 91, pressure: 1009, aqi: 7 },
+            { id: 'RHIZOME-15', callsign: 'Treeline', temp: 4.2, humidity: 78, pressure: 1012, aqi: 9 }
         ];
         
         function getStatusClass(temp, humidity) {
@@ -287,7 +287,7 @@
                 drawSparkline(canvas, generateTrendData());
             });
             
-            // Show alert for SCLER-03
+            // Show alert for RHIZOME-03
             if (sensors[2].temp > 15) {
                 document.getElementById('alert').style.display = 'block';
             }

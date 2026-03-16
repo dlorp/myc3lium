@@ -58,7 +58,7 @@
  <button class="fb" onclick="go('p300')"><span class="pn">P300</span> INBOX</button><span class="dv">│</span>
  <button class="fb" onclick="go('p800')"><span class="pn">P800</span> LLM</button>
  <div style="flex:1"></div>
- <span style="color:#7A5800;font-size:11px">SPOR3-01 // NEXUS · v3.0</span>
+ <span style="color:#7A5800;font-size:11px">SPORE-01 // NEXUS · v3.0</span>
 </div>
 </div>
 
@@ -130,14 +130,11 @@ function pill(x,y,w,h,bg,bc){fill(x,y,w,h,bg);bx.strokeStyle=bc;bx.lineWidth=.6;
 const P=10;
 
 const NODES=[
- {id:'SPOR3-01',cs:'NEXUS',  rx:.44,ry:.50,col:AB,  st:'BASE',rssi:null,bat:74,type:'SPOR3'},
+ {id:'SPORE-01',cs:'NEXUS',  rx:.44,ry:.50,col:AB,  st:'BASE',rssi:null,bat:74,type:'SPORE'},
  {id:'HYPHA-03',cs:'Ranger', rx:.45,ry:.22,col:TC,   st:'GOOD',rssi:-78, bat:85,type:'HYPHA'},
  {id:'FROND-02',cs:'Kestrel',rx:.76,ry:.45,col:TC,   st:'GOOD',rssi:-72, bat:91,type:'FROND'},
- {id:'SCLER-02',cs:'Ravine', rx:.32,ry:.55,col:'#3B7AE4',st:'GOOD',rssi:-82,bat:81,type:'SCLER'},
- {id:'SCLER-03',cs:'Ridge',  rx:.54,ry:.35,col:'#3B7AE4',st:'FAIR',rssi:-88,bat:68,type:'SCLER'},
- {id:'GHOST-07',cs:'Umbra',  rx:.62,ry:.42,col:GR,   st:'PASV',rssi:-91,bat:52,type:'GHOST'},
- {id:'SPORE-06',cs:null,     rx:.37,ry:.67,col:RD,   st:'TOUT',rssi:null,bat:12,type:'SPORE'},
-];
+ {id:'RHIZOME-02',cs:'Ravine', rx:.32,ry:.55,col:'#3B7AE4',st:'GOOD',rssi:-82,bat:81,type:'RHIZOME'},
+ {id:'RHIZOME-03',cs:'Ridge',  rx:.54,ry:.35,col:'#3B7AE4',st:'FAIR',rssi:-88,bat:68,type:'RHIZOME'}{id:'SPORE-06',cs:null,     rx:.37,ry:.67,col:RD,   st:'TOUT',rssi:null,bat:12,type:'SPORE'}];
 const TH=[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]];
 let pkts=[];
 function spawnPkt(){
@@ -176,7 +173,7 @@ p100(t){
 
  sl('NODE STATUS',G,G);
  box(G,G+13,c1w,row-6);
- txt('SPOR3-01 // NEXUS',G+5,G+17,AB);
+ txt('SPORE-01 // NEXUS',G+5,G+17,AB);
  txt('ANCHOR · BASE NODE',G+5,G+17+F+3,AD);
  [[`BAT  74%`,GN],[`CPU  23%`,AB],[`RAM  41%`,AM],[`TEMP 52°C OK`,GN],[`UP   04:22:37`,AD]].forEach(([s,c],i)=>{
   txt(s,G+5,G+17+F*2+8+i*(F+3),c,F-1);
@@ -209,11 +206,10 @@ p100(t){
  sl('RECENT EVENTS',elx,r2y);
  box(elx,r2y+13,elw,row-6);
  [['04:22',GN,'THREAD UP  ','HYPHA-03 PROPAGATE ESTABLISHED'],
-  ['04:19',AM,'SENSOR     ','SCLER-02 BURST ×12 COMPLETE'],
+  ['04:19',AM,'SENSOR     ','RHIZOME-02 BURST ×12 COMPLETE'],
   ['04:11',RD,'DEGRADED   ','FROND-02 → THUMBNAIL MODE'],
   ['03:58',TC,'PATH REGEN ','SPORE-06→HYPHA-03 STORE-FWD'],
-  ['03:40',AD,'WATCH      ','SPORE TTL:L5H EID:F31 ACTIVE'],
- ].forEach(([ts,c,lbl,msg],i)=>{
+  ['03:40',AD,'WATCH      ','SPORE TTL:L5H EID:F31 ACTIVE']].forEach(([ts,c,lbl,msg],i)=>{
   const y=r2y+17+i*(F+3);
   txt(ts,elx+3,y,AD,F-1);txt(lbl,elx+33,y,c,F-1);txt(msg,elx+33+66,y,WH,F-1);
  });
@@ -223,12 +219,11 @@ p100(t){
  box(G,r3y+13,cw,H-r3y-G-6);
  [
   [AM,'THREAD UP  ','HYPHA-03 // Ranger : PROPAGATE = 06:00 NEAR CASTLE LAKE'],
-  [AM,'THREAD REG ','FROND-02 : ROUTE PATH UPDATED VIA SCLER-03'],
-  [GN,'SENSOR PUSH','SCLER-02 : TEMP 6.4°C  PRESSURE DROPPING −6mb/4h'],
+  [AM,'THREAD REG ','FROND-02 : ROUTE PATH UPDATED VIA RHIZOME-03'],
+  [GN,'SENSOR PUSH','RHIZOME-02 : TEMP 6.4°C  PRESSURE DROPPING −6mb/4h'],
   [AD,'WATCH      ','SPORE TTL:L5H · EID:F31 ADVISORY ACTIVE'],
   [RD,'THREAD DOWN','SPORE-06 : TIMEOUT PRUNE 05:12 HYPHA RIDGE'],
-  [RD,'BLOOM DETCT','CNSENC · PROB ROAMER MODE · EID:F31 ACTIVE'],
- ].forEach(([c,lbl,msg],i)=>{
+  [RD,'BLOOM DETCT','CNSENC · PROB ROAMER MODE · EID:F31 ACTIVE']].forEach(([c,lbl,msg],i)=>{
   const y=r3y+17+i*(F+2);if(y+F>H-P)return;
   txt(lbl,G+5,y,c,F-1);txt(msg,G+5+74,y,WH,F-1);
  });
@@ -237,15 +232,14 @@ p100(t){
 p101(t){
  clr();
  const G=P,cw=W-G*2;
- sl('SYSTEM HEALTH · SPOR3-01 // NEXUS',G,G);hln(G+13);
+ sl('SYSTEM HEALTH · SPORE-01 // NEXUS',G,G);hln(G+13);
  const metrics=[
   ['CPU LOAD   ','23%',  23, GN],
   ['RAM USAGE  ','41%',  41, AM],
   ['DISK I/O   ','12MB/s',12,GN],
   ['TEMPERATURE','52°C', 61, AM],
   ['BATTERY    ','74%',  74, GN],
-  ['NET TX     ','128B/s',5, GN],
- ];
+  ['NET TX     ','128B/s',5, GN]];
  const bw=Math.round(cw*.52),bx2=G+120;
  const rh=Math.round((H-50)/metrics.length);
  metrics.forEach(([lbl,val,pct,col],i)=>{
@@ -316,13 +310,12 @@ p202(t){
  const G=P,cw=W-G*2;
  sl('LINK QUALITY · P202 · BATMAN-ADV + RETICULUM',G,G);hln(G+13);
  const links=[
-  {pair:'SPOR3↔HYPHA',rssi:-78,snr:12.1,rtt:23, loss:0, bw:'24.2Kbps', tr:'LoRa', q:'GOOD'},
-  {pair:'SPOR3↔FROND',rssi:-72,snr:18.4,rtt:8,  loss:0, bw:'1.8Mbps', tr:'HaLow',q:'GOOD'},
-  {pair:'SPOR3↔SCLER-02',rssi:-82,snr:9.2,rtt:41,loss:2, bw:'18.4Kbps',tr:'LoRa', q:'GOOD'},
-  {pair:'SPOR3↔SCLER-03',rssi:-88,snr:5.1,rtt:98,loss:11,bw:'12.1Kbps',tr:'LoRa', q:'FAIR'},
-  {pair:'SPOR3↔GHOST-07',rssi:-91,snr:3.8,rtt:210,loss:19,bw:'8.2Kbps',tr:'LoRa',q:'FAIR'},
-  {pair:'SPOR3↔SPORE-06',rssi:null,snr:null,rtt:null,loss:100,bw:'—', tr:'—',    q:'TOUT'},
- ];
+  {pair:'SPORE↔HYPHA',rssi:-78,snr:12.1,rtt:23, loss:0, bw:'24.2Kbps', tr:'LoRa', q:'GOOD'},
+  {pair:'SPORE↔FROND',rssi:-72,snr:18.4,rtt:8,  loss:0, bw:'1.8Mbps', tr:'HaLow',q:'GOOD'},
+  {pair:'SPORE↔RHIZOME-02',rssi:-82,snr:9.2,rtt:41,loss:2, bw:'18.4Kbps',tr:'LoRa', q:'GOOD'},
+  {pair:'SPORE↔RHIZOME-03',rssi:-88,snr:5.1,rtt:98,loss:11,bw:'12.1Kbps',tr:'LoRa', q:'FAIR'},
+  {pair:'SPORE↔removed-node',rssi:-91,snr:3.8,rtt:210,loss:19,bw:'8.2Kbps',tr:'LoRa',q:'FAIR'},
+  {pair:'SPORE↔SPORE-06',rssi:null,snr:null,rtt:null,loss:100,bw:'—', tr:'—',    q:'TOUT'}];
  const rh=Math.round((H-54)/(links.length+1));
  const cols=[G,G+110,G+168,G+216,G+264,G+316,G+388,W-P-48];
  ['LINK','RSSI','SNR','RTT','LOSS','BANDWIDTH','XPORT','QOS'].forEach((h,i)=>txt(h,cols[i],G+17,AD,F-1));
@@ -354,11 +347,10 @@ p300(t){
  // Improved message list with threading
  const msgs=[
   {fr:'HYPHA-03',cs:'Ranger', ts:'04:18',sub:'POSITION RPT', unread:true, sig:true, thread:0},
-  {fr:'SCLER-02',cs:'Ravine', ts:'03:52',sub:'SENSOR ALERT', unread:true, sig:true, thread:1},
+  {fr:'RHIZOME-02',cs:'Ravine', ts:'03:52',sub:'SENSOR ALERT', unread:true, sig:true, thread:1},
   {fr:'HYPHA-03',cs:'Ranger', ts:'02:31',sub:'RE: POSITION',  unread:false,sig:true, thread:0},
-  {fr:'GHOST-07',cs:'Umbra',  ts:'01:15',sub:'PASSIVE LOG',  unread:false,sig:false,thread:2},
-  {fr:'SYSTEM',  cs:null,     ts:'00:00',sub:'BOOT REPORT',  unread:false,sig:true, thread:3},
- ];
+  {fr:'removed-node',cs:'Umbra',  ts:'01:15',sub:'PASSIVE LOG',  unread:false,sig:false,thread:2},
+  {fr:'SYSTEM',  cs:null,     ts:'00:00',sub:'BOOT REPORT',  unread:false,sig:true, thread:3}];
  
  const mh=Math.round((H-78)/msgs.length);
  
@@ -389,12 +381,12 @@ p300(t){
 
  sl('MESSAGE DETAIL',rx,G);box(rx,G+13,rw,H-G-32,AL);
  txt('FROM:  HYPHA-03 // Ranger',rx+5,G+17,AB);
- txt('TO:    SPOR3-01 // Nexus',rx+5,G+17+F+3,WH,F-1);
+ txt('TO:    SPORE-01 // Nexus',rx+5,G+17+F+3,WH,F-1);
  txt('TS:    2026-03-15  04:18:22',rx+5,G+17+F*2+6,AL,F-1);
  txt('PROTO: LXMF / RETICULUM',rx+5,G+17+F*3+9,AL,F-1);
  txt('SIG:   ed25519 VERIFIED ✓',rx+5,G+17+F*4+12,GN,F-1);
  hln(G+17+F*5+16,AL);
- ['AT CASTLE LAKE. DEPLOYED SPORE-09','AT RIDGE OVERLOOK 04:05.','SCLER-03 STORM EDGE 12KM W.','ETA UNCERTAIN. RTB 06:00.','','GPS 61.3012 / −150.1204  ALT 892m'].forEach((l,i)=>{
+ ['AT CASTLE LAKE. DEPLOYED SPORE-09','AT RIDGE OVERLOOK 04:05.','RHIZOME-03 STORM EDGE 12KM W.','ETA UNCERTAIN. RTB 06:00.','','GPS 61.3012 / −150.1204  ALT 892m'].forEach((l,i)=>{
   txt(l,rx+5,G+22+F*6+14+i*(F+3),l.startsWith('GPS')?AL:WH,l.startsWith('GPS')?F-1:F-1);
  });
  hln(H-26,AL);
@@ -500,8 +492,7 @@ p401(t){
   {id:'WP-003',name:'RIDGE OVERLOOK',   lat:61.2890,lon:-149.8441,alt:1204,dist:5.6,type:'OBS',   mk:'▲'},
   {id:'WP-004',name:'HYPHA-03 LAST GPS',lat:61.3012,lon:-150.1204,alt:892, dist:8.2,type:'NODE',  mk:'●'},
   {id:'WP-005',name:'SPORE-09 DEPLOY',  lat:61.2778,lon:-149.8012,alt:1022,dist:4.1,type:'RELAY', mk:'◆'},
-  {id:'WP-006',name:'CREEK CROSSING',   lat:61.2340,lon:-149.9780,alt:188, dist:2.8,type:'ROUTE', mk:'─'},
- ];
+  {id:'WP-006',name:'CREEK CROSSING',   lat:61.2340,lon:-149.9780,alt:188, dist:2.8,type:'ROUTE', mk:'─'}];
  const rh=Math.round((H-56)/wpts.length);
  const cs=[G,G+58,G+130,G+204,G+264,G+320,W-P-54];
  ['ID','NAME','LAT','LON','ALT','DIST','TYPE'].forEach((h,i)=>txt(h,cs[i],G+17,AD,F-1));
@@ -533,8 +524,7 @@ p500(t){
   {n:'METEOR-M2',   az:null,el:null,freq:'137.900 MHz',mode:'LRPT',pass:false,eta:'14m',  maxEl:'72°'},
   {n:'NOAA-15',     az:null,el:null,freq:'137.620 MHz',mode:'APT', pass:false,eta:'47m',  maxEl:'44°'},
   {n:'GOES-WEST',   az:176,el:18, freq:'1694.1 MHz', mode:'HRIT',pass:true, eta:'GEO',  maxEl:'GEO'},
-  {n:'ISS',         az:null,el:null,freq:'145.800 MHz',mode:'FM',  pass:false,eta:'2h12m',maxEl:'81°'},
- ];
+  {n:'ISS',         az:null,el:null,freq:'145.800 MHz',mode:'FM',  pass:false,eta:'2h12m',maxEl:'81°'}];
  const rh=Math.round((H-96)/(sats.length));
  const cs=[G,G+114,G+158,G+212,G+268,G+318,W-P-66];
  ['SAT','AZ','EL','FREQ','MODE','ETA','MAX EL'].forEach((h,i)=>txt(h,cs[i],G+17,AD,F-1));
@@ -652,8 +642,7 @@ p600(t){
  const secs=[
   {title:'LoRa · SX1262 · 915 MHz',items:[['FREQ','915.000 MHz'],['SF','7 / 9 (long range)'],['BW','125 kHz'],['CR','4/5'],['TX PWR','20 dBm (1W EIRP)'],['PREAMBLE','8 symbols'],['SYNC','0x12 private'],['STATUS','TX/RX ACTIVE']]},
   {title:'HaLow · HT-HC01P · 902-928',items:[['SSID','MYC3LIUM_HALOW'],['FREQ','2339.1 MHz'],['MODE','802.11ah STA'],['TX PWR','20 dBm'],['SNR','37 dB GOOD'],['BITRATE','2.5 Mbps'],['STATUS','ASSOCIATED']]},
-  {title:'SDR · NESDR XTR v2 + HamItUp',items:[['CENTER','915.000 MHz'],['BW','2.4 MHz'],['GAIN','32.8 dB AGC'],['PPM','0 correction'],['RANGE','300Hz–2.3GHz'],['DRIVER','SoapySDR'],['STATUS','STANDBY']]},
- ];
+  {title:'SDR · NESDR XTR v2 + HamItUp',items:[['CENTER','915.000 MHz'],['BW','2.4 MHz'],['GAIN','32.8 dB AGC'],['PPM','0 correction'],['RANGE','300Hz–2.3GHz'],['DRIVER','SoapySDR'],['STATUS','STANDBY']]}];
  const sw=Math.round(cw/3)-3;
  secs.forEach((sec,si)=>{
   const sx=G+si*(sw+4),sy=G+17;
@@ -671,15 +660,14 @@ p600(t){
 p700(t){
  clr();
  const G=P,cw=W-G*2;
- sl('SCLER SENSOR GRID · P700 · ENVIRONMENTAL TELEMETRY',G,G);hln(G+13);
+ sl('RHIZOME SENSOR GRID · P700 · ENVIRONMENTAL TELEMETRY',G,G);hln(G+13);
  
  const sensors=[
-  {id:'SCLER-02',cs:'Ravine',  temp:6.4, hum:87, pres:1007, aqi:12, st:'GOOD'},
-  {id:'SCLER-03',cs:'Ridge',   temp:18.2,hum:45, pres:1015, aqi:15, st:'FAIR'},
-  {id:'SCLER-08',cs:'Valley',  temp:7.1, hum:82, pres:1011, aqi:10, st:'GOOD'},
-  {id:'SCLER-12',cs:'Storm',   temp:5.8, hum:91, pres:1009, aqi:7,  st:'FAIR'},
-  {id:'SCLER-15',cs:'Treeline',temp:4.2, hum:78, pres:1012, aqi:9,  st:'GOOD'},
- ];
+  {id:'RHIZOME-02',cs:'Ravine',  temp:6.4, hum:87, pres:1007, aqi:12, st:'GOOD'},
+  {id:'RHIZOME-03',cs:'Ridge',   temp:18.2,hum:45, pres:1015, aqi:15, st:'FAIR'},
+  {id:'RHIZOME-08',cs:'Valley',  temp:7.1, hum:82, pres:1011, aqi:10, st:'GOOD'},
+  {id:'RHIZOME-12',cs:'Storm',   temp:5.8, hum:91, pres:1009, aqi:7,  st:'FAIR'},
+  {id:'RHIZOME-15',cs:'Treeline',temp:4.2, hum:78, pres:1012, aqi:9,  st:'GOOD'}];
  
  // Init trends
  sensors.forEach(s=>{
@@ -707,23 +695,22 @@ p700(t){
  });
  
  hln(H-26);
- txt('5 SCLER NODES ONLINE · LAST UPDATE 23:40:15 · CBOR TELEMETRY',G,H-22,AD);
+ txt('5 RHIZOME NODES ONLINE · LAST UPDATE 23:40:15 · CBOR TELEMETRY',G,H-22,AD);
  txt('TEMP RANGE: 4.2°C - 18.2°C · PRESSURE TREND: FALLING −6mb/4h',G,H-22+F+3,AD);
 },
 
 p703(t){
  clr();
  const G=P,cw=W-G*2;
- sl('ALERT THRESHOLDS · P703 · SCLER ENVIRONMENTAL GRID',G,G);hln(G+13);
+ sl('ALERT THRESHOLDS · P703 · RHIZOME ENVIRONMENTAL GRID',G,G);hln(G+13);
  const alerts=[
   {node:'ALL',     param:'TEMP',         val:'6.4°C',  warn:'-5°C',   crit:'-15°C', st:'NOMINAL'},
   {node:'ALL',     param:'HUMIDITY',     val:'78%',    warn:'90%',    crit:'95%',   st:'WATCH'},
   {node:'ALL',     param:'PRESS DROP',   val:'6mb/4h', warn:'6mb/4h', crit:'12mb', st:'WATCH'},
-  {node:'SCLER-03',param:'WIND SPEED',   val:'8 m/s',  warn:'7 m/s',  crit:'15m/s',st:'ALERT'},
+  {node:'RHIZOME-03',param:'WIND SPEED',   val:'8 m/s',  warn:'7 m/s',  crit:'15m/s',st:'ALERT'},
   {node:'ALL',     param:'AQI PM2.5',    val:'12µg',   warn:'35µg',   crit:'55µg', st:'NOMINAL'},
   {node:'SPORE-06',param:'BATTERY',      val:'12%',    warn:'25%',    crit:'10%',  st:'CRITICAL'},
-  {node:'ALL',     param:'RSSI FLOOR',   val:'-88dBm', warn:'-80dBm', crit:'-95dBm',st:'WATCH'},
- ];
+  {node:'ALL',     param:'RSSI FLOOR',   val:'-88dBm', warn:'-80dBm', crit:'-95dBm',st:'WATCH'}];
  const rh=Math.round((H-56)/(alerts.length+1));
  const cs=[G,G+74,G+170,G+236,G+292,W-P-66];
  ['NODE','PARAMETER','CURRENT','WARN','CRIT','STATUS'].forEach((h,i)=>txt(h,cs[i],G+17,AD,F-1));
@@ -756,13 +743,12 @@ p800(t){
  const msgs=[
   ['SYS', 'MYC3LIUM local intelligence initialized.', ADM, '23:20'],
   ['SYS', 'Access: Lattice (5/7 nodes) · Messages (3) · Sensors (6) · SDR', ADM, '23:20'],
-  ['USER','Show me temp trends for all SCLER nodes', AB, '23:21'],
-  ['LLM', 'SCLER-02: 6.1°C→6.4°C stable  ·  SCLER-03: 6.5°C→18.2°C WARNING', GN, '23:21'],
-  ['LLM', 'SCLER-08: 7.0°C→7.1°C stable  ·  Recommend check SCLER-03', GN, '23:21'],
+  ['USER','Show me temp trends for all RHIZOME nodes', AB, '23:21'],
+  ['LLM', 'RHIZOME-02: 6.1°C→6.4°C stable  ·  RHIZOME-03: 6.5°C→18.2°C WARNING', GN, '23:21'],
+  ['LLM', 'RHIZOME-08: 7.0°C→7.1°C stable  ·  Recommend check RHIZOME-03', GN, '23:21'],
   ['USER','Any new RF signals detected?', AB, '23:22'],
   ['LLM', '908.500 MHz FSK bursts (2s every 30s) detected 23:08:42', GN, '23:22'],
-  ['LLM', 'Classification: Likely weather station. No threat.', GN, '23:22'],
- ];
+  ['LLM', 'Classification: Likely weather station. No threat.', GN, '23:22']];
  
  const mh=Math.round((H-90)/msgs.length);
  msgs.forEach((m,i)=>{

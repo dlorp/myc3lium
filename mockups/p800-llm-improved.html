@@ -243,7 +243,7 @@
                         MYC3LIUM local intelligence agent initialized. I have access to:<br>
                         • Lattice topology (5/7 nodes online, 8 threads active)<br>
                         • LXMF messages (3 unread)<br>
-                        • SCLER sensor data (6 environmental pods)<br>
+                        • RHIZOME sensor data (6 environmental pods)<br>
                         • SDR signal logs (RF spectrum 300Hz-2.3GHz)<br>
                         • GPS tracks and waypoints<br>
                         • System events and logs<br>
@@ -258,7 +258,7 @@
                         <span class="message-time">23:21:03</span>
                     </div>
                     <div class="message-content">
-                        Show me temperature trends for all SCLER nodes over the last 4 hours
+                        Show me temperature trends for all RHIZOME nodes over the last 4 hours
                     </div>
                 </div>
                 
@@ -268,21 +268,21 @@
                         <span class="message-time">23:21:05</span>
                     </div>
                     <div class="message-content">
-                        Temperature analysis for SCLER network (19:20-23:20):<br>
+                        Temperature analysis for RHIZOME network (19:20-23:20):<br>
                         <br>
-                        <span style="color: #50D8D7">SCLER-02 // "Ravine Stream"</span><br>
+                        <span style="color: #50D8D7">RHIZOME-02 // "Ravine Stream"</span><br>
                         • Range: 6.1°C → 6.4°C (stable)<br>
                         • Trend: ↗ +0.3°C gradual rise<br>
                         <br>
-                        <span style="color: #F4E409">SCLER-03 // "Ridge Overlook"</span><br>
+                        <span style="color: #F4E409">RHIZOME-03 // "Ridge Overlook"</span><br>
                         • Range: 6.5°C → 18.2°C (WARNING)<br>
                         • Trend: ↗↗ +11.7°C rapid increase (sun exposure likely)<br>
                         <br>
-                        <span style="color: #50D8D7">SCLER-08 // "Valley Floor"</span><br>
+                        <span style="color: #50D8D7">RHIZOME-08 // "Valley Floor"</span><br>
                         • Range: 7.0°C → 7.1°C (stable)<br>
                         • Trend: → +0.1°C minimal variation<br>
                         <br>
-                        ALERT: SCLER-03 showing unusual thermal rise. Recommend checking sensor placement or investigating external heat source.
+                        ALERT: RHIZOME-03 showing unusual thermal rise. Recommend checking sensor placement or investigating external heat source.
                     </div>
                 </div>
                 
@@ -342,11 +342,10 @@
     <script>
         const responses = [
             "Lattice topology: 5/7 nodes online. SPORE-06 timed out 18 minutes ago. Last known position: 61.2778°N 149.8012°W. Recommend check-in via LoRa beacon.",
-            "Humidity data shows SCLER-12 at 91% (storm watch zone). Pressure dropping -6mb/4h. Weather pattern suggests precipitation within 2-4 hours.",
+            "Humidity data shows RHIZOME-12 at 91% (storm watch zone). Pressure dropping -6mb/4h. Weather pattern suggests precipitation within 2-4 hours.",
             "GPS track analysis: HYPHA-03 traveled 8.2km NW, currently at Castle Lake (61.3012°N 150.1204°W, alt 892m). Battery at 85%, signal quality good.",
             "Signal classification: 433.5 MHz intermittent burst detected. Not matching ISM band protocols. Possible wireless sensor or remote control. Low threat assessment.",
-            "Message queue status: 3 unread LXMF messages. 2 from HYPHA-03 (position reports), 1 from SCLER-02 (sensor alert). Store-and-forward queue: 42 KB pending.",
-        ];
+            "Message queue status: 3 unread LXMF messages. 2 from HYPHA-03 (position reports), 1 from RHIZOME-02 (sensor alert). Store-and-forward queue: 42 KB pending."];
         
         let responseIndex = 0;
         

@@ -203,18 +203,18 @@
                 <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Trend Graph</span>
                 <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Set Alert</span>
             </div>
-            <div class="nav-hint">SCLER NODES: 6 ONLINE | LAST UPDATE: <span id="lastUpdate">23:22:15</span></div>
+            <div class="nav-hint">RHIZOME NODES: 6 ONLINE | LAST UPDATE: <span id="lastUpdate">23:22:15</span></div>
         </footer>
     </div>
     
     <script>
         const sensors = [
-            { id: 'SPOR3-01', callsign: 'Nexus', temp: 52.1, humidity: 34, pressure: 1013, aqi: 8, status: 'GOOD', trend: [50, 51, 52, 51, 52, 52, 51, 52] },
-            { id: 'SCLER-02', callsign: 'Ravine Stream', temp: 6.4, humidity: 87, pressure: 1007, aqi: 12, status: 'GOOD', trend: [6.2, 6.3, 6.4, 6.3, 6.4, 6.5, 6.4, 6.4] },
-            { id: 'SCLER-03', callsign: 'Ridge Overlook', temp: 18.2, humidity: 45, pressure: 1015, aqi: 15, status: 'WARNING', trend: [6.5, 8.2, 12.1, 15.3, 17.8, 18.1, 18.2, 18.2] },
-            { id: 'SCLER-08', callsign: 'Valley Floor', temp: 7.1, humidity: 82, pressure: 1011, aqi: 10, status: 'GOOD', trend: [7.0, 7.1, 7.0, 7.1, 7.2, 7.1, 7.1, 7.1] },
-            { id: 'SCLER-12', callsign: 'Storm Watch', temp: 5.8, humidity: 91, pressure: 1009, aqi: 7, status: 'WARNING', trend: [6.1, 6.0, 5.9, 5.9, 5.8, 5.8, 5.8, 5.8] },
-            { id: 'SCLER-15', callsign: 'Treeline', temp: 4.2, humidity: 78, pressure: 1012, aqi: 9, status: 'GOOD', trend: [4.5, 4.4, 4.3, 4.3, 4.2, 4.2, 4.2, 4.2] }
+            { id: 'SPORE-01', callsign: 'Nexus', temp: 52.1, humidity: 34, pressure: 1013, aqi: 8, status: 'GOOD', trend: [50, 51, 52, 51, 52, 52, 51, 52] },
+            { id: 'RHIZOME-02', callsign: 'Ravine Stream', temp: 6.4, humidity: 87, pressure: 1007, aqi: 12, status: 'GOOD', trend: [6.2, 6.3, 6.4, 6.3, 6.4, 6.5, 6.4, 6.4] },
+            { id: 'RHIZOME-03', callsign: 'Ridge Overlook', temp: 18.2, humidity: 45, pressure: 1015, aqi: 15, status: 'WARNING', trend: [6.5, 8.2, 12.1, 15.3, 17.8, 18.1, 18.2, 18.2] },
+            { id: 'RHIZOME-08', callsign: 'Valley Floor', temp: 7.1, humidity: 82, pressure: 1011, aqi: 10, status: 'GOOD', trend: [7.0, 7.1, 7.0, 7.1, 7.2, 7.1, 7.1, 7.1] },
+            { id: 'RHIZOME-12', callsign: 'Storm Watch', temp: 5.8, humidity: 91, pressure: 1009, aqi: 7, status: 'WARNING', trend: [6.1, 6.0, 5.9, 5.9, 5.8, 5.8, 5.8, 5.8] },
+            { id: 'RHIZOME-15', callsign: 'Treeline', temp: 4.2, humidity: 78, pressure: 1012, aqi: 9, status: 'GOOD', trend: [4.5, 4.4, 4.3, 4.3, 4.2, 4.2, 4.2, 4.2] }
         ];
         
         function drawSparkline(canvas, data, color) {
