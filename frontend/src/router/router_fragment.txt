@@ -1,0 +1,12 @@
+        
+        {/* P300 - Messaging Inbox */}
+        <Route
+          path="/p/300"
+          element={
+            <PageRoute>
+              <P300 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P400 - Tactical Map */}

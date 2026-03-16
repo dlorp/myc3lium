@@ -440,7 +440,7 @@ export const renderTacticalMap = (gpsData, panX = 0, panY = 0, zoom = 1, selecte
   
   // Selected node detail (if any)
   if (selectedNode) {
-    const detailX = COLUMNS - 18
+    const detailX = COLUMNS - 20
     const detailY = 3
     
     writeText(grid, detailX, detailY, `NODE: ${selectedNode.id}`)
