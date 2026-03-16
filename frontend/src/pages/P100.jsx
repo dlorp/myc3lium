@@ -1,65 +1,295 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import TeletextGrid, { COLUMNS, ROWS } from '../components/TeletextGrid'
 import useNavigationStore from '../store/navigationStore'
 
-const padLine = (line) => line.padEnd(COLUMNS, ' ').slice(0, COLUMNS)
+/**
+ * P100 - Dashboard Page
+ * 
+ * Main menu / system overview dashboard. First page users see.
+ * 
+ * Features:
+ * - System status summary (nodes, unread messages, next sat pass, battery)
+ * - Menu navigation to subsystems
+ * - Radio status bars (LoRa/HaLow/WiFi) - color-coded
+ * - GPS lock indicator
+ * - Clock display
+ * - WebSocket connection for live updates (future)
+ */
+
+// Box drawing characters
+const BOX = {
+  TL: '┌', TR: '┐', BL: '└', BR: '┘',
+  H: '─', V: '│',
+  TLH: '╔', TRH: '╗', BLH: '╚', BRH: '╝',
+  HH: '═',
+}
+
+const BLOCK = '▓'
+const BLOCK_LIGHT = '░'
+const ARROW = '▸'
+const DOT = '●'
 
 /**
- * P100 - Index page
- * Main entry point for teletext navigation
+ * Create empty grid
+ */
+const createGrid = () => {
+  return Array.from({ length: ROWS }, () => 
+    Array.from({ length: COLUMNS }, () => ' ')
+  )
+}
+
+/**
+ * Write text to grid at position
+ */
+const writeText = (grid, x, y, text) => {
+  if (y < 0 || y >= ROWS) return
+  for (let i = 0; i < text.length; i++) {
+    const col = x + i
+    if (col >= 0 && col < COLUMNS) {
+      grid[y][col] = text[i]
+    }
+  }
+}
+
+/**
+ * Draw horizontal line
+ */
+const drawHLine = (grid, x, y, width, char = BOX.H) => {
+  if (y < 0 || y >= ROWS) return
+  for (let i = 0; i < width; i++) {
+    const col = x + i
+    if (col >= 0 && col < COLUMNS) {
+      grid[y][col] = char
+    }
+  }
+}
+
+/**
+ * Draw vertical line
+ */
+const drawVLine = (grid, x, y, height, char = BOX.V) => {
+  if (x < 0 || x >= COLUMNS) return
+  for (let i = 0; i < height; i++) {
+    const row = y + i
+    if (row >= 0 && row < ROWS) {
+      grid[row][x] = char
+    }
+  }
+}
+
+/**
+ * Draw box
+ */
+const drawBox = (grid, x, y, width, height, heavy = false) => {
+  const tl = heavy ? BOX.TLH : BOX.TL
+  const tr = heavy ? BOX.TRH : BOX.TR
+  const bl = heavy ? BOX.BLH : BOX.BL
+  const br = heavy ? BOX.BRH : BOX.BR
+  const h = heavy ? BOX.HH : BOX.H
+  const v = BOX.V
+
+  // Corners
+  if (y >= 0 && y < ROWS && x >= 0 && x < COLUMNS) grid[y][x] = tl
+  if (y >= 0 && y < ROWS && x + width - 1 >= 0 && x + width - 1 < COLUMNS) {
+    grid[y][x + width - 1] = tr
+  }
+  if (y + height - 1 >= 0 && y + height - 1 < ROWS && x >= 0 && x < COLUMNS) {
+    grid[y + height - 1][x] = bl
+  }
+  if (y + height - 1 >= 0 && y + height - 1 < ROWS && x + width - 1 >= 0 && x + width - 1 < COLUMNS) {
+    grid[y + height - 1][x + width - 1] = br
+  }
+
+  // Horizontal lines
+  drawHLine(grid, x + 1, y, width - 2, h)
+  drawHLine(grid, x + 1, y + height - 1, width - 2, h)
+
+  // Vertical lines
+  drawVLine(grid, x, y + 1, height - 2, v)
+  drawVLine(grid, x + width - 1, y + 1, height - 2, v)
+}
+
+/**
+ * Draw progress bar
+ */
+const drawProgressBar = (grid, x, y, width, percent) => {
+  const filled = Math.round((width * percent) / 100)
+  for (let i = 0; i < width; i++) {
+    const col = x + i
+    if (col >= 0 && col < COLUMNS && y >= 0 && y < ROWS) {
+      grid[y][col] = i < filled ? BLOCK : BLOCK_LIGHT
+    }
+  }
+}
+
+/**
+ * Format time HH:MM
+ */
+const formatTime = () => {
+  const now = new Date()
+  const h = String(now.getHours()).padStart(2, '0')
+  const m = String(now.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/**
+ * Mock system data (will be replaced with WebSocket updates)
+ */
+const getMockData = () => ({
+  nodes: {
+    online: 5,
+    total: 7,
+  },
+  messages: {
+    unread: 3,
+  },
+  satellite: {
+    nextPass: '19:34',
+    minutesUntil: 42,
+  },
+  battery: {
+    percent: 74,
+    hoursRemaining: 5.3,
+  },
+  gps: {
+    locked: true,
+    satellites: 8,
+  },
+  radio: {
+    lora: { enabled: true, status: 'TX/RX', strength: 85 },
+    halow: { enabled: true, status: 'ASSOC', strength: 72 },
+    wifi: { enabled: true, status: 'BATMAN', strength: 91 },
+  },
+  system: {
+    uptime: '04:22:37',
+    cpu: 23,
+    temp: 52,
+  },
+})
+
+/**
+ * Render P100 dashboard to grid
+ */
+const renderDashboard = (data) => {
+  const grid = createGrid()
+
+  // Header
+  writeText(grid, 1, 0, `${DOT}MYC3LIUM${DOT}`)
+  writeText(grid, 14, 0, `${formatTime()}`)
+  writeText(grid, 23, 0, `[GPS: ${data.gps.locked ? 'LOCK' : 'WAIT'}]`)
+  writeText(grid, 35, 0, `${data.battery.percent}%`)
+  drawHLine(grid, 0, 1, COLUMNS)
+
+  // Title banner - more compact
+  drawBox(grid, 2, 2, 36, 3, true)
+  writeText(grid, 8, 3, 'MYC3LIUM - NEXUS TERMINAL')
+
+  // Menu section - compressed spacing
+  let row = 6
+
+  // [200] MESH NETWORK
+  writeText(grid, 2, row, `[200] MESH ${ARROW}${data.nodes.online}/${data.nodes.total} online`)
+  row++
+
+  // [300] MESSAGING
+  const msgText = data.messages.unread === 0 ? 'No unread' : `${data.messages.unread} unread`
+  writeText(grid, 2, row, `[300] MSG ${ARROW}${msgText}`)
+  row++
+
+  // [400] TACTICAL MAP
+  writeText(grid, 2, row, `[400] MAP ${ARROW}GPS ${data.gps.satellites} sats`)
+  row++
+
+  // [500] INTELLIGENCE
+  writeText(grid, 2, row, `[500] INTEL ${ARROW}${data.satellite.nextPass} (${data.satellite.minutesUntil}min)`)
+  row++
+
+  // [600] CONFIGURATION
+  writeText(grid, 2, row, `[600] CONFIG ${ARROW}Bat ${data.battery.percent}%`)
+  row += 2
+
+  // Radio status section
+  writeText(grid, 2, row, 'RADIO STATUS:')
+  row++
+
+  // LoRa bar
+  writeText(grid, 2, row, 'LoRa ')
+  drawProgressBar(grid, 8, row, 10, data.radio.lora.strength)
+  writeText(grid, 20, row, `[${data.radio.lora.status}]`)
+  row++
+
+  // HaLow bar
+  writeText(grid, 2, row, 'HaLow')
+  drawProgressBar(grid, 8, row, 10, data.radio.halow.strength)
+  writeText(grid, 20, row, `[${data.radio.halow.status}]`)
+  row++
+
+  // WiFi bar
+  writeText(grid, 2, row, 'WiFi ')
+  drawProgressBar(grid, 8, row, 10, data.radio.wifi.strength)
+  writeText(grid, 20, row, `[${data.radio.wifi.status}]`)
+
+  // Footer
+  drawHLine(grid, 0, ROWS - 2, COLUMNS)
+  writeText(grid, 1, ROWS - 1, '[ESC]BACK')
+  writeText(grid, 15, ROWS - 1, `UP ${data.system.uptime}`)
+  writeText(grid, 30, ROWS - 1, '[?]HELP')
+
+  return grid
+}
+
+/**
+ * P100 Dashboard Component
  */
 const P100 = () => {
   const setBreadcrumbs = useNavigationStore((state) => state.setBreadcrumbs)
-  
+  const navigateTo = useNavigationStore((state) => state.navigateTo)
+  const [data, setData] = useState(getMockData())
+
   useEffect(() => {
-    setBreadcrumbs(['INDEX'])
+    setBreadcrumbs(['DASHBOARD'])
   }, [setBreadcrumbs])
-  
-  const buildContent = () => {
-    const lines = [
-      'MYC3LIUM TELETYPE  |  P100 INDEX',
-      '========================================',
-      '',
-      'MAIN SERVICES',
-      '  200 - SYSTEM STATUS',
-      '  300 - NODE NETWORK',
-      '  400 - DATA STREAMS',
-      '  500 - OPERATIONS',
-      '  600 - ANALYTICS',
-      '  700 - CONFIGURATION',
-      '  800 - DIAGNOSTICS',
-      '',
-      '----------------------------------------',
-      'QUICK ACCESS',
-      '  201 - CURRENT UPTIME',
-      '  301 - NODE MAP',
-      '  401 - LIVE SENSORS',
-      '  501 - ACTIVE TASKS',
-      '',
-      '----------------------------------------',
-      'NAVIGATION',
-      '  TYPE PAGE NUMBER (100-800)',
-      '  ESC TO GO BACK',
-      '',
-      '========================================',
-    ]
-    
-    const padded = lines.map(padLine)
-    while (padded.length < ROWS) {
-      padded.push(padLine(''))
+
+  // Update clock every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData(prevData => ({ ...prevData }))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key
+
+      if (key === '2') {
+        navigateTo(200)
+      } else if (key === '3') {
+        navigateTo(300)
+      } else if (key === '4') {
+        navigateTo(400)
+      } else if (key === '5') {
+        navigateTo(500)
+      } else if (key === '6') {
+        navigateTo(600)
+      }
     }
-    
-    return padded.slice(0, ROWS).map((line) => line.split(''))
-  }
-  
-  const content = buildContent()
-  
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigateTo])
+
+  const content = renderDashboard(data)
+
   return (
     <div className="teletext-demo">
-      <div className="teletext-overlay">P100 - INDEX</div>
+      <div className="teletext-overlay">P100 - DASHBOARD</div>
       <TeletextGrid content={content} showFps />
     </div>
   )
 }
 
 export default P100
+export { renderDashboard, getMockData }
