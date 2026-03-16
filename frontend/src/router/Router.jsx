@@ -96,16 +96,6 @@ const Router = () => {
           }
         />
         
-        {/* P200 - Lattice Map */}
-        <Route
-          path="/p/200"
-          element={
-            <PageRoute>
-              <P200 />
-            </PageRoute>
-          }
-        />
-        
         {/* Generic page route (100-800) */}
         <Route
           path="/p/:pageNumber"
