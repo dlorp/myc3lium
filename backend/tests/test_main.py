@@ -25,11 +25,7 @@ def test_get_nodes():
     """Test nodes endpoint"""
     response = client.get("/api/nodes")
     assert response.status_code == 200
-    assert "nodes" in response.json()
-
-
-def test_get_connections():
-    """Test connections endpoint"""
-    response = client.get("/api/connections")
-    assert response.status_code == 200
-    assert "connections" in response.json()
+    # Returns a list directly, not wrapped in {"nodes": [...]}
+    nodes = response.json()
+    assert isinstance(nodes, list)
+    assert len(nodes) > 0

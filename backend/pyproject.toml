@@ -33,7 +33,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
-ignore = []
+ignore = ["UP017"]  # Don't suggest datetime.UTC (Python 3.11+)
 
 [tool.mypy]
 python_version = "3.11"
