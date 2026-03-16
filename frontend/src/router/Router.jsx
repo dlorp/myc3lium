@@ -142,6 +142,16 @@ const Router = () => {
           }
         />
         
+        {/* P800 - Local LLM Chat */}
+        <Route
+          path="/p/800"
+          element={
+            <PageRoute>
+              <P800 />
+            </PageRoute>
+          }
+        />
+        
         {/* Generic page route (100-800) */}
         <Route
           path="/p/:pageNumber"
