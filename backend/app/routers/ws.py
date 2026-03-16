@@ -2,7 +2,7 @@
 
 import asyncio
 import random
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -32,7 +32,7 @@ async def simulate_node_updates():
                 "battery": random.randint(10, 100),
                 "rssi": random.randint(-90, -30),
             },
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(timezone.utc)
         )
         
         # Broadcast to all connected clients
@@ -79,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": "Connected to MYC3LIUM network",
                     "connections": manager.get_connection_count()
                 },
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             },
             client_id
         )
@@ -97,7 +97,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "event": "echo",
                     "data": {"received": data},
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 },
                 client_id
             )
@@ -112,6 +112,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "client_id": client_id,
                     "connections": manager.get_connection_count()
                 },
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
