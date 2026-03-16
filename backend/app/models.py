@@ -14,9 +14,7 @@ class Node(BaseModel):
         ..., description="Node type in mycelial network"
     )
     callsign: str = Field(..., max_length=32, description="Human-readable node identifier")
-    status: Literal["online", "offline", "degraded"] = Field(
-        ..., description="Current node status"
-    )
+    status: Literal["online", "offline", "degraded"] = Field(..., description="Current node status")
     rssi: int | None = Field(None, description="Signal strength (dBm)")
     battery: int | None = Field(None, ge=0, le=100, description="Battery percentage")
     last_seen: datetime = Field(
@@ -34,7 +32,7 @@ class Node(BaseModel):
                 "rssi": -65,
                 "battery": 87,
                 "last_seen": "2026-03-16T12:00:00Z",
-                "position": {"lat": 61.2181, "lon": -149.9003}
+                "position": {"lat": 61.2181, "lon": -149.9003},
             }
         }
     )
@@ -59,7 +57,7 @@ class Connection(BaseModel):
                 "target_id": "node_002",
                 "quality": 0.92,
                 "latency": 15,
-                "established": "2026-03-16T12:00:00Z"
+                "established": "2026-03-16T12:00:00Z",
             }
         }
     )
@@ -85,7 +83,7 @@ class SensorData(BaseModel):
                 "sensor_type": "temperature",
                 "value": 22.5,
                 "unit": "celsius",
-                "timestamp": "2026-03-16T12:00:00Z"
+                "timestamp": "2026-03-16T12:00:00Z",
             }
         }
     )
@@ -113,7 +111,7 @@ class Message(BaseModel):
                 "recipient_id": "node_005",
                 "content": "Status update: all systems operational",
                 "timestamp": "2026-03-16T12:00:00Z",
-                "hops": 2
+                "hops": 2,
             }
         }
     )
@@ -127,20 +125,15 @@ class NodeUpdate(BaseModel):
     )
     data: dict = Field(..., description="Event payload")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        description="Event timestamp"
+        default_factory=lambda: datetime.now(UTC), description="Event timestamp"
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "event": "node_update",
-                "data": {
-                    "id": "node_001",
-                    "status": "degraded",
-                    "battery": 15
-                },
-                "timestamp": "2026-03-16T12:00:00Z"
+                "data": {"id": "node_001", "status": "degraded", "battery": 15},
+                "timestamp": "2026-03-16T12:00:00Z",
             }
         }
     )

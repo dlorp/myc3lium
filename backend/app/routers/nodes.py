@@ -21,13 +21,19 @@ def _generate_mock_data():
     node_types = ["SPORE", "HYPHA", "FROND", "RHIZOME"]
     statuses = ["online", "offline", "degraded"]
     callsigns = [
-        "relay-alpha", "sensor-beta", "gateway-one", "hub-central",
-        "edge-north", "bridge-south", "spore-cluster", "myco-root"
+        "relay-alpha",
+        "sensor-beta",
+        "gateway-one",
+        "hub-central",
+        "edge-north",
+        "bridge-south",
+        "spore-cluster",
+        "myco-root",
     ]
 
     for i, callsign in enumerate(callsigns):
         node = Node(
-            id=f"node_{i+1:03d}",
+            id=f"node_{i + 1:03d}",
             type=random.choice(node_types),
             callsign=callsign,
             status=random.choices(statuses, weights=[0.7, 0.1, 0.2])[0],
@@ -36,8 +42,10 @@ def _generate_mock_data():
             last_seen=datetime.now(UTC) - timedelta(seconds=random.randint(0, 3600)),
             position={
                 "lat": 61.2181 + random.uniform(-0.5, 0.5),
-                "lon": -149.9003 + random.uniform(-0.5, 0.5)
-            } if random.random() > 0.3 else None
+                "lon": -149.9003 + random.uniform(-0.5, 0.5),
+            }
+            if random.random() > 0.3
+            else None,
         )
         _mock_nodes.append(node)
 
@@ -97,8 +105,7 @@ async def update_node_status(node_id: str, status: str):
     valid_statuses = ["online", "offline", "degraded"]
     if status not in valid_statuses:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
         )
 
     for node in _mock_nodes:

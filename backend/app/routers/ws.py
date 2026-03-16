@@ -16,7 +16,7 @@ MAX_MESSAGE_SIZE = 4096
 
 async def simulate_node_updates():
     """Background task that simulates node status updates"""
-    node_ids = [f"node_{i+1:03d}" for i in range(8)]
+    node_ids = [f"node_{i + 1:03d}" for i in range(8)]
     statuses = ["online", "offline", "degraded"]
 
     while True:
@@ -32,11 +32,11 @@ async def simulate_node_updates():
                 "battery": random.randint(10, 100),
                 "rssi": random.randint(-90, -30),
             },
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
 
         # Broadcast to all connected clients
-        await manager.broadcast(update.model_dump(mode='json'))
+        await manager.broadcast(update.model_dump(mode="json"))
 
 
 # Track if background task is running
@@ -77,11 +77,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 "data": {
                     "client_id": client_id,
                     "message": "Connected to MYC3LIUM network",
-                    "connections": manager.get_connection_count()
+                    "connections": manager.get_connection_count(),
                 },
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             },
-            client_id
+            client_id,
         )
 
         # Keep connection alive and listen for client messages
@@ -90,8 +90,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(data) > MAX_MESSAGE_SIZE:
                 await websocket.close(
-                    code=1009,
-                    reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)"
+                    code=1009, reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)"
                 )
                 break
 
@@ -100,9 +99,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "event": "echo",
                     "data": {"received": data},
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
-                client_id
+                client_id,
             )
 
     except WebSocketDisconnect:
@@ -111,10 +110,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.broadcast(
             {
                 "event": "client_disconnected",
-                "data": {
-                    "client_id": client_id,
-                    "connections": manager.get_connection_count()
-                },
-                "timestamp": datetime.now(UTC).isoformat()
+                "data": {"client_id": client_id, "connections": manager.get_connection_count()},
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         )
