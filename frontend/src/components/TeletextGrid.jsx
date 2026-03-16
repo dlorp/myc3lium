@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -201,6 +202,14 @@ const FpsMonitor = ({ onSample }) => {
   return null
 }
 
+TeletextPlane.propTypes = {
+  content: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
+}
+
+FpsMonitor.propTypes = {
+  onSample: PropTypes.func,
+}
+
 const TeletextGrid = ({ content, showFps = false }) => {
   const [fps, setFps] = useState(null)
 
@@ -232,6 +241,11 @@ const TeletextGrid = ({ content, showFps = false }) => {
       </Canvas>
     </div>
   )
+}
+
+TeletextGrid.propTypes = {
+  content: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
+  showFps: PropTypes.bool,
 }
 
 export default TeletextGrid
