@@ -18,7 +18,7 @@ def test_node_valid():
         rssi=-65,
         battery=87
     )
-    
+
     assert node.id == "node_001"
     assert node.type == "HYPHA"
     assert node.callsign == "test-node"
@@ -61,7 +61,7 @@ def test_node_battery_range():
         battery=50
     )
     assert node.battery == 50
-    
+
     # Invalid battery (out of range)
     with pytest.raises(ValidationError):
         Node(
@@ -81,7 +81,7 @@ def test_node_optional_fields():
         callsign="minimal-node",
         status="offline"
     )
-    
+
     assert node.rssi is None
     assert node.battery is None
     assert node.position is None
@@ -95,7 +95,7 @@ def test_connection_valid():
         quality=0.92,
         latency=15
     )
-    
+
     assert conn.source_id == "node_001"
     assert conn.target_id == "node_002"
     assert conn.quality == 0.92
@@ -111,7 +111,7 @@ def test_connection_quality_range():
         quality=0.5
     )
     assert conn.quality == 0.5
-    
+
     # Invalid quality (out of range)
     with pytest.raises(ValidationError):
         Connection(
@@ -129,7 +129,7 @@ def test_sensor_data_valid():
         value=22.5,
         unit="celsius"
     )
-    
+
     assert sensor.node_id == "node_003"
     assert sensor.sensor_type == "temperature"
     assert sensor.value == 22.5
@@ -145,7 +145,7 @@ def test_message_valid():
         content="Test message",
         hops=2
     )
-    
+
     assert msg.id == "msg_001"
     assert msg.sender_id == "node_001"
     assert msg.recipient_id == "node_005"
@@ -160,7 +160,7 @@ def test_message_broadcast():
         sender_id="node_001",
         content="Broadcast message"
     )
-    
+
     assert msg.recipient_id is None
     assert msg.hops == 0
 
@@ -171,7 +171,7 @@ def test_node_update_valid():
         event="node_update",
         data={"id": "node_001", "status": "degraded"}
     )
-    
+
     assert update.event == "node_update"
     assert update.data["id"] == "node_001"
     assert isinstance(update.timestamp, datetime)
@@ -180,11 +180,11 @@ def test_node_update_valid():
 def test_node_update_event_types():
     """Test all NodeUpdate event types"""
     events = ["node_update", "node_added", "node_removed", "connection_update"]
-    
+
     for event in events:
         update = NodeUpdate(event=event, data={})
         assert update.event == event
-    
+
     # Invalid event
     with pytest.raises(ValidationError):
         NodeUpdate(event="invalid_event", data={})
