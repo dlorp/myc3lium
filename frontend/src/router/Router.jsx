@@ -5,6 +5,9 @@ import P200 from '../pages/P200'
 import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
+import P600 from '../pages/P600'
+import P700 from '../pages/P700'
+import P800 from '../pages/P800'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -138,6 +141,36 @@ const Router = () => {
           element={
             <PageRoute>
               <P500 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P600 - Radio Configuration */}
+        <Route
+          path="/p/600"
+          element={
+            <PageRoute>
+              <P600 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P700 - Sensor Grid */}
+        <Route
+          path="/p/700"
+          element={
+            <PageRoute>
+              <P700 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P800 - Local LLM Chat */}
+        <Route
+          path="/p/800"
+          element={
+            <PageRoute>
+              <P800 />
             </PageRoute>
           }
         />
