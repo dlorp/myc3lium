@@ -1,10 +1,7 @@
 """WebSocket connection manager for real-time updates"""
 
-import asyncio
-import json
-from typing import Dict, Set
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 
 
 class ConnectionManager:
@@ -14,7 +11,7 @@ class ConnectionManager:
 
     def __init__(self):
         # Active connections indexed by client ID
-        self.active_connections: Dict[str, WebSocket] = {}
+        self.active_connections: dict[str, WebSocket] = {}
         # Connection counter for generating client IDs
         self._client_counter = 0
 
@@ -23,7 +20,7 @@ class ConnectionManager:
         if len(self.active_connections) >= self.MAX_CONNECTIONS:
             await websocket.close(code=1008, reason="Server at capacity")
             raise ValueError("Max connections reached")
-        
+
         await websocket.accept()
         client_id = f"client_{self._client_counter}"
         self._client_counter += 1
@@ -45,7 +42,7 @@ class ConnectionManager:
                 # Client disconnected, remove from pool
                 self.disconnect(client_id)
 
-    async def broadcast(self, message: dict, exclude: Set[str] = None):
+    async def broadcast(self, message: dict, exclude: set[str] = None):
         """Broadcast message to all connected clients (optionally excluding some)"""
         exclude = exclude or set()
         disconnected = []
