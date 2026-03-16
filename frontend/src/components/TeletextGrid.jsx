@@ -143,7 +143,7 @@ const TeletextPlane = ({ content }) => {
       }
 
       texture.needsUpdate = true
-      if (materialRef.current) {
+      if (materialRef.current?.uniforms) {
         materialRef.current.uniforms.uResolution.value = resolution
       }
     }
