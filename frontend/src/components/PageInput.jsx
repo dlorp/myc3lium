@@ -12,6 +12,12 @@ const PageInput = () => {
   const navigateBack = useNavigationStore((state) => state.navigateBack)
   const [buffer, setBuffer] = useState('')
   const timeoutRef = useRef(null)
+  const bufferRef = useRef('')
+  
+  // Keep bufferRef in sync with buffer state
+  useEffect(() => {
+    bufferRef.current = buffer
+  }, [buffer])
   
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -28,7 +34,7 @@ const PageInput = () => {
       // Number keys - build page number
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault()
-        const newBuffer = (buffer + e.key).slice(-3)
+        const newBuffer = (bufferRef.current + e.key).slice(-3)
         setBuffer(newBuffer)
         
         // Clear existing timeout
@@ -58,7 +64,7 @@ const PageInput = () => {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [buffer, navigate, navigateBack])
+  }, [navigate, navigateBack])
   
   // Visual feedback for number buffer
   if (buffer.length === 0) return null
