@@ -11,6 +11,8 @@ from app.websocket import manager
 
 router = APIRouter(tags=["websocket"])
 
+MAX_MESSAGE_SIZE = 4096
+
 
 async def simulate_node_updates():
     """Background task that simulates node status updates"""
@@ -85,6 +87,10 @@ async def websocket_endpoint(websocket: WebSocket):
         # Keep connection alive and listen for client messages
         while True:
             data = await websocket.receive_text()
+            
+            if len(data) > MAX_MESSAGE_SIZE:
+                await websocket.close(code=1009, reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)")
+                break
             
             # Echo back (clients can send keepalive pings)
             await manager.send_personal_message(
