@@ -32,6 +32,19 @@ Backend (FastAPI + Uvicorn)
   └── Integration modules (Reticulum, SoapySDR, gpsd)
 ```
 
+### Agent Orchestration System
+
+The backend operates as a **nervous system** with specialized agents managing each subsystem:
+
+- **RFAgent** - LoRa/HaLow radio configuration, RSSI monitoring, retransmit management
+- **SDRAgent** - RTL-SDR tuning, spectrum scanning, signal detection
+- **SensorAgent** - RHIZOME telemetry aggregation, anomaly detection
+- **MessageAgent** - LXMF queue management, store-and-forward, encryption
+- **SatelliteAgent** - Pass tracking via Gpredict, SatDump scheduling
+- **LLMAgent** - Query processing, sensor data analysis, command parsing
+
+Each agent runs as an asyncio task. The WebUI can spawn, kill, monitor, and configure agents through the API. This enables fine-grained control and independent restart of subsystems without full daemon restart.
+
 ---
 
 ## Completed Work
@@ -40,7 +53,7 @@ Backend (FastAPI + Uvicorn)
 
 **What:** Project foundation with CI/CD pipeline, linting, testing infrastructure.
 
-**Why:** Establishes consistent development workflow and automated quality gates before any feature code lands.
+**Why:** Establishes consistent development workflow and continuous quality checks before any feature code lands.
 
 **How:**
 - Frontend: React 18 + Vite scaffold, ESLint config, Vitest test runner
@@ -251,6 +264,13 @@ Build out remaining pages. Each page is self-contained with mock data, enabling 
 - Command history (up/down arrows)
 - Auto-complete for node IDs and commands
 
+**LLM Backend (Phase 4):**
+- Model: **Phi-3-mini-4k Q4 quantized** (~2.5GB) via llama.cpp
+- Constraint: 4GB Pi 4 RAM requires Q4 quantization (leaves headroom for OS + SDR)
+- Fallback: TinyLlama-1.1B Q4 (~700MB) for tighter memory environments
+- Use cases: Natural language command parsing, sensor data summarization, tactical decision support
+- P800 interface: chat-style input with LLM responses rendered in teletext grid
+
 **Dependencies:** PR #4 (page router)  
 **Estimated effort:** 5–6 days
 
@@ -282,7 +302,7 @@ Connect the WebUI to real hardware. Replace mock data with live feeds.
 
 **What:** Connect SoapySDR for live RF spectrum data and satellite pass auto-capture with SatDump decoding.
 
-**Why:** Enables real-time spectrum monitoring and automated weather satellite image capture — core intelligence capabilities.
+**Why:** Enables real-time spectrum monitoring and scheduled weather satellite image capture — core intelligence capabilities.
 
 **How:**
 - `backend/app/integrations/sdr_client.py`: SoapySDR interface for RTL-SDR + Ham It Up upconverter
