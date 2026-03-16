@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import P100 from '../pages/P100'
 import P200 from '../pages/P200'
 import P400 from '../pages/P400'
+import P500 from '../pages/P500'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -115,6 +116,16 @@ const Router = () => {
           element={
             <PageRoute>
               <P400 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P500 - Intelligence Hub */}
+        <Route
+          path="/p/500"
+          element={
+            <PageRoute>
+              <P500 />
             </PageRoute>
           }
         />
