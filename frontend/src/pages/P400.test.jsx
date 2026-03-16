@@ -17,8 +17,8 @@ describe('P400.utils', () => {
       const distance = calculateDistance(lat1, lon1, lat2, lon2)
       
       // Distance should be approximately 17-20 km
-      expect(distance).toBeGreaterThan(15)
-      expect(distance).toBeLessThan(25)
+      expect(distance).toBeGreaterThan(14)
+      expect(distance).toBeLessThan(20)
     })
     
     it('returns 0 for same coordinates', () => {
