@@ -1,7 +1,7 @@
 """Node management endpoints"""
 
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, HTTPException
@@ -34,7 +34,7 @@ def _generate_mock_data():
             status=random.choices(statuses, weights=[0.7, 0.1, 0.2])[0],
             rssi=random.randint(-90, -30) if random.random() > 0.2 else None,
             battery=random.randint(10, 100) if random.random() > 0.3 else None,
-            last_seen=datetime.now(UTC) - timedelta(seconds=random.randint(0, 3600)),
+            last_seen=datetime.now(timezone.utc) - timedelta(seconds=random.randint(0, 3600)),
             position={
                 "lat": 61.2181 + random.uniform(-0.5, 0.5),
                 "lon": -149.9003 + random.uniform(-0.5, 0.5)
@@ -105,7 +105,7 @@ async def update_node_status(node_id: str, status: str):
     for node in _mock_nodes:
         if node.id == node_id:
             node.status = status
-            node.last_seen = datetime.now(UTC)
+            node.last_seen = datetime.now(timezone.utc)
             return node
     
     raise HTTPException(status_code=404, detail=f"Node {node_id} not found")

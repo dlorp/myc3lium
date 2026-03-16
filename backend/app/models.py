@@ -1,6 +1,6 @@
 """Pydantic models for MYC3LIUM API"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,7 +19,7 @@ class Node(BaseModel):
     )
     rssi: Optional[int] = Field(None, description="Signal strength (dBm)")
     battery: Optional[int] = Field(None, ge=0, le=100, description="Battery percentage")
-    last_seen: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Last update timestamp")
+    last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp")
     position: Optional[dict[str, float]] = Field(None, description="Geographic coordinates (lat/lon)")
 
     model_config = ConfigDict(
@@ -45,7 +45,7 @@ class Connection(BaseModel):
     target_id: str = Field(..., max_length=64, description="Target node ID")
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
     latency: Optional[int] = Field(None, description="Latency in milliseconds")
-    established: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Connection established time")
+    established: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Connection established time")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -67,7 +67,7 @@ class SensorData(BaseModel):
     sensor_type: str = Field(..., max_length=32, description="Type of sensor (temperature, humidity, etc)")
     value: float = Field(..., description="Sensor reading value")
     unit: str = Field(..., max_length=16, description="Unit of measurement")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Reading timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Reading timestamp")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -89,7 +89,7 @@ class Message(BaseModel):
     sender_id: str = Field(..., max_length=64, description="Sending node ID")
     recipient_id: Optional[str] = Field(None, max_length=64, description="Target node ID (null for broadcast)")
     content: str = Field(..., max_length=1024, description="Message content")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Message timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Message timestamp")
     hops: int = Field(0, ge=0, description="Number of hops to destination")
 
     model_config = ConfigDict(
@@ -113,7 +113,7 @@ class NodeUpdate(BaseModel):
         ..., description="Event type"
     )
     data: dict = Field(..., description="Event payload")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Event timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp")
 
     model_config = ConfigDict(
         json_schema_extra={
