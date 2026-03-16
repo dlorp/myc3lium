@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.routers import nodes, ws
 
 app = FastAPI(
     title="MYC3LIUM API",
@@ -20,6 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(nodes.router)
+app.include_router(ws.router)
+
 
 @app.get("/")
 async def root():
@@ -31,15 +36,3 @@ async def root():
 async def health():
     """Health check endpoint"""
     return {"status": "healthy"}
-
-
-@app.get("/api/nodes")
-async def get_nodes():
-    """Get network nodes (placeholder)"""
-    return {"nodes": []}
-
-
-@app.get("/api/connections")
-async def get_connections():
-    """Get network connections (placeholder)"""
-    return {"connections": []}

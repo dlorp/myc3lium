@@ -1,5 +1,6 @@
 """Application configuration"""
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -11,8 +12,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()
