@@ -3,7 +3,6 @@ import { useEffect } from 'react'
 import P100 from '../pages/P100'
 import P200 from '../pages/P200'
 import P300 from '../pages/P300'
-import P400 from '../pages/P400'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -119,13 +118,6 @@ const Router = () => {
           }
         />
         
-        {/* P400 - Tactical Map */}
-        <Route
-          path="/p/400"
-          element={
-            <PageRoute>
-              <P400 />
-            </PageRoute>
           }
         />
         
