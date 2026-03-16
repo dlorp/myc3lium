@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P700 Sensor Grid</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0E0B02;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #F4E409;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #FB8B24;
+            font-size: 22px;
+        }
+        
+        .main-content {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        
+        .sensor-card {
+            background: rgba(59, 96, 228, 0.1);
+            border: 1px solid #636764;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: grid;
+            grid-template-columns: 180px 1fr 120px;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .sensor-card:hover {
+            border-color: #50D8D7;
+            background: rgba(80, 216, 215, 0.05);
+        }
+        
+        .node-id {
+            color: #F4E409;
+            font-size: 18px;
+        }
+        
+        .callsign {
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .metric-label {
+            color: #636764;
+            font-size: 14px;
+        }
+        
+        .metric-value {
+            color: #50D8D7;
+            font-size: 18px;
+        }
+        
+        .metric-value.warning {
+            color: #F4E409;
+        }
+        
+        .metric-value.critical {
+            color: #FB8B24;
+        }
+        
+        .sparkline-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            font-size: 14px;
+            border: 1px solid;
+            display: inline-block;
+        }
+        
+        .status-good {
+            color: #50D8D7;
+            border-color: #50D8D7;
+            background: rgba(80, 216, 215, 0.1);
+        }
+        
+        .status-warning {
+            color: #F4E409;
+            border-color: #F4E409;
+            background: rgba(244, 228, 9, 0.1);
+        }
+        
+        .status-critical {
+            color: #FB8B24;
+            border-color: #FB8B24;
+            background: rgba(251, 139, 36, 0.1);
+        }
+        
+        canvas.sparkline {
+            width: 100px;
+            height: 30px;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P700 SENSOR GRID ─══─┐</div>
+            <div class="timestamp" id="timestamp">23:22:15</div>
+        </header>
+        
+        <div class="main-content" id="sensorGrid">
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Detail View</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Trend Graph</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Set Alert</span>
+            </div>
+            <div class="nav-hint">SCLER NODES: 6 ONLINE | LAST UPDATE: <span id="lastUpdate">23:22:15</span></div>
+        </footer>
+    </div>
+    
+    <script>
+        const sensors = [
+            { id: 'SPOR3-01', callsign: 'Nexus', temp: 52.1, humidity: 34, pressure: 1013, aqi: 8, status: 'GOOD', trend: [50, 51, 52, 51, 52, 52, 51, 52] },
+            { id: 'SCLER-02', callsign: 'Ravine Stream', temp: 6.4, humidity: 87, pressure: 1007, aqi: 12, status: 'GOOD', trend: [6.2, 6.3, 6.4, 6.3, 6.4, 6.5, 6.4, 6.4] },
+            { id: 'SCLER-03', callsign: 'Ridge Overlook', temp: 18.2, humidity: 45, pressure: 1015, aqi: 15, status: 'WARNING', trend: [6.5, 8.2, 12.1, 15.3, 17.8, 18.1, 18.2, 18.2] },
+            { id: 'SCLER-08', callsign: 'Valley Floor', temp: 7.1, humidity: 82, pressure: 1011, aqi: 10, status: 'GOOD', trend: [7.0, 7.1, 7.0, 7.1, 7.2, 7.1, 7.1, 7.1] },
+            { id: 'SCLER-12', callsign: 'Storm Watch', temp: 5.8, humidity: 91, pressure: 1009, aqi: 7, status: 'WARNING', trend: [6.1, 6.0, 5.9, 5.9, 5.8, 5.8, 5.8, 5.8] },
+            { id: 'SCLER-15', callsign: 'Treeline', temp: 4.2, humidity: 78, pressure: 1012, aqi: 9, status: 'GOOD', trend: [4.5, 4.4, 4.3, 4.3, 4.2, 4.2, 4.2, 4.2] }
+        ];
+        
+        function drawSparkline(canvas, data, color) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const range = max - min || 1;
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            data.forEach((value, i) => {
+                const x = (i / (data.length - 1)) * width;
+                const y = height - ((value - min) / range) * height;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Fill area under curve
+            ctx.lineTo(width, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fillStyle = color + '22';
+            ctx.fill();
+        }
+        
+        function getStatusClass(status) {
+            if (status === 'GOOD') return 'status-good';
+            if (status === 'WARNING') return 'status-warning';
+            return 'status-critical';
+        }
+        
+        function getMetricClass(value, warn, crit) {
+            if (value >= crit) return 'critical';
+            if (value >= warn) return 'warning';
+            return '';
+        }
+        
+        function getTrendColor(status) {
+            if (status === 'GOOD') return '#50D8D7';
+            if (status === 'WARNING') return '#F4E409';
+            return '#FB8B24';
+        }
+        
+        function renderSensors() {
+            const grid = document.getElementById('sensorGrid');
+            grid.innerHTML = '';
+            
+            sensors.forEach(sensor => {
+                const card = document.createElement('div');
+                card.className = 'sensor-card';
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="node-id">${sensor.id}</div>
+                        <div class="callsign">// "${sensor.callsign}"</div>
+                    </div>
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-label">TEMP</span>
+                            <span class="metric-value ${getMetricClass(sensor.temp, 10, 15)}">${sensor.temp.toFixed(1)}°C</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">HUMID</span>
+                            <span class="metric-value ${getMetricClass(sensor.humidity, 85, 90)}">${sensor.humidity}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">PRESS</span>
+                            <span class="metric-value">${sensor.pressure} mb</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">AQI</span>
+                            <span class="metric-value">&lt;${sensor.aqi}</span>
+                        </div>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas class="sparkline" width="100" height="30"></canvas>
+                        <span class="status-badge ${getStatusClass(sensor.status)}">${sensor.status}</span>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+                
+                // Draw sparkline
+                const canvas = card.querySelector('.sparkline');
+                drawSparkline(canvas, sensor.trend, getTrendColor(sensor.status));
+            });
+        }
+        
+        function updateValues() {
+            sensors.forEach(sensor => {
+                sensor.temp += (Math.random() - 0.5) * 0.2;
+                sensor.humidity += Math.floor((Math.random() - 0.5) * 3);
+                sensor.pressure += Math.floor((Math.random() - 0.5) * 2);
+                
+                sensor.temp = Math.max(-10, Math.min(30, sensor.temp));
+                sensor.humidity = Math.max(0, Math.min(100, sensor.humidity));
+                sensor.pressure = Math.max(990, Math.min(1030, sensor.pressure));
+                
+                // Update trend
+                sensor.trend.shift();
+                sensor.trend.push(sensor.temp);
+                
+                // Update status
+                if (sensor.temp > 15 || sensor.humidity > 90) {
+                    sensor.status = 'WARNING';
+                } else if (sensor.temp > 20) {
+                    sensor.status = 'CRITICAL';
+                } else {
+                    sensor.status = 'GOOD';
+                }
+            });
+            
+            renderSensors();
+            
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                now.toTimeString().split(' ')[0];
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Initial render
+        renderSensors();
+        
+        // Update sensor values every 5 seconds
+        setInterval(updateValues, 5000);
+    </script>
+</body>
+</html>

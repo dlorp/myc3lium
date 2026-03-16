@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P800 LLM Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0E0B02;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #F4E409;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .model-info {
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .model-name {
+            color: #50D8D7;
+        }
+        
+        .chat-container {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            height: calc(100vh - 240px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid;
+        }
+        
+        .message.user {
+            border-left-color: #F4E409;
+            background: rgba(244, 228, 9, 0.05);
+        }
+        
+        .message.assistant {
+            border-left-color: #50D8D7;
+            background: rgba(80, 216, 215, 0.05);
+        }
+        
+        .message.system {
+            border-left-color: #FB8B24;
+            background: rgba(251, 139, 36, 0.05);
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .message-role {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .message-role.user {
+            color: #F4E409;
+        }
+        
+        .message-role.assistant {
+            color: #50D8D7;
+        }
+        
+        .message-role.system {
+            color: #FB8B24;
+        }
+        
+        .message-time {
+            color: #636764;
+            font-size: 14px;
+        }
+        
+        .message-content {
+            color: #FFFFFF;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+        
+        .input-area {
+            border-top: 2px solid #3B60E4;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-label {
+            color: #636764;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        textarea {
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            background: rgba(59, 96, 228, 0.1);
+            border: 1px solid #3B60E4;
+            color: #FFFFFF;
+            padding: 10px;
+            resize: none;
+            height: 60px;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #50D8D7;
+        }
+        
+        .send-button {
+            background: rgba(80, 216, 215, 0.2);
+            border: 2px solid #50D8D7;
+            color: #50D8D7;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+            height: 60px;
+        }
+        
+        .send-button:hover {
+            background: rgba(80, 216, 215, 0.3);
+        }
+        
+        .send-button:active {
+            background: rgba(80, 216, 215, 0.4);
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+        
+        .thinking {
+            color: #F4E409;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P800 LOCAL LLM ─══─┐</div>
+            <div class="model-info">
+                MODEL: <span class="model-name">Qwen2.5-7B-Instruct-Q4</span> | 
+                CTX: <span class="model-name" id="contextUsed">248/8192</span> | 
+                TEMP: <span class="model-name">0.7</span>
+            </div>
+        </header>
+        
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message system">
+                    <div class="message-header">
+                        <span class="message-role system">◉ SYSTEM</span>
+                        <span class="message-time">23:20:15</span>
+                    </div>
+                    <div class="message-content">
+                        MYC3LIUM local intelligence agent initialized. I have access to:<br>
+                        • Lattice topology (5/7 nodes online, 8 threads active)<br>
+                        • LXMF messages (3 unread)<br>
+                        • SCLER sensor data (6 environmental pods)<br>
+                        • SDR signal logs (RF spectrum 300Hz-2.3GHz)<br>
+                        • GPS tracks and waypoints<br>
+                        • System events and logs<br>
+                        <br>
+                        Ask me anything about mesh status, sensor trends, signal analysis, or general queries.
+                    </div>
+                </div>
+                
+                <div class="message user">
+                    <div class="message-header">
+                        <span class="message-role user">▸ USER</span>
+                        <span class="message-time">23:21:03</span>
+                    </div>
+                    <div class="message-content">
+                        Show me temperature trends for all SCLER nodes over the last 4 hours
+                    </div>
+                </div>
+                
+                <div class="message assistant">
+                    <div class="message-header">
+                        <span class="message-role assistant">◈ ASSISTANT</span>
+                        <span class="message-time">23:21:05</span>
+                    </div>
+                    <div class="message-content">
+                        Temperature analysis for SCLER network (19:20-23:20):<br>
+                        <br>
+                        <span style="color: #50D8D7">SCLER-02 // "Ravine Stream"</span><br>
+                        • Range: 6.1°C → 6.4°C (stable)<br>
+                        • Trend: ↗ +0.3°C gradual rise<br>
+                        <br>
+                        <span style="color: #F4E409">SCLER-03 // "Ridge Overlook"</span><br>
+                        • Range: 6.5°C → 18.2°C (WARNING)<br>
+                        • Trend: ↗↗ +11.7°C rapid increase (sun exposure likely)<br>
+                        <br>
+                        <span style="color: #50D8D7">SCLER-08 // "Valley Floor"</span><br>
+                        • Range: 7.0°C → 7.1°C (stable)<br>
+                        • Trend: → +0.1°C minimal variation<br>
+                        <br>
+                        ALERT: SCLER-03 showing unusual thermal rise. Recommend checking sensor placement or investigating external heat source.
+                    </div>
+                </div>
+                
+                <div class="message user">
+                    <div class="message-header">
+                        <span class="message-role user">▸ USER</span>
+                        <span class="message-time">23:22:18</span>
+                    </div>
+                    <div class="message-content">
+                        Any new RF signals detected in the last hour?
+                    </div>
+                </div>
+                
+                <div class="message assistant">
+                    <div class="message-header">
+                        <span class="message-role assistant">◈ ASSISTANT</span>
+                        <span class="message-time">23:22:21</span>
+                    </div>
+                    <div class="message-content">
+                        SDR scan results (22:22-23:22):<br>
+                        <br>
+                        <span style="color: #50D8D7">KNOWN SIGNALS:</span><br>
+                        • 915.125 MHz: LoRa SF7 (HYPHA-03 position updates)<br>
+                        • 922.750 MHz: WiFi HaLow (FROND-02 camera stream)<br>
+                        <br>
+                        <span style="color: #F4E409">NEW SIGNAL DETECTED:</span><br>
+                        • 908.500 MHz: FSK modulation, 2-sec bursts every 30 sec<br>
+                        • First seen: 23:08:42<br>
+                        • Strength: -68 dBm<br>
+                        • Pattern: Regular interval transmission<br>
+                        • Classification: Possible weather station or sensor telemetry<br>
+                        <br>
+                        This signal does not match known mesh node profiles. Recommend further analysis if security concern.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <div class="input-label">Your message:</div>
+                    <textarea id="userInput" placeholder="Ask about lattice status, sensor data, RF signals..."></textarea>
+                </div>
+                <button class="send-button" onclick="sendMessage()">SEND ▶</button>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Clear Chat</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Export Log</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Settings</span>
+            </div>
+            <div class="nav-hint">llama.cpp v3.2 | GGUF Q4_K_M | RAM: <span id="ramUsage">4.2 GB</span></div>
+        </footer>
+    </div>
+    
+    <script>
+        const responses = [
+            "Lattice topology: 5/7 nodes online. SPORE-06 timed out 18 minutes ago. Last known position: 61.2778°N 149.8012°W. Recommend check-in via LoRa beacon.",
+            "Humidity data shows SCLER-12 at 91% (storm watch zone). Pressure dropping -6mb/4h. Weather pattern suggests precipitation within 2-4 hours.",
+            "GPS track analysis: HYPHA-03 traveled 8.2km NW, currently at Castle Lake (61.3012°N 150.1204°W, alt 892m). Battery at 85%, signal quality good.",
+            "Signal classification: 433.5 MHz intermittent burst detected. Not matching ISM band protocols. Possible wireless sensor or remote control. Low threat assessment.",
+            "Message queue status: 3 unread LXMF messages. 2 from HYPHA-03 (position reports), 1 from SCLER-02 (sensor alert). Store-and-forward queue: 42 KB pending.",
+        ];
+        
+        let responseIndex = 0;
+        
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const messagesDiv = document.getElementById('messages');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.innerHTML = `
+                <div class="message-header">
+                    <span class="message-role user">▸ USER</span>
+                    <span class="message-time">${timeStr}</span>
+                </div>
+                <div class="message-content">${text}</div>
+            `;
+            messagesDiv.appendChild(userMsg);
+            
+            // Show thinking indicator
+            const thinkingMsg = document.createElement('div');
+            thinkingMsg.className = 'message assistant';
+            thinkingMsg.innerHTML = `
+                <div class="message-header">
+                    <span class="message-role assistant">◈ ASSISTANT</span>
+                    <span class="message-time">${timeStr}</span>
+                </div>
+                <div class="message-content thinking">Analyzing data sources...</div>
+            `;
+            messagesDiv.appendChild(thinkingMsg);
+            
+            // Clear input
+            input.value = '';
+            
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Simulate response after delay
+            setTimeout(() => {
+                thinkingMsg.remove();
+                
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'message assistant';
+                assistantMsg.innerHTML = `
+                    <div class="message-header">
+                        <span class="message-role assistant">◈ ASSISTANT</span>
+                        <span class="message-time">${timeStr}</span>
+                    </div>
+                    <div class="message-content">${responses[responseIndex % responses.length]}</div>
+                `;
+                messagesDiv.appendChild(assistantMsg);
+                
+                responseIndex++;
+                
+                // Update context counter
+                const contextCount = 248 + (responseIndex * 150);
+                document.getElementById('contextUsed').textContent = `${contextCount}/8192`;
+                
+                // Scroll to bottom
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }, 1500);
+        }
+        
+        // Enter to send
+        document.getElementById('userInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P501 RF Spectrum</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 22px;
+        }
+        
+        .main-content {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+            height: calc(100vh - 180px);
+        }
+        
+        .freq-info {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .center-freq {
+            color: #F4E409;
+            font-size: 20px;
+        }
+        
+        .span {
+            color: #636764;
+        }
+        
+        #waterfall {
+            width: 100%;
+            height: calc(100% - 60px);
+            border: 1px solid #636764;
+            image-rendering: pixelated;
+        }
+        
+        .freq-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .signal-marker {
+            position: absolute;
+            color: #FB8B24;
+            font-size: 16px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P501 RF SPECTRUM ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:57:30</div>
+        </header>
+        
+        <div class="main-content">
+            <div class="freq-info">
+                <div>
+                    <span style="color: #636764;">CENTER:</span>
+                    <span class="center-freq">915.0 MHz</span>
+                </div>
+                <div class="span">SPAN: 10 MHz (910-920 MHz)</div>
+            </div>
+            
+            <canvas id="waterfall"></canvas>
+            
+            <div class="freq-scale">
+                <span>910.0</span>
+                <span>912.5</span>
+                <span style="color: #F4E409;">915.0</span>
+                <span>917.5</span>
+                <span>920.0</span>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Zoom In</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Tune</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Record</span>
+            </div>
+            <div class="nav-hint">DETECTED: LoRa @ 915.0 MHz | WiFi @ 912.5 MHz</div>
+        </footer>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('waterfall');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Waterfall data (scrolling array)
+        const width = canvas.width;
+        const height = canvas.height;
+        let waterfallData = [];
+        
+        // Initialize empty waterfall
+        for (let y = 0; y < height; y++) {
+            waterfallData[y] = new Array(width).fill(0);
+        }
+        
+        // Generate noise floor with signals
+        function generateFFT() {
+            const fft = new Array(width);
+            
+            // Base noise floor (15%)
+            for (let i = 0; i < width; i++) {
+                fft[i] = Math.random() * 0.15;
+            }
+            
+            // LoRa signal at center (915 MHz)
+            const loraCenter = Math.floor(width / 2);
+            const loraWidth = 3;
+            for (let i = -loraWidth; i <= loraWidth; i++) {
+                const idx = loraCenter + i;
+                if (idx >= 0 && idx < width) {
+                    const intensity = 0.6 + Math.random() * 0.3;
+                    const gaussian = Math.exp(-(i * i) / (2 * loraWidth * loraWidth));
+                    fft[idx] = Math.max(fft[idx], intensity * gaussian);
+                }
+            }
+            
+            // Random transient signals (30% probability)
+            if (Math.random() < 0.3) {
+                const sigPos = Math.floor(Math.random() * width);
+                const sigWidth = 1 + Math.floor(Math.random() * 3);
+                const sigIntensity = 0.4 + Math.random() * 0.4;
+                
+                for (let i = 0; i < sigWidth; i++) {
+                    const idx = sigPos + i;
+                    if (idx >= 0 && idx < width) {
+                        fft[idx] = Math.max(fft[idx], sigIntensity);
+                    }
+                }
+            }
+            
+            return fft;
+        }
+        
+        // Map intensity to color
+        function intensityToColor(intensity) {
+            if (intensity < 0.2) return '#0B0F14'; // Black
+            if (intensity < 0.4) return '#636764'; // Gray
+            if (intensity < 0.6) return '#3B60E4'; // Blue
+            if (intensity < 0.8) return '#FB8B24'; // Orange
+            return '#F4E409'; // Yellow
+        }
+        
+        // Render waterfall
+        function renderWaterfall() {
+            // Scroll old data down
+            for (let y = height - 1; y > 0; y--) {
+                waterfallData[y] = waterfallData[y - 1];
+            }
+            
+            // Add new FFT line at top
+            waterfallData[0] = generateFFT();
+            
+            // Draw waterfall
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const intensity = waterfallData[y][x];
+                    ctx.fillStyle = intensityToColor(intensity);
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Update waterfall (10 Hz)
+        setInterval(renderWaterfall, 100);
+    </script>
+</body>
+</html>

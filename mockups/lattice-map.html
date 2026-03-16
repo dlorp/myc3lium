@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P200 Lattice Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* CRT scanline effect */
+        #container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        /* Radial glow */
+        #container::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(
+                ellipse at center,
+                rgba(80, 216, 215, 0.03) 0%,
+                transparent 70%
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border-bottom: 2px solid #3B60E4;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 20px;
+        }
+        
+        #canvas {
+            width: 100%;
+            height: calc(100vh - 100px);
+            display: block;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: rgba(59, 96, 228, 0.2);
+            border-top: 2px solid #3B60E4;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+            margin-right: 5px;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(11, 15, 20, 0.9);
+            border: 1px solid #3B60E4;
+            padding: 15px;
+            z-index: 10;
+        }
+        
+        .legend-title {
+            color: #50D8D7;
+            margin-bottom: 10px;
+        }
+        
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 2px;
+            margin-right: 10px;
+        }
+        
+        .good { background: #50D8D7; }
+        .fair { background: #F4E409; }
+        .degraded { background: #FB8B24; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P200 LATTICE MAP ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:52:15</div>
+        </header>
+        
+        <canvas id="canvas"></canvas>
+        
+        <div class="legend">
+            <div class="legend-title">THREAD QUALITY</div>
+            <div class="legend-item">
+                <div class="legend-color good"></div>
+                <span>GOOD (&gt; -80dBm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color fair"></div>
+                <span>FAIR (-80 to -95dBm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color degraded"></div>
+                <span>DEGRADED (&lt; -95dBm)</span>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint">Status</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint">Nodes</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint">Messages</span>
+            </div>
+            <div class="nav-hint">LATTICE: 6 NODES | 8 THREADS ACTIVE</div>
+        </footer>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 100;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Node types and positions
+        const nodes = [
+            { id: 'SPOR3-01', callsign: 'Nexus', type: 'SPOR3', x: 0.5, y: 0.5, color: '#50D8D7' },
+            { id: 'HYPHA-03', callsign: 'Ranger', type: 'HYPHA', x: 0.3, y: 0.3, color: '#50D8D7' },
+            { id: 'HYPHA-05', callsign: 'Scout', type: 'HYPHA', x: 0.7, y: 0.3, color: '#50D8D7' },
+            { id: 'HYPHA-07', callsign: 'Nomad', type: 'HYPHA', x: 0.6, y: 0.7, color: '#50D8D7' },
+            { id: 'SCLER-02', callsign: 'Ravine', type: 'SCLER', x: 0.2, y: 0.6, color: '#3B60E4' },
+            { id: 'SCLER-12', callsign: 'Storm', type: 'SCLER', x: 0.8, y: 0.6, color: '#3B60E4' }
+        ];
+        
+        // Connections (threads)
+        const threads = [
+            { from: 0, to: 1, quality: 'GOOD', rssi: -72, radio: 'HaLow' },
+            { from: 0, to: 2, quality: 'GOOD', rssi: -68, radio: 'HaLow' },
+            { from: 0, to: 3, quality: 'FAIR', rssi: -88, radio: 'LoRa' },
+            { from: 0, to: 4, quality: 'GOOD', rssi: -75, radio: 'LoRa' },
+            { from: 0, to: 5, quality: 'FAIR', rssi: -85, radio: 'LoRa' },
+            { from: 1, to: 4, quality: 'DEGRADED', rssi: -97, radio: 'LoRa' },
+            { from: 2, to: 5, quality: 'GOOD', rssi: -78, radio: 'LoRa' },
+            { from: 3, to: 2, quality: 'FAIR', rssi: -82, radio: 'WiFi' }
+        ];
+        
+        // Data flow particles
+        let particles = [];
+        
+        class Particle {
+            constructor(thread) {
+                this.thread = thread;
+                this.progress = 0;
+                this.speed = 0.005 + Math.random() * 0.01;
+            }
+            
+            update() {
+                this.progress += this.speed;
+                if (this.progress >= 1) {
+                    this.progress = 0;
+                }
+            }
+            
+            draw() {
+                const from = nodes[this.thread.from];
+                const to = nodes[this.thread.to];
+                const x = from.x + (to.x - from.x) * this.progress;
+                const y = from.y + (to.y - from.y) * this.progress;
+                
+                ctx.fillStyle = this.getColor();
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(x * canvas.width, y * canvas.height, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+            
+            getColor() {
+                if (this.thread.quality === 'GOOD') return '#50D8D7';
+                if (this.thread.quality === 'FAIR') return '#F4E409';
+                return '#FB8B24';
+            }
+        }
+        
+        // Initialize particles
+        threads.forEach(thread => {
+            for (let i = 0; i < 3; i++) {
+                particles.push(new Particle(thread));
+            }
+        });
+        
+        function drawThread(thread) {
+            const from = nodes[thread.from];
+            const to = nodes[thread.to];
+            
+            ctx.strokeStyle = thread.quality === 'GOOD' ? '#50D8D7' : 
+                            thread.quality === 'FAIR' ? '#F4E409' : '#FB8B24';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            ctx.moveTo(from.x * canvas.width, from.y * canvas.height);
+            ctx.lineTo(to.x * canvas.width, to.y * canvas.height);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            
+            // Draw radio type label
+            const midX = (from.x + to.x) / 2 * canvas.width;
+            const midY = (from.y + to.y) / 2 * canvas.height;
+            ctx.fillStyle = '#636764';
+            ctx.font = '14px VT323';
+            ctx.fillText(thread.radio, midX - 20, midY - 5);
+        }
+        
+        function drawNode(node) {
+            const x = node.x * canvas.width;
+            const y = node.y * canvas.height;
+            
+            // Node square
+            ctx.fillStyle = node.color;
+            ctx.fillRect(x - 8, y - 8, 16, 16);
+            
+            // Node glow
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(x - 12, y - 12, 24, 24);
+            ctx.globalAlpha = 1;
+            
+            // Node ID
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '18px VT323';
+            ctx.fillText(node.id, x + 15, y - 10);
+            
+            // Callsign
+            ctx.fillStyle = '#F4E409';
+            ctx.font = '16px VT323';
+            ctx.fillText(`// "${node.callsign}"`, x + 15, y + 5);
+            
+            // GPS (mock)
+            ctx.fillStyle = '#636764';
+            ctx.font = '14px VT323';
+            const lat = (61.2 + Math.random() * 0.1).toFixed(4);
+            const lon = (-149.9 + Math.random() * 0.1).toFixed(4);
+            ctx.fillText(`${lat}, ${lon}`, x + 15, y + 20);
+        }
+        
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw threads
+            threads.forEach(drawThread);
+            
+            // Update and draw particles
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            
+            // Draw nodes
+            nodes.forEach(drawNode);
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        animate();
+    </script>
+</body>
+</html>

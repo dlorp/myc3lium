@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P800 LLM Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 22px;
+        }
+        
+        .chat-area {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 20px;
+            height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+        
+        .chat-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-area::-webkit-scrollbar-track {
+            background: #0B0F14;
+        }
+        
+        .chat-area::-webkit-scrollbar-thumb {
+            background: #636764;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+        }
+        
+        .user-query {
+            color: #F4E409;
+            margin-bottom: 5px;
+        }
+        
+        .agent-response {
+            color: #50D8D7;
+            margin-left: 20px;
+            line-height: 1.4;
+        }
+        
+        .data-value {
+            color: #FB8B24;
+        }
+        
+        .input-bar {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 12px 20px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .prompt {
+            color: #FB8B24;
+            margin-right: 10px;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: #F4E409;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P800 LLM AGENT ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:57:30</div>
+        </header>
+        
+        <div class="chat-area">
+            <div class="message">
+                <div class="user-query">▸ What's the status of SCLER-02?</div>
+                <div class="agent-response">
+                    SCLER-02 // "Ravine Stream" is <span class="data-value">ONLINE</span>.<br>
+                    Last report: 21:55 (2 min ago).<br>
+                    Temp: <span class="data-value">6.3°C</span>, Humidity: <span class="data-value">69%</span>, Pressure: <span class="data-value">1007 mb</span>.<br>
+                    Battery: <span class="data-value">72%</span>. Thread quality: <span class="data-value">GOOD</span> (-75 dBm LoRa).
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="user-query">▸ Any nodes offline?</div>
+                <div class="agent-response">
+                    Yes. <span class="data-value">2 nodes</span> currently offline:<br>
+                    <br>
+                    • HYPHA-07 // "Nomad" - last seen 14:32 (7h 25m ago)<br>
+                    &nbsp;&nbsp;Status: Likely deep sleep or out of range.<br>
+                    <br>
+                    • SPORE-09 - last seen 19:18 (2h 39m ago)<br>
+                    &nbsp;&nbsp;Status: Solar charging cycle (expected back online 06:00 UTC).<br>
+                    <br>
+                    Remaining <span class="data-value">6 nodes</span> active with <span class="data-value">8 threads</span> established.
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="user-query">▸ Temperature trend last 6 hours?</div>
+                <div class="agent-response">
+                    Temperature data from SCLER nodes (last 6 hours):<br>
+                    <br>
+                    SCLER-02: 5.8°C → 6.3°C (<span class="data-value">+0.5°C</span>)<br>
+                    SCLER-03: 16.2°C → 18.2°C (<span class="data-value">+2.0°C</span>) ⚠ SPIKE<br>
+                    SCLER-12: 6.1°C → 5.8°C (<span class="data-value">-0.3°C</span>)<br>
+                    <br>
+                    Alert: SCLER-03 shows <span class="data-value">anomalous warming</span>.<br>
+                    Possible causes: solar heating, equipment heat, sensor drift.<br>
+                    Recommend manual verification.
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="user-query">▸ Show packet routing efficiency</div>
+                <div class="agent-response">
+                    Mesh routing efficiency (last 1 hour):<br>
+                    <br>
+                    Total packets: <span class="data-value">1,247</span><br>
+                    Direct delivery: <span class="data-value">892</span> (71.5%)<br>
+                    Single-hop relay: <span class="data-value">298</span> (23.9%)<br>
+                    Multi-hop relay: <span class="data-value">57</span> (4.6%)<br>
+                    <br>
+                    Average latency: <span class="data-value">142ms</span><br>
+                    Packet loss: <span class="data-value">0.3%</span> (4 dropped)<br>
+                    <br>
+                    Mesh health: <span class="data-value">EXCELLENT</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-bar">
+            <span class="prompt">◆ QUERY:</span>
+            <span class="cursor"></span>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Clear Chat</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Context Menu</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Export Log</span>
+            </div>
+            <div class="nav-hint">MODEL: Qwen2.5-7B-Q4 | CONTEXT: 6 nodes, 8 threads</div>
+        </footer>
+    </div>
+    
+    <script>
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+    </script>
+</body>
+</html>

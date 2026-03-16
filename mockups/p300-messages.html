@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P300 Messages</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 26px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 22px;
+        }
+        
+        .message-list {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+        
+        .message {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .message:hover {
+            background: rgba(80, 216, 215, 0.1);
+            border-left-color: #50D8D7;
+        }
+        
+        .message.selected {
+            background: rgba(59, 96, 228, 0.2);
+            border-left-color: #3B60E4;
+        }
+        
+        .message.unread {
+            border-left-color: #F4E409;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .sender {
+            color: #50D8D7;
+            font-size: 18px;
+        }
+        
+        .msg-timestamp {
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .preview {
+            color: #FB8B24;
+            font-size: 16px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        
+        .encryption {
+            font-size: 14px;
+        }
+        
+        .verified {
+            color: #50D8D7;
+        }
+        
+        .unverified {
+            color: #F4E409;
+        }
+        
+        .unread-indicator {
+            color: #F4E409;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P300 MESSAGES ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:57:30</div>
+        </header>
+        
+        <div class="message-list">
+            <div class="message unread selected">
+                <div class="message-header">
+                    <span class="sender">● SPOR3-01 // "Nexus"</span>
+                    <span class="msg-timestamp">20:48:15</span>
+                </div>
+                <div class="preview">Satellite pass NOAA-19 in 15 minutes - auto-capture enabled</div>
+                <div class="status-bar">
+                    <span class="encryption verified">🔒 VERIFIED</span>
+                    <span class="unread-indicator">UNREAD</span>
+                </div>
+            </div>
+            
+            <div class="message unread">
+                <div class="message-header">
+                    <span class="sender">● HYPHA-05 // "Scout"</span>
+                    <span class="msg-timestamp">20:32:48</span>
+                </div>
+                <div class="preview">Reached waypoint Bravo - deploying SPORE-11 at ridge overlook</div>
+                <div class="status-bar">
+                    <span class="encryption verified">🔒 VERIFIED</span>
+                    <span class="unread-indicator">UNREAD</span>
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="message-header">
+                    <span class="sender">○ SPOR3-01 // "Nexus"</span>
+                    <span class="msg-timestamp">19:15:22</span>
+                </div>
+                <div class="preview">Weather alert: storm system approaching from NW - secure exposed nodes</div>
+                <div class="status-bar">
+                    <span class="encryption verified">🔒 VERIFIED</span>
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="message-header">
+                    <span class="sender">○ SCLER-02 // "Ravine Stream"</span>
+                    <span class="msg-timestamp">18:42:10</span>
+                </div>
+                <div class="preview">Temperature spike detected - 6.3°C to 18.2°C in 15 minutes</div>
+                <div class="status-bar">
+                    <span class="encryption unverified">🔓 UNVERIFIED</span>
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="message-header">
+                    <span class="sender">○ HYPHA-03 // "Ranger"</span>
+                    <span class="msg-timestamp">17:28:05</span>
+                </div>
+                <div class="preview">Check-in - position updated, battery 72%, all systems nominal</div>
+                <div class="status-bar">
+                    <span class="encryption verified">🔒 VERIFIED</span>
+                </div>
+            </div>
+            
+            <div class="message">
+                <div class="message-header">
+                    <span class="sender">○ SPOR3-01 // "Nexus"</span>
+                    <span class="msg-timestamp">16:05:33</span>
+                </div>
+                <div class="preview">Mesh topology updated - SCLER-12 thread quality improved to GOOD</div>
+                <div class="status-bar">
+                    <span class="encryption verified">🔒 VERIFIED</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Reply</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Compose</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Delete</span>
+            </div>
+            <div class="nav-hint">INBOX: 2 UNREAD | 6 TOTAL</div>
+        </footer>
+    </div>
+    
+    <script>
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Message selection
+        document.querySelectorAll('.message').forEach(msg => {
+            msg.addEventListener('click', () => {
+                document.querySelectorAll('.message').forEach(m => m.classList.remove('selected'));
+                msg.classList.add('selected');
+            });
+        });
+    </script>
+</body>
+</html>

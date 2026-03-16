@@ -1,0 +1,50 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#root{background:#0E0B02;font-family:'Courier New',monospace;user-select:none}
+.hdr{display:flex;align-items:center;padding:4px 10px;background:#060400;border-bottom:1.5px solid #C47A00;height:28px;gap:6px}
+.logo{color:#FFB800;font-size:14px;letter-spacing:3px;font-weight:700}
+.htitle{color:#E88A00;font-size:12px;flex:1;letter-spacing:.5px}
+.hstat{font-size:11px}
+.hclk{color:#E88A00;font-size:11px;background:#120900;padding:1px 6px;border:1px solid #C47A00}
+.tabs{display:flex;flex-wrap:wrap;gap:2px;padding:3px 6px;background:#060400;border-bottom:1px solid #251800}
+.tab{background:#060400;color:#7A5800;border:1px solid #251800;font-family:'Courier New',monospace;font-size:11px;padding:3px 9px;cursor:pointer;letter-spacing:.3px;white-space:nowrap}
+.tab:hover{color:#FFB800;border-color:#C47A00}
+.tab.on{color:#FFB800;border-color:#FFB800;background:#130A00}
+.cwrap{line-height:0;background:#060400}
+.cwrap canvas{display:block;width:100%}
+.ftr{display:flex;padding:3px 8px;border-top:1px solid #251800;background:#060400;align-items:center;gap:2px;min-height:22px}
+.fb{background:none;border:none;color:#C47A00;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;padding:0 5px}
+.fb:hover{color:#FFB800}
+.pn{color:#7A5800}
+.dv{color:#251800;font-size:10px}
+</style>
+
+<div id="root">
+<div class="hdr">
+  <span class="logo">MYC3LIUM</span>
+  <span style="color:#7A5800;font-size:11px">──</span>
+  <span class="htitle" id="htitle">DASHBOARD · P100</span>
+  <span class="hstat" id="hstat"><span style="color:#E88A00">●</span> <span style="color:#E88A00">LATTICE STABLE</span></span>
+  <span style="margin-left:8px" class="hclk" id="hclk">--:--</span>
+</div>
+<div class="tabs" id="tabbar">
+  <button class="tab on" onclick="go('p100')">P100 DASH</button>
+  <button class="tab" onclick="go('p101')">P101 SYS</button>
+  <button class="tab" onclick="go('p200')">P200 LATTICE</button>
+  <button class="tab" onclick="go('p202')">P202 LINKS</button>
+  <button class="tab" onclick="go('p300')">P300 INBOX</button>
+  <button class="tab" onclick="go('p400')">P400 MAP</button>
+  <button class="tab" onclick="go('p401')">P401 WAYPTS</button>
+  <button class="tab" onclick="go('p500')">P500 SAT</button>
+  <button class="tab" onclick="go('p503')">P503 CAM</button>
+  <button class="tab" onclick="go('p600')">P600 RADIO</button>
+  <button class="tab" onclick="go('p703')">P703 ALERTS</button>
+</div>
+<div class="cwrap"><canvas id="cv"></canvas></div>
+<div class="ftr">
+  <span style="color:#FFB800;font-size:11px">▶</span>
+  <button class="fb" onclick="go('p100')"><span class="pn">P100</span> DASH</button><span class="dv">│</span>
+  <button class="fb" onclick="go('p200')"><span class="pn">P200</span> LATTICE</button><span class="dv">│</span>
+  <button class="fb" onclick="go('p300')"><span class="pn">P300</span> INBOX</button><span class="dv">│</span>
+  <button class="fb" onclick="go('p503')"><span class="pn">P503</span> CAM</button>

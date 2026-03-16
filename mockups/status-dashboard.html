@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P100 Status Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            padding: 20px;
+            font-size: 20px;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 24px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+        }
+        
+        .panel-header {
+            color: #50D8D7;
+            font-size: 22px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #636764;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        
+        .stat-label {
+            color: #636764;
+        }
+        
+        .stat-value {
+            color: #FFFFFF;
+        }
+        
+        .good { color: #50D8D7; }
+        .warning { color: #F4E409; }
+        .critical { color: #FB8B24; }
+        
+        .battery-bar {
+            width: 100%;
+            height: 25px;
+            background: #636764;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .battery-fill {
+            height: 100%;
+            transition: width 1s linear, background-color 0.5s;
+        }
+        
+        .battery-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #000;
+            font-weight: bold;
+            z-index: 1;
+        }
+        
+        .message-feed {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border: 1px solid #636764;
+        }
+        
+        .message {
+            margin: 5px 0;
+        }
+        
+        .msg-time {
+            color: #636764;
+        }
+        
+        .msg-sender {
+            color: #F4E409;
+        }
+        
+        .node-list {
+            font-size: 16px;
+        }
+        
+        .node-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        
+        .node-name {
+            color: #F4E409;
+        }
+        
+        .rssi {
+            color: #636764;
+        }
+        
+        footer {
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P100 STATUS DASHBOARD ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:52:15</div>
+        </header>
+        
+        <div class="grid">
+            <!-- Mesh Status Panel -->
+            <div class="panel">
+                <div class="panel-header">┌─ MESH STATUS ─┐</div>
+                <div class="stat-row">
+                    <span class="stat-label">Lattice:</span>
+                    <span class="stat-value good">ONLINE</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Active Nodes:</span>
+                    <span class="stat-value">6</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Active Threads:</span>
+                    <span class="stat-value">8</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Thread Quality:</span>
+                    <span class="stat-value">
+                        <span class="good">5 GOOD</span> | 
+                        <span class="warning">2 FAIR</span> | 
+                        <span class="critical">1 DEGRADED</span>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Store-Forward Queue:</span>
+                    <span class="stat-value">3 msgs (42 KB)</span>
+                </div>
+            </div>
+            
+            <!-- Battery & Power Panel -->
+            <div class="panel">
+                <div class="panel-header">┌─ POWER STATUS ─┐</div>
+                <div class="stat-row">
+                    <span class="stat-label">Battery:</span>
+                    <span class="stat-value" id="batteryPercent">68%</span>
+                </div>
+                <div class="battery-bar">
+                    <div class="battery-fill good" id="batteryFill" style="width: 68%"></div>
+                    <div class="battery-text" id="batteryText">68%</div>
+                </div>
+                <div class="stat-row" style="margin-top: 10px;">
+                    <span class="stat-label">Voltage:</span>
+                    <span class="stat-value" id="voltage">12.4V</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Current Draw:</span>
+                    <span class="stat-value" id="current">1.2A</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Time Remaining:</span>
+                    <span class="stat-value" id="timeRemaining">5.2 hours</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Mode:</span>
+                    <span class="stat-value">ACTIVE</span>
+                </div>
+            </div>
+            
+            <!-- GPS Panel -->
+            <div class="panel">
+                <div class="panel-header">┌─ GPS STATUS ─┐</div>
+                <div class="stat-row">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value good">LOCK</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Position:</span>
+                    <span class="stat-value" id="gpsLat">61.2181</span>, 
+                    <span class="stat-value" id="gpsLon">-149.9003</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Altitude:</span>
+                    <span class="stat-value" id="altitude">125m</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Satellites:</span>
+                    <span class="stat-value" id="satellites">9</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">HDOP:</span>
+                    <span class="stat-value" id="hdop">1.2</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Speed:</span>
+                    <span class="stat-value" id="speed">0.0 km/h</span>
+                </div>
+            </div>
+            
+            <!-- Messages Panel -->
+            <div class="panel">
+                <div class="panel-header">┌─ RECENT MESSAGES ─┐</div>
+                <div class="message-feed" id="messageFeed">
+                    <div class="message">
+                        <span class="msg-time">20:48</span> 
+                        <span class="msg-sender">SPOR3-01</span>: 
+                        Satellite pass NOAA-19 in 15 min
+                    </div>
+                    <div class="message">
+                        <span class="msg-time">20:32</span> 
+                        <span class="msg-sender">HYPHA-05</span>: 
+                        Reached waypoint Bravo
+                    </div>
+                    <div class="message">
+                        <span class="msg-time">19:15</span> 
+                        <span class="msg-sender">SPOR3-01</span>: 
+                        Weather alert: storm approaching
+                    </div>
+                </div>
+                <div class="stat-row" style="margin-top: 10px;">
+                    <span class="stat-label">Unread:</span>
+                    <span class="stat-value warning">3 messages</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Node Directory Panel (full width) -->
+        <div class="panel">
+            <div class="panel-header">┌─ NODE DIRECTORY ─┐</div>
+            <div class="node-list">
+                <div class="node-row">
+                    <span class="node-name">◉ SPOR3-01 // "Nexus"</span>
+                    <span class="rssi">LoRa: -72dBm | HaLow: -68dBm</span>
+                </div>
+                <div class="node-row">
+                    <span class="node-name">◉ HYPHA-03 // "Ranger"</span>
+                    <span class="rssi">HaLow: -75dBm</span>
+                </div>
+                <div class="node-row">
+                    <span class="node-name">◉ HYPHA-05 // "Scout"</span>
+                    <span class="rssi">LoRa: -88dBm</span>
+                </div>
+                <div class="node-row">
+                    <span class="node-name">◉ HYPHA-07 // "Nomad"</span>
+                    <span class="rssi">WiFi: -82dBm</span>
+                </div>
+                <div class="node-row">
+                    <span class="node-name">◉ SCLER-02 // "Ravine Stream"</span>
+                    <span class="rssi">LoRa: -75dBm</span>
+                </div>
+                <div class="node-row">
+                    <span class="node-name">◉ SCLER-12 // "Storm Watch"</span>
+                    <span class="rssi">LoRa: -85dBm</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[P200]</span><span class="nav-hint"> Lattice Map</span>
+                <span class="nav-key" style="margin-left: 20px;">[P300]</span><span class="nav-hint"> Messages</span>
+                <span class="nav-key" style="margin-left: 20px;">[P400]</span><span class="nav-hint"> Sensors</span>
+            </div>
+            <div class="nav-hint">SYSTEM NOMINAL | UPTIME: 14h 23m</div>
+        </footer>
+    </div>
+    
+    <script>
+        let battery = 68;
+        
+        function updateBattery() {
+            battery -= 0.1;
+            if (battery < 0) battery = 100;
+            
+            const batteryFill = document.getElementById('batteryFill');
+            const batteryText = document.getElementById('batteryText');
+            const batteryPercent = document.getElementById('batteryPercent');
+            
+            batteryFill.style.width = battery + '%';
+            batteryText.textContent = Math.floor(battery) + '%';
+            batteryPercent.textContent = Math.floor(battery) + '%';
+            
+            // Change color based on battery level
+            if (battery < 20) {
+                batteryFill.className = 'battery-fill critical';
+            } else if (battery < 40) {
+                batteryFill.className = 'battery-fill warning';
+            } else {
+                batteryFill.className = 'battery-fill good';
+            }
+            
+            // Update time remaining
+            const hours = (battery / 100 * 7.6).toFixed(1);
+            document.getElementById('timeRemaining').textContent = hours + ' hours';
+        }
+        
+        function updateGPS() {
+            const lat = document.getElementById('gpsLat');
+            const lon = document.getElementById('gpsLon');
+            
+            const latVal = parseFloat(lat.textContent) + (Math.random() - 0.5) * 0.0001;
+            const lonVal = parseFloat(lon.textContent) + (Math.random() - 0.5) * 0.0001;
+            
+            lat.textContent = latVal.toFixed(4);
+            lon.textContent = lonVal.toFixed(4);
+        }
+        
+        function addMessage() {
+            const feed = document.getElementById('messageFeed');
+            const now = new Date();
+            const time = now.getHours().toString().padStart(2, '0') + ':' + 
+                        now.getMinutes().toString().padStart(2, '0');
+            
+            const messages = [
+                'Position update received',
+                'Thread quality improved',
+                'New node joined lattice',
+                'Store-forward relay complete',
+                'Sensor reading anomaly detected'
+            ];
+            
+            const senders = ['SPOR3-01', 'HYPHA-03', 'HYPHA-05', 'SCLER-02'];
+            
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            msg.innerHTML = `
+                <span class="msg-time">${time}</span> 
+                <span class="msg-sender">${senders[Math.floor(Math.random() * senders.length)]}</span>: 
+                ${messages[Math.floor(Math.random() * messages.length)]}
+            `;
+            
+            feed.insertBefore(msg, feed.firstChild);
+            
+            if (feed.children.length > 5) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Simulate battery drain
+        setInterval(updateBattery, 2000);
+        
+        // Update GPS
+        setInterval(updateGPS, 5000);
+        
+        // Add messages
+        setInterval(addMessage, 15000);
+    </script>
+</body>
+</html>

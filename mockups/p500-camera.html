@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P500 Camera Feed</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 22px;
+        }
+        
+        .camera-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+            height: calc(100vh - 180px);
+        }
+        
+        .main-feed {
+            position: relative;
+            background: #000;
+            border: 2px solid #3B60E4;
+        }
+        
+        .feed-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #0B0F14 25%, transparent 25%),
+                        linear-gradient(-45deg, #0B0F14 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #0B0F14 75%),
+                        linear-gradient(-45deg, transparent 75%, #0B0F14 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #1a1a1a;
+        }
+        
+        .feed-text {
+            color: #636764;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        .camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to bottom, rgba(11, 15, 20, 0.9), transparent);
+        }
+        
+        .camera-overlay-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to top, rgba(11, 15, 20, 0.9), transparent);
+        }
+        
+        .node-info {
+            color: #50D8D7;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .gps-info {
+            color: #F4E409;
+            font-size: 16px;
+        }
+        
+        .stream-stats {
+            display: flex;
+            gap: 20px;
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .stat-good {
+            color: #50D8D7;
+        }
+        
+        .stat-warning {
+            color: #F4E409;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .control-panel {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+        }
+        
+        .panel-header {
+            color: #50D8D7;
+            font-size: 18px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #636764;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        
+        .label {
+            color: #636764;
+        }
+        
+        .value {
+            color: #FB8B24;
+        }
+        
+        .button {
+            background: rgba(59, 96, 228, 0.3);
+            border: 1px solid #3B60E4;
+            color: #50D8D7;
+            padding: 5px 12px;
+            margin: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .button:hover {
+            background: rgba(80, 216, 215, 0.2);
+            border-color: #50D8D7;
+        }
+        
+        .button.active {
+            background: rgba(80, 216, 215, 0.3);
+            border-color: #50D8D7;
+            color: #F4E409;
+        }
+        
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .thumbnail {
+            aspect-ratio: 4/3;
+            background: #1a1a1a;
+            border: 2px solid #636764;
+            cursor: pointer;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        
+        .thumbnail:hover {
+            border-color: #50D8D7;
+        }
+        
+        .thumbnail.active {
+            border-color: #F4E409;
+        }
+        
+        .thumbnail-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(11, 15, 20, 0.9);
+            color: #50D8D7;
+            padding: 5px;
+            font-size: 14px;
+        }
+        
+        .thumbnail-status {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #50D8D7;
+        }
+        
+        .thumbnail-status.offline {
+            background: #636764;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P500 CAMERA FEEDS ─══─┐</div>
+            <div class="timestamp" id="timestamp">22:09:15</div>
+        </header>
+        
+        <div class="camera-container">
+            <!-- Main Feed -->
+            <div class="main-feed">
+                <div class="feed-placeholder">
+                    <div class="feed-text">
+                        [ LIVE FEED ]<br>
+                        FROND-02 // "Watcher"<br>
+                        <br>
+                        Stream Quality: GOOD<br>
+                        Resolution: 1280×720
+                    </div>
+                </div>
+                
+                <div class="camera-overlay">
+                    <div class="node-info">◉ FROND-02 // "Watcher"</div>
+                    <div class="gps-info">📍 61.2203, -149.8995 | Alt: 145m</div>
+                </div>
+                
+                <div class="camera-overlay-bottom">
+                    <div class="stream-stats">
+                        <span>FPS: <span class="stat-good">30</span></span>
+                        <span>Bitrate: <span class="stat-good">2.5 Mbps</span></span>
+                        <span>Thread: <span class="stat-good">HaLow -68dBm</span></span>
+                        <span>Battery: <span class="stat-warning">42%</span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Controls -->
+                <div class="control-panel">
+                    <div class="panel-header">┌─ STREAM CONTROL ─┐</div>
+                    <div class="control-row">
+                        <span class="label">Quality:</span>
+                        <div>
+                            <button class="button">480p</button>
+                            <button class="button active">720p</button>
+                            <button class="button">1080p</button>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Mode:</span>
+                        <div>
+                            <button class="button active">Live</button>
+                            <button class="button">Snapshot</button>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <button class="button" style="width: 100%;">📷 Capture Frame</button>
+                    </div>
+                    <div class="control-row">
+                        <button class="button" style="width: 100%;">⏺ Record 30s</button>
+                    </div>
+                </div>
+                
+                <!-- Node List -->
+                <div class="control-panel">
+                    <div class="panel-header">┌─ AVAILABLE CAMERAS ─┐</div>
+                    <div class="thumbnail-grid">
+                        <div class="thumbnail active">
+                            <div class="thumbnail-status"></div>
+                            <div class="thumbnail-label">FROND-02</div>
+                        </div>
+                        <div class="thumbnail">
+                            <div class="thumbnail-status"></div>
+                            <div class="thumbnail-label">FROND-05</div>
+                        </div>
+                        <div class="thumbnail">
+                            <div class="thumbnail-status offline"></div>
+                            <div class="thumbnail-label">FROND-08</div>
+                        </div>
+                        <div class="thumbnail">
+                            <div class="thumbnail-status"></div>
+                            <div class="thumbnail-label">HYPHA-03</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Telemetry -->
+                <div class="control-panel">
+                    <div class="panel-header">┌─ TELEMETRY ─┐</div>
+                    <div class="control-row">
+                        <span class="label">Heading:</span>
+                        <span class="value">045° NE</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Tilt:</span>
+                        <span class="value">+12° (elevated)</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Gimbal:</span>
+                        <span class="value">STABILIZED</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Motion:</span>
+                        <span class="value">NONE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Fullscreen</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Cycle Cameras</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Snapshots</span>
+            </div>
+            <div class="nav-hint">ACTIVE: 3/4 cameras | STORAGE: 2.4 GB / 32 GB</div>
+        </footer>
+    </div>
+    
+    <script>
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Quality buttons
+        document.querySelectorAll('.button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.parentElement.querySelector('.button')) {
+                    this.parentElement.querySelectorAll('.button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+        
+        // Thumbnail selection
+        document.querySelectorAll('.thumbnail').forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update main feed label
+                const label = this.querySelector('.thumbnail-label').textContent;
+                document.querySelector('.node-info').textContent = `◉ ${label} // "Camera Name"`;
+            });
+        });
+    </script>
+</body>
+</html>

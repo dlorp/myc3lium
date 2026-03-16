@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P501 RF Spectrum</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0E0B02;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #F4E409;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #FB8B24;
+            font-size: 22px;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 15px;
+            height: calc(100vh - 180px);
+        }
+        
+        .waterfall-container {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+            position: relative;
+        }
+        
+        canvas#waterfall {
+            width: 100%;
+            height: calc(100% - 100px);
+            image-rendering: pixelated;
+        }
+        
+        .spectrum-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(59, 96, 228, 0.1);
+            border: 1px solid #636764;
+        }
+        
+        .freq-label {
+            color: #636764;
+            font-size: 16px;
+        }
+        
+        .freq-value {
+            color: #50D8D7;
+            font-size: 18px;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .control-panel {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 15px;
+        }
+        
+        .panel-header {
+            color: #F4E409;
+            font-size: 18px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #636764;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            align-items: center;
+        }
+        
+        .label {
+            color: #636764;
+        }
+        
+        .value {
+            color: #50D8D7;
+        }
+        
+        .slider {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .signal-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .signal-item {
+            background: rgba(59, 96, 228, 0.1);
+            border: 1px solid #636764;
+            padding: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .signal-item:hover {
+            border-color: #50D8D7;
+            background: rgba(80, 216, 215, 0.05);
+        }
+        
+        .signal-item.active {
+            border-color: #F4E409;
+            background: rgba(244, 228, 9, 0.1);
+        }
+        
+        .signal-freq {
+            color: #F4E409;
+            font-size: 18px;
+        }
+        
+        .signal-strength {
+            color: #50D8D7;
+            font-size: 16px;
+        }
+        
+        .signal-type {
+            color: #636764;
+            font-size: 14px;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P501 RF SPECTRUM ─══─┐</div>
+            <div class="timestamp" id="timestamp">23:26:15</div>
+        </header>
+        
+        <div class="main-layout">
+            <div class="waterfall-container">
+                <canvas id="waterfall" width="800" height="400"></canvas>
+                <div class="spectrum-info">
+                    <div class="control-row">
+                        <span class="freq-label">CENTER:</span>
+                        <span class="freq-value" id="centerFreq">915.000 MHz</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="freq-label">SPAN:</span>
+                        <span class="freq-value" id="span">2.4 MHz</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="freq-label">RBW:</span>
+                        <span class="freq-value">10 kHz</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="control-panel">
+                    <div class="panel-header">┌─ SDR CONTROL ─┐</div>
+                    <div class="control-row">
+                        <span class="label">Device:</span>
+                        <span class="value">RTL-SDR Blog v4</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Gain:</span>
+                        <span class="value" id="gainValue">32.8 dB</span>
+                    </div>
+                    <input type="range" class="slider" min="0" max="50" value="32" id="gainSlider">
+                    <div class="control-row">
+                        <span class="label">Rate:</span>
+                        <span class="value">2.4 MSPS</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="label">Mode:</span>
+                        <span class="value">Waterfall</span>
+                    </div>
+                </div>
+                
+                <div class="control-panel signal-list">
+                    <div class="panel-header">┌─ SIGNALS DETECTED ─┐</div>
+                    <div id="signalList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Tune</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> Record</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> Demod</span>
+            </div>
+            <div class="nav-hint">RTL-SDR ACTIVE | BUFFER: <span id="bufferStatus">98%</span></div>
+        </footer>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('waterfall');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Waterfall data buffer
+        const waterfallData = [];
+        const maxRows = height;
+        
+        // Color gradient (inspired by SDR software)
+        function intensityToColor(intensity) {
+            // intensity: 0-1
+            if (intensity < 0.2) {
+                // Dark blue to blue
+                const t = intensity / 0.2;
+                return [0, 0, Math.floor(50 + t * 100)];
+            } else if (intensity < 0.4) {
+                // Blue to cyan
+                const t = (intensity - 0.2) / 0.2;
+                return [0, Math.floor(t * 216), 150 + Math.floor(t * 50)];
+            } else if (intensity < 0.6) {
+                // Cyan to green
+                const t = (intensity - 0.4) / 0.2;
+                return [0, 216 - Math.floor(t * 80), 200 - Math.floor(t * 150)];
+            } else if (intensity < 0.8) {
+                // Green to yellow
+                const t = (intensity - 0.6) / 0.2;
+                return [Math.floor(t * 244), 136 + Math.floor(t * 92), 50 - Math.floor(t * 41)];
+            } else {
+                // Yellow to orange/red
+                const t = (intensity - 0.8) / 0.2;
+                return [244, 228 - Math.floor(t * 77), 9 - Math.floor(t * 9)];
+            }
+        }
+        
+        // Generate spectrum data (simulated)
+        function generateSpectrumRow() {
+            const row = [];
+            for (let i = 0; i < width; i++) {
+                // Base noise floor
+                let intensity = Math.random() * 0.15;
+                
+                // Add some peaks (simulated signals)
+                const freq = i / width;
+                
+                // LoRa signal at ~0.5
+                if (Math.abs(freq - 0.5) < 0.02) {
+                    intensity += 0.6 + Math.random() * 0.2;
+                }
+                
+                // WiFi HaLow at ~0.7
+                if (Math.abs(freq - 0.7) < 0.03) {
+                    intensity += 0.5 + Math.random() * 0.15;
+                }
+                
+                // Weak signal at ~0.25
+                if (Math.abs(freq - 0.25) < 0.01) {
+                    intensity += 0.3 + Math.random() * 0.1;
+                }
+                
+                row.push(Math.min(1, intensity));
+            }
+            return row;
+        }
+        
+        function updateWaterfall() {
+            // Add new row at top
+            waterfallData.unshift(generateSpectrumRow());
+            
+            // Keep buffer size manageable
+            if (waterfallData.length > maxRows) {
+                waterfallData.pop();
+            }
+            
+            // Draw waterfall
+            const imageData = ctx.createImageData(width, height);
+            
+            for (let y = 0; y < Math.min(waterfallData.length, height); y++) {
+                const row = waterfallData[y];
+                for (let x = 0; x < width; x++) {
+                    const intensity = row[x] || 0;
+                    const [r, g, b] = intensityToColor(intensity);
+                    const idx = (y * width + x) * 4;
+                    imageData.data[idx] = r;
+                    imageData.data[idx + 1] = g;
+                    imageData.data[idx + 2] = b;
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Detected signals
+        const signals = [
+            { freq: '915.125 MHz', strength: '-42 dBm', type: 'LoRa (SF7)' },
+            { freq: '922.750 MHz', strength: '-51 dBm', type: 'WiFi HaLow' },
+            { freq: '908.500 MHz', strength: '-68 dBm', type: 'Unknown' },
+            { freq: '916.200 MHz', strength: '-72 dBm', type: 'FSK burst' }
+        ];
+        
+        function renderSignals() {
+            const list = document.getElementById('signalList');
+            list.innerHTML = signals.map(sig => `
+                <div class="signal-item">
+                    <div class="signal-freq">${sig.freq}</div>
+                    <div class="signal-strength">${sig.strength}</div>
+                    <div class="signal-type">${sig.type}</div>
+                </div>
+            `).join('');
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Gain slider
+        document.getElementById('gainSlider').addEventListener('input', (e) => {
+            document.getElementById('gainValue').textContent = e.target.value + ' dB';
+        });
+        
+        // Start waterfall updates
+        renderSignals();
+        setInterval(updateWaterfall, 100);
+    </script>
+</body>
+</html>

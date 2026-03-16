@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYC3LIUM - P600 Satellite Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: #0B0F14;
+            color: #FFFFFF;
+            overflow: hidden;
+            font-size: 20px;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* CRT scanlines */
+        #container::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        header {
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            color: #50D8D7;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        
+        .timestamp {
+            color: #F4E409;
+            font-size: 22px;
+        }
+        
+        .main-content {
+            background: rgba(11, 15, 20, 0.8);
+            border: 2px solid #3B60E4;
+            padding: 20px;
+            height: calc(100vh - 180px);
+        }
+        
+        .capture-status {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(80, 216, 215, 0.1);
+            border-left: 3px solid #50D8D7;
+        }
+        
+        .capture-status.off {
+            background: rgba(99, 103, 100, 0.1);
+            border-left-color: #636764;
+        }
+        
+        .sat-pass {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #636764;
+        }
+        
+        .sat-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .sat-name {
+            color: #50D8D7;
+            font-size: 22px;
+        }
+        
+        .countdown {
+            color: #F4E409;
+            font-size: 20px;
+        }
+        
+        .countdown.urgent {
+            color: #FB8B24;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            50% { opacity: 0.3; }
+        }
+        
+        .sat-details {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .label {
+            color: #636764;
+        }
+        
+        .value {
+            color: #FB8B24;
+        }
+        
+        .elevation-graph {
+            margin-top: 10px;
+            font-family: monospace;
+            color: #3B60E4;
+            white-space: pre;
+            font-size: 16px;
+        }
+        
+        footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(59, 96, 228, 0.2);
+            border: 2px solid #3B60E4;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-hint {
+            color: #636764;
+        }
+        
+        .nav-key {
+            color: #FB8B24;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <div class="page-title">┌─ MYC3LIUM ─══─ P600 SATELLITE TRACKER ─══─┐</div>
+            <div class="timestamp" id="timestamp">21:57:30</div>
+        </header>
+        
+        <div class="main-content">
+            <div class="capture-status" id="captureStatus">
+                <span style="color: #50D8D7;">● AUTO-CAPTURE:</span> 
+                <span style="color: #F4E409;" id="captureState">ON</span>
+            </div>
+            
+            <div class="sat-pass">
+                <div class="sat-header">
+                    <span class="sat-name">▸ NOAA 19</span>
+                    <span class="countdown urgent" id="countdown1">T-00:14:32</span>
+                </div>
+                <div class="sat-details">
+                    <div class="detail-row">
+                        <span class="label">AOS Time:</span>
+                        <span class="value" id="aos1">22:12:02 UTC</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Max Elevation:</span>
+                        <span class="value">67° NE</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Duration:</span>
+                        <span class="value">13 min</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Azimuth:</span>
+                        <span class="value">45° → 135°</span>
+                    </div>
+                </div>
+                <div class="elevation-graph">
+     ▲ 70°│          ▲
+         │        ▄▀ ▀▄
+         │      ▄▀     ▀▄
+     40°│    ▄▀         ▀▄
+         │  ▄▀             ▀▄
+         └──────────────────────
+           AOS    MAX    LOS
+</div>
+            </div>
+            
+            <div class="sat-pass">
+                <div class="sat-header">
+                    <span class="sat-name">▸ METEOR M2</span>
+                    <span class="countdown" id="countdown2">T-02:38:15</span>
+                </div>
+                <div class="sat-details">
+                    <div class="detail-row">
+                        <span class="label">AOS Time:</span>
+                        <span class="value" id="aos2">00:35:45 UTC</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Max Elevation:</span>
+                        <span class="value">52° SW</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Duration:</span>
+                        <span class="value">11 min</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Azimuth:</span>
+                        <span class="value">225° → 315°</span>
+                    </div>
+                </div>
+                <div class="elevation-graph">
+     ▲ 60°│       ▲
+         │     ▄▀ ▀▄
+         │   ▄▀     ▀▄
+     30°│ ▄▀         ▀▄
+         │▀             ▀
+         └──────────────────────
+           AOS    MAX    LOS
+</div>
+            </div>
+            
+            <div class="sat-pass">
+                <div class="sat-header">
+                    <span class="sat-name">▸ NOAA 18</span>
+                    <span class="countdown" id="countdown3">T-05:42:08</span>
+                </div>
+                <div class="sat-details">
+                    <div class="detail-row">
+                        <span class="label">AOS Time:</span>
+                        <span class="value" id="aos3">03:39:38 UTC</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Max Elevation:</span>
+                        <span class="value">45° N</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Duration:</span>
+                        <span class="value">10 min</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Azimuth:</span>
+                        <span class="value">0° → 90°</span>
+                    </div>
+                </div>
+                <div class="elevation-graph">
+     ▲ 50°│      ▲
+         │    ▄▀ ▀▄
+         │  ▄▀     ▀▄
+     25°│▄▀         ▀▄
+         │             ▀▄
+         └──────────────────────
+           AOS    MAX    LOS
+</div>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                <span class="nav-key">[F1]</span><span class="nav-hint"> Toggle Capture</span>
+                <span class="nav-key" style="margin-left: 20px;">[F2]</span><span class="nav-hint"> TLE Update</span>
+                <span class="nav-key" style="margin-left: 20px;">[F3]</span><span class="nav-hint"> History</span>
+            </div>
+            <div class="nav-hint">NEXT PASS: NOAA 19 in 14 min</div>
+        </footer>
+    </div>
+    
+    <script>
+        let captureEnabled = true;
+        let countdown1 = 14 * 60 + 32; // 14:32
+        let countdown2 = 158 * 60 + 15; // 2:38:15
+        let countdown3 = 342 * 60 + 8;  // 5:42:08
+        
+        function formatCountdown(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `T-${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `T-${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function updateCountdowns() {
+            countdown1--;
+            countdown2--;
+            countdown3--;
+            
+            const elem1 = document.getElementById('countdown1');
+            const elem2 = document.getElementById('countdown2');
+            const elem3 = document.getElementById('countdown3');
+            
+            elem1.textContent = formatCountdown(Math.max(0, countdown1));
+            elem2.textContent = formatCountdown(Math.max(0, countdown2));
+            elem3.textContent = formatCountdown(Math.max(0, countdown3));
+            
+            // Make urgent if under 5 minutes
+            elem1.className = countdown1 < 300 ? 'countdown urgent' : 'countdown';
+            elem2.className = countdown2 < 300 ? 'countdown urgent' : 'countdown';
+            elem3.className = countdown3 < 300 ? 'countdown urgent' : 'countdown';
+        }
+        
+        // Update timestamp
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = 
+                now.toTimeString().split(' ')[0];
+        }, 1000);
+        
+        // Update countdowns
+        setInterval(updateCountdowns, 1000);
+        
+        // F1 key to toggle capture
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                captureEnabled = !captureEnabled;
+                const statusDiv = document.getElementById('captureStatus');
+                const stateSpan = document.getElementById('captureState');
+                
+                if (captureEnabled) {
+                    statusDiv.className = 'capture-status';
+                    stateSpan.textContent = 'ON';
+                    stateSpan.style.color = '#F4E409';
+                } else {
+                    statusDiv.className = 'capture-status off';
+                    stateSpan.textContent = 'OFF';
+                    stateSpan.style.color = '#636764';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
