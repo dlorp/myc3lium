@@ -2,7 +2,7 @@
 
 import asyncio
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -18,10 +18,10 @@ async def simulate_node_updates():
     """Background task that simulates node status updates"""
     node_ids = [f"node_{i+1:03d}" for i in range(8)]
     statuses = ["online", "offline", "degraded"]
-    
+
     while True:
         await asyncio.sleep(random.uniform(3, 8))  # Random interval between updates
-        
+
         # Simulate a node update
         node_id = random.choice(node_ids)
         update = NodeUpdate(
@@ -32,9 +32,9 @@ async def simulate_node_updates():
                 "battery": random.randint(10, 100),
                 "rssi": random.randint(-90, -30),
             },
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
-        
+
         # Broadcast to all connected clients
         await manager.broadcast(update.model_dump(mode='json'))
 
@@ -47,10 +47,10 @@ _background_task = None
 async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time mesh network updates
-    
+
     Clients connect to receive live updates about node status changes,
     new connections, and network events.
-    
+
     Message format:
     ```json
     {
@@ -61,14 +61,14 @@ async def websocket_endpoint(websocket: WebSocket):
     ```
     """
     global _background_task
-    
+
     # Accept connection and get client ID
     client_id = await manager.connect(websocket)
-    
+
     # Start background update simulation if not already running
     if _background_task is None or _background_task.done():
         _background_task = asyncio.create_task(simulate_node_updates())
-    
+
     try:
         # Send welcome message
         await manager.send_personal_message(
@@ -79,29 +79,32 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": "Connected to MYC3LIUM network",
                     "connections": manager.get_connection_count()
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             },
             client_id
         )
-        
+
         # Keep connection alive and listen for client messages
         while True:
             data = await websocket.receive_text()
-            
+
             if len(data) > MAX_MESSAGE_SIZE:
-                await websocket.close(code=1009, reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)")
+                await websocket.close(
+                    code=1009,
+                    reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)"
+                )
                 break
-            
+
             # Echo back (clients can send keepalive pings)
             await manager.send_personal_message(
                 {
                     "event": "echo",
                     "data": {"received": data},
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat()
                 },
                 client_id
             )
-            
+
     except WebSocketDisconnect:
         manager.disconnect(client_id)
         # Broadcast disconnection to other clients
@@ -112,6 +115,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "client_id": client_id,
                     "connections": manager.get_connection_count()
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
