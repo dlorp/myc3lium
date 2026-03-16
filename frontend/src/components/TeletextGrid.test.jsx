@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import PropTypes from 'prop-types'
 import TeletextGrid, { COLUMNS, ROWS } from './TeletextGrid'
 
 vi.mock('@react-three/fiber', async () => {
   const React = await import('react')
   const MockCanvas = ({ children }) => React.createElement('div', { 'data-testid': 'r3f-canvas' }, children)
+  MockCanvas.propTypes = {
+    children: PropTypes.node,
+  }
   return {
     Canvas: MockCanvas,
     useFrame: () => {},
