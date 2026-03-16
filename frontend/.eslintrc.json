@@ -20,7 +20,7 @@
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "warn",
     "react-refresh/only-export-components": "warn",
-    "react/no-unknown-property": ["error", { "ignore": ["intensity", "position", "args", "attach"] }]
+    "react/no-unknown-property": ["error", { "ignore": ["intensity", "position", "args", "attach", "uniforms", "vertexShader", "fragmentShader"] }]
   },
   "settings": {
     "react": {
