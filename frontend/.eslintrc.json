@@ -19,7 +19,8 @@
   "rules": {
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "warn",
-    "react-refresh/only-export-components": "warn"
+    "react-refresh/only-export-components": "warn",
+    "react/no-unknown-property": ["error", { "ignore": ["intensity", "position", "args", "attach"] }]
   },
   "settings": {
     "react": {
