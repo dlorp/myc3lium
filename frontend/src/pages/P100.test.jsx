@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import P100, { renderDashboard, getMockData } from './P100'
+import P100 from './P100'
+import { renderDashboard, getMockData } from './P100.utils'
 import useNavigationStore from '../store/navigationStore'
 import { COLUMNS, ROWS } from '../components/TeletextGrid'
 
@@ -85,7 +86,7 @@ describe('P100 Dashboard', () => {
       expect(gridText).toContain('[300] MSG')
       expect(gridText).toContain('[400] MAP')
       expect(gridText).toContain('[500] INTEL')
-      expect(gridText).toContain('[600] CONFIG')
+      expect(gridText).toContain('[600] CFG')
       expect(gridText).toContain('RADIO STATUS')
     })
 
