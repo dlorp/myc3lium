@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'VT323', monospace;
+  background: #0e0b02;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.teletext-demo {
+  width: 100%;
+  height: 100%;
+}
+
+.teletext-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  color: #ffb800;
+  font-size: 20px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(255, 184, 0, 0.6);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.teletext-fps {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #c47a00;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 6px rgba(196, 122, 0, 0.6);
+  z-index: 2;
+  pointer-events: none;
+}
