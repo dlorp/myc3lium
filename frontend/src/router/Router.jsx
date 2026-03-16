@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import P100 from '../pages/P100'
+import P200 from '../pages/P200'
+import P500 from '../pages/P500'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -92,6 +94,26 @@ const Router = () => {
           element={
             <PageRoute>
               <P100 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P200 - Lattice Map */}
+        <Route
+          path="/p/200"
+          element={
+            <PageRoute>
+              <P200 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P500 - Intelligence Hub */}
+        <Route
+          path="/p/500"
+          element={
+            <PageRoute>
+              <P500 />
             </PageRoute>
           }
         />
