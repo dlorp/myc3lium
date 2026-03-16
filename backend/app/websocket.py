@@ -10,6 +10,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 class ConnectionManager:
     """Manages WebSocket connections and broadcasts"""
 
+    MAX_CONNECTIONS = 100
+
     def __init__(self):
         # Active connections indexed by client ID
         self.active_connections: Dict[str, WebSocket] = {}
@@ -18,6 +20,10 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket) -> str:
         """Accept a new WebSocket connection and return client ID"""
+        if len(self.active_connections) >= self.MAX_CONNECTIONS:
+            await websocket.close(code=1008, reason="Server at capacity")
+            raise ValueError("Max connections reached")
+        
         await websocket.accept()
         client_id = f"client_{self._client_counter}"
         self._client_counter += 1

@@ -9,11 +9,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class Node(BaseModel):
     """Mesh network node"""
 
-    id: str = Field(..., description="Unique node identifier")
+    id: str = Field(..., max_length=64, description="Unique node identifier")
     type: Literal["SPORE", "HYPHA", "FROND", "RHIZOME"] = Field(
         ..., description="Node type in mycelial network"
     )
-    callsign: str = Field(..., description="Human-readable node identifier")
+    callsign: str = Field(..., max_length=32, description="Human-readable node identifier")
     status: Literal["online", "offline", "degraded"] = Field(
         ..., description="Current node status"
     )
@@ -41,8 +41,8 @@ class Node(BaseModel):
 class Connection(BaseModel):
     """Connection between two nodes"""
 
-    source_id: str = Field(..., description="Source node ID")
-    target_id: str = Field(..., description="Target node ID")
+    source_id: str = Field(..., max_length=64, description="Source node ID")
+    target_id: str = Field(..., max_length=64, description="Target node ID")
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
     latency: Optional[int] = Field(None, description="Latency in milliseconds")
     established: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Connection established time")
@@ -63,10 +63,10 @@ class Connection(BaseModel):
 class SensorData(BaseModel):
     """Environmental sensor reading"""
 
-    node_id: str = Field(..., description="Node that collected the data")
-    sensor_type: str = Field(..., description="Type of sensor (temperature, humidity, etc)")
+    node_id: str = Field(..., max_length=64, description="Node that collected the data")
+    sensor_type: str = Field(..., max_length=32, description="Type of sensor (temperature, humidity, etc)")
     value: float = Field(..., description="Sensor reading value")
-    unit: str = Field(..., description="Unit of measurement")
+    unit: str = Field(..., max_length=16, description="Unit of measurement")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Reading timestamp")
 
     model_config = ConfigDict(
@@ -85,10 +85,10 @@ class SensorData(BaseModel):
 class Message(BaseModel):
     """Mesh network message"""
 
-    id: str = Field(..., description="Message identifier")
-    sender_id: str = Field(..., description="Sending node ID")
-    recipient_id: Optional[str] = Field(None, description="Target node ID (null for broadcast)")
-    content: str = Field(..., description="Message content")
+    id: str = Field(..., max_length=64, description="Message identifier")
+    sender_id: str = Field(..., max_length=64, description="Sending node ID")
+    recipient_id: Optional[str] = Field(None, max_length=64, description="Target node ID (null for broadcast)")
+    content: str = Field(..., max_length=1024, description="Message content")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Message timestamp")
     hops: int = Field(0, ge=0, description="Number of hops to destination")
 
