@@ -27,82 +27,135 @@ MYC3LIUM uses a biological mesh taxonomy:
 
 Each node type has a specific role, but all speak the same protocols (Reticulum LXMF, BATMAN-adv, encrypted end-to-end). All nodes can relay; there are no dedicated relay-only devices.
 
+## Quick Start
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/dlorp/myc3lium.git
+cd myc3lium
+
+# Run setup script (installs dependencies)
+./scripts/setup-dev.sh
+
+# Start development servers
+./scripts/run-dev.sh
+```
+
+**Access:**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Project Structure
+
+```
+myc3lium/
+├── frontend/           # React + Vite + Three.js WebUI
+│   ├── src/           # Source code
+│   ├── package.json   # Dependencies
+│   └── vite.config.js # Build config
+├── backend/           # FastAPI + Uvicorn
+│   ├── app/          # Application code
+│   ├── tests/        # Test suite
+│   ├── requirements.txt
+│   └── pyproject.toml
+├── firmware/          # ESP32 + HYPHA (coming soon)
+├── docs/              # Documentation
+├── mockups/           # Design mockups
+├── scripts/           # Setup & dev scripts
+├── .github/workflows/ # CI/CD
+├── .gitignore
+└── README.md
+```
+
 ## Tech Stack
 
-### Hardware (SPORE Base Node)
-- Raspberry Pi 4 (4GB)
-- SX1262 LoRa HAT (915 MHz, 5-50km range)
-- Heltec HT-HC01P WiFi HaLow (902-928 MHz, 1km+ range)
-- Pi 4 built-in WiFi (802.11s mesh backbone)
-- RTL-SDR Blog V4 (satellite + spectrum monitoring)
-- GPS module (u-blox based)
-- Alfa AWUS036ACH (Kismet wardriving)
-- 7-10" touchscreen display
-- 21700 battery HAT (6-8h runtime)
+### Frontend
+- **Framework:** React 18 + Vite
+- **3D Graphics:** Three.js + React Three Fiber
+- **Routing:** React Router
+- **State:** Zustand
+- **Build:** Vite (fast HMR, optimized builds)
 
-**Total Cost:** ~$400-550 depending on options
+### Backend
+- **Framework:** FastAPI
+- **Server:** Uvicorn (ASGI)
+- **Validation:** Pydantic v2
+- **Testing:** pytest + pytest-asyncio
+- **Linting:** ruff + mypy
 
-### Software
-- **GUI:** PyQt6 + ModernGL (teletext aesthetic with CRT shaders)
+### Planned Integrations
 - **Mesh:** Reticulum + LXMF (encrypted messaging)
-- **Layer 2:** BATMAN-adv (802.11s mesh routing)
-- **Satellite:** SatDump + Gpredict (automated pass tracking)
-- **SDR:** SoapySDR + RTL-SDR drivers
-- **ATAK:** FreeTAKServer + PyTAK (tactical map integration)
-- **LLM:** llama.cpp + Qwen2.5-7B-Instruct (Q4, ~4GB RAM)
-- **GPS:** gpsd (position tracking)
-- **Maps:** MBTiles (offline topo + satellite overlays)
+- **SDR:** SatDump + SoapySDR (satellite + spectrum)
+- **ATAK:** FreeTAKServer + PyTAK (tactical maps)
+- **LLM:** llama.cpp + Qwen2.5-7B (local intelligence)
+
+## Development
+
+### Frontend Commands
+
+```bash
+cd frontend
+npm run dev      # Start dev server (port 3000)
+npm run build    # Production build
+npm run lint     # ESLint check
+npm test         # Run tests
+```
+
+### Backend Commands
+
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --reload  # Start dev server (port 8000)
+ruff check .                   # Lint check
+mypy app                       # Type check
+pytest                         # Run tests
+```
+
+## CI/CD
+
+GitHub Actions runs on every PR:
+
+- **Frontend:** lint → build → test
+- **Backend:** ruff → mypy → pytest
+- **Blocks merge if any check fails**
+
+See `.github/workflows/ci.yml` for details.
 
 ## Project Status
 
-**Current Phase:** Planning + Prototyping
+**Current Phase:** Repository Scaffold + Initial Development
 
 ✅ Complete architecture documentation  
 ✅ Hardware specs finalized  
 ✅ WebUI mockups (14 pages, teletext design)  
-✅ Node taxonomy defined  
-🔄 Hardware ordering in progress  
+✅ Repository structure & CI/CD  
+✅ Frontend scaffold (React + Three.js)  
+✅ Backend scaffold (FastAPI)  
+⏳ WebUI implementation  
 ⏳ Firmware development (HYPHA ESP32-S3)  
-⏳ SPORE base system build  
-⏳ WebUI implementation (FastAPI + React)  
+⏳ Hardware ordering & assembly  
 
 **Estimated Timeline:** 14-16 weeks part-time
 
-## Repository Structure
+## Documentation
 
-```
-myc3lium/
-├── docs/               # Full project documentation
-│   └── MYC3LIUM_BIBLE_V3.md  # Comprehensive design doc
-├── mockups/            # WebUI design mockups
-│   └── myc3lium-complete.html  # Interactive teletext GUI demo
-├── firmware/           # Node firmware (ESP32, Pi)
-├── backend/            # FastAPI server + Reticulum integration
-├── frontend/           # React + Three.js WebUI
-├── hardware/           # Schematics, BOM, assembly guides
-└── scripts/            # Installation, setup, utilities
-```
+- **[MYC3LIUM_BIBLE_V3.md](./MYC3LIUM_BIBLE_V3.md)** - Complete design doc
+- **[TECH_STACK.md](./TECH_STACK.md)** - Technology choices
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
+- **[ROADMAP.md](./ROADMAP.md)** - Development roadmap
+- **[HYPHA_DEV_GUIDE.md](./HYPHA_DEV_GUIDE.md)** - ESP32 firmware guide
+- **[WEBUI_ROADMAP.md](./WEBUI_ROADMAP.md)** - Frontend development plan
+- **[PAGES.md](./PAGES.md)** - WebUI page specifications
 
 ## Mockups
 
-Check `mockups/myc3lium-complete.html` for an interactive demo of the WebUI design. Open it in a browser to explore all 14 pages:
+Interactive teletext GUI demo: `mockups/myc3lium-complete.html`
 
-- **P100** - Dashboard (system overview)
-- **P101** - System Health (CPU, RAM, battery)
-- **P200** - Lattice Map (animated mesh topology)
-- **P202** - Link Quality (RSSI, SNR, packet loss)
-- **P300** - LXMF Inbox (encrypted messages)
-- **P400** - ATAK Map (terrain + nodes)
-- **P401** - Waypoint Manager
-- **P500** - Satellite Tracker (live pass predictions)
-- **P501** - RF Spectrum Waterfall (SDR visualization)
-- **P503** - Camera Feed (FROND livestream)
-- **P600** - Radio Config (LoRa/HaLow/SDR params)
-- **P700** - Sensor Grid (RHIZOME telemetry + sparklines)
-- **P703** - Alert Thresholds (environmental monitoring)
-- **P800** - Local LLM Chat (natural language queries)
-
-Features 60 FPS rendering, CRT shader effects, and live animations.
+Features all 14 pages with 60 FPS rendering, CRT shaders, and live animations.
 
 ## Design Philosophy
 
@@ -113,64 +166,6 @@ Features 60 FPS rendering, CRT shader effects, and live animations.
 **Open** - Built on open protocols (Reticulum, BATMAN-adv, LXMF)  
 
 Inspired by mycelial networks: distributed, adaptive, persistent.
-
-## Getting Started
-
-**Hardware:**
-1. Order components (see `hardware/BOM.md`)
-2. Assemble SPORE base node
-3. Flash RNode firmware on SX1262 HAT
-4. Configure Reticulum triple-radio stack
-
-**Software:**
-1. Install Raspberry Pi OS Lite
-2. Run setup script: `./scripts/install.sh`
-3. Configure radios: `./scripts/configure-radios.sh`
-4. Start WebUI: `systemctl start myc3lium-webui`
-
-**First HYPHA Node:**
-1. Flash ESP32-S3 HT-HC33 firmware
-2. Pair with SPORE via WiFi HaLow
-3. Test messaging + position updates
-
-Detailed guides coming soon in `docs/`.
-
-## Roadmap
-
-**Phase 1: SPORE Base System** (Weeks 1-4)
-- [ ] Pi 4 OS setup + dependencies
-- [ ] LoRa HAT configuration (RNode firmware)
-- [ ] WiFi HaLow driver integration
-- [ ] BATMAN-adv mesh setup
-- [ ] Reticulum stack deployment
-
-**Phase 2: Intelligence Gathering** (Weeks 5-8)
-- [ ] RTL-SDR satellite reception
-- [ ] SatDump integration (APT/LRPT decoding)
-- [ ] Spectrum monitoring (SoapySDR)
-- [ ] Kismet wardriving setup
-- [ ] MBTiles map pipeline
-
-**Phase 3: WebUI** (Weeks 9-12)
-- [ ] FastAPI backend (LXMF bridge)
-- [ ] React + Three.js frontend
-- [ ] Teletext renderer with CRT shaders
-- [ ] Real-time data feeds (WebSocket)
-- [ ] Page navigation + state management
-
-**Phase 4: LLM Integration** (Weeks 13-14)
-- [ ] llama.cpp deployment
-- [ ] Qwen2.5-7B model quantization
-- [ ] Chat interface (P800)
-- [ ] Data parsing agents
-- [ ] Natural language mesh queries
-
-**Phase 5: HYPHA Nodes** (Weeks 15-16)
-- [ ] ESP32-S3 firmware (Reticulum-ESP32)
-- [ ] WiFi HaLow driver
-- [ ] Camera integration
-- [ ] LXMF messaging
-- [ ] Field testing
 
 ## Contributing
 
