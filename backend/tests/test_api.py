@@ -150,10 +150,10 @@ def test_node_status_distribution():
 
 def test_cors_headers():
     """Test that CORS headers are present"""
-    response = client.options("/api/nodes", headers={
-        "Origin": "http://localhost:3000",
-        "Access-Control-Request-Method": "GET"
-    })
+    response = client.options(
+        "/api/nodes",
+        headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"},
+    )
 
     # Should allow CORS
     assert "access-control-allow-origin" in response.headers
