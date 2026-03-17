@@ -60,7 +60,7 @@ class MockMeshDataSource(MeshDataSource):
     ]
 
     # Thread configuration: (source_idx, target_idx, radio_type)
-    THREAD_CONFIG = [
+    THREAD_CONFIG: list[tuple[int, int, Literal["LoRa", "HaLow", "WiFi"]]] = [
         (0, 1, "LoRa"),  # Downtown <-> Hillside
         (0, 2, "WiFi"),  # Downtown <-> Midtown
         (1, 3, "LoRa"),  # Hillside <-> O'Malley
