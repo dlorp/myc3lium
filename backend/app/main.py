@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import nodes, ws
+from app.services.mesh_store import MeshStore
+from app.services.mock_data import MockMeshDataSource
 
 app = FastAPI(
     title="MYC3LIUM API",
@@ -19,6 +21,21 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Initialize mesh store and connect to WebSocket broadcasting
+mesh_store = MeshStore()
+ws.set_mesh_store(mesh_store)
+
+# Make mesh_store available to routers
+nodes.mesh_store = mesh_store
+
+# Load mock data
+mock_source = MockMeshDataSource(seed=42)
+mesh_store.load_from_source(
+    mock_source.get_nodes(),
+    mock_source.get_threads(),
+    mock_source.get_messages(),
 )
 
 # Include routers
