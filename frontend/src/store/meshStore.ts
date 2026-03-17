@@ -50,16 +50,16 @@ interface MeshStore {
   disconnectWS: () => void;
 
   // Internal update handlers
-  updateNode: (node: Node) => void;
-  addNode: (node: Node) => void;
-  removeNode: (nodeId: string) => void;
+  updateNode: (_node: Node) => void;
+  addNode: (_node: Node) => void;
+  removeNode: (_nodeId: string) => void;
   
-  updateThread: (thread: Thread) => void;
-  addThread: (thread: Thread) => void;
-  removeThread: (threadId: string) => void;
+  updateThread: (_thread: Thread) => void;
+  addThread: (_thread: Thread) => void;
+  removeThread: (_threadId: string) => void;
   
-  addMessage: (message: Message) => void;
-  removeMessage: (messageId: string) => void;
+  addMessage: (_message: Message) => void;
+  removeMessage: (_messageId: string) => void;
 }
 
 const useMeshStore = create<MeshStore>((set, get) => ({
@@ -218,6 +218,7 @@ const useMeshStore = create<MeshStore>((set, get) => ({
 
     // Track disconnection
     const ws = getWebSocketClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const wsInstance = (ws as any)['ws'] as WebSocket | null;
     if (wsInstance) {
       const originalOnClose = wsInstance.onclose;
