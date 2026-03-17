@@ -8,14 +8,15 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.models import Message
+from app.services.mesh_store import MeshStore
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
-# Mock data store (in-memory for development)
-_mock_messages: list[Message] = []
+# Global mesh store instance - will be set by main.py
+mesh_store: Optional[MeshStore] = None
 
 # Export for testing and internal use
-__all__ = ["router", "_mock_messages"]
+__all__ = ["router"]
 
 
 class MessageCreate(BaseModel):
@@ -30,11 +31,11 @@ class MessageCreate(BaseModel):
 
 
 def _get_node_ids() -> set[str]:
-    """Get all valid node IDs from the nodes router"""
-    # Import here to avoid circular dependency
-    from app.routers import nodes
+    """Get all valid node IDs from the mesh store"""
+    if not mesh_store:
+        return set()
 
-    return {node.id for node in nodes._mock_nodes}
+    return {node.id for node in mesh_store.get_all_nodes()}
 
 
 @router.get("", response_model=list[Message])
@@ -61,8 +62,11 @@ async def get_messages(
     Returns:
         List of messages matching the filter criteria (sorted newest first)
     """
-    # Sort messages by timestamp (newest first)
-    sorted_messages = sorted(_mock_messages, key=lambda m: m.timestamp, reverse=True)
+    if not mesh_store:
+        return []
+
+    # Get all messages sorted by timestamp (newest first)
+    sorted_messages = mesh_store.get_all_messages()
 
     # Apply sender filter
     if sender_id:
@@ -104,11 +108,14 @@ async def get_message(message_id: str):
     Raises:
         HTTPException: 404 if message not found
     """
-    for message in _mock_messages:
-        if message.id == message_id:
-            return message
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
-    raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+    message = mesh_store.get_message(message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+
+    return message
 
 
 @router.post("", response_model=Message, status_code=201)
@@ -125,20 +132,8 @@ async def create_message(payload: MessageCreate):
     Raises:
         HTTPException: 400 if sender or recipient doesn't exist
     """
-    # Get valid node IDs
-    valid_node_ids = _get_node_ids()
-
-    # Validate sender exists
-    if payload.sender_id not in valid_node_ids:
-        raise HTTPException(
-            status_code=400, detail=f"Sender node {payload.sender_id} does not exist"
-        )
-
-    # Validate recipient exists (if not broadcast)
-    if payload.recipient_id and payload.recipient_id not in valid_node_ids:
-        raise HTTPException(
-            status_code=400, detail=f"Recipient node {payload.recipient_id} does not exist"
-        )
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
     # Generate message ID
     message_id = f"msg_{uuid.uuid4().hex[:12]}"
@@ -153,8 +148,11 @@ async def create_message(payload: MessageCreate):
         hops=payload.hops,
     )
 
-    _mock_messages.append(message)
-    return message
+    try:
+        created_message = mesh_store.add_message(message)
+        return created_message
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{message_id}", status_code=204)
@@ -168,9 +166,9 @@ async def delete_message(message_id: str):
     Raises:
         HTTPException: 404 if message not found
     """
-    for i, message in enumerate(_mock_messages):
-        if message.id == message_id:
-            _mock_messages.pop(i)
-            return
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
-    raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+    removed = mesh_store.remove_message(message_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
