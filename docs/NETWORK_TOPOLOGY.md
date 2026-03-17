@@ -125,22 +125,22 @@ Threads are discovered automatically and updated in real-time.
     └───────────┘                  └──────────┘
 ```
 
-## Anchorage Network (Mock Data)
+## Mock Network Topology
 
-Current simulation includes 8 nodes around Anchorage, Alaska:
+Current simulation includes 8 nodes spread across ~50 km:
 
-| Node       | Type    | Location              | Radios         |
-|------------|---------|-----------------------|----------------|
-| Gateway-01 | Gateway | Downtown (61.22°N)    | LoRa/HaLow/WiFi|
-| Mobile-01  | Mobile  | Midtown (61.19°N)     | LoRa/WiFi      |
-| Mobile-02  | Mobile  | University (61.18°N)  | LoRa/WiFi      |
-| Relay-03   | Relay   | Hillside (61.13°N)    | LoRa/HaLow     |
-| Sensor-04  | Sensor  | Flattop (61.10°N)     | LoRa           |
-| Sensor-05  | Sensor  | Campbell (61.15°N)    | LoRa           |
-| Sensor-06  | Sensor  | Eagle River (61.32°N) | LoRa           |
-| Sensor-07  | Sensor  | Girdwood (60.95°N)    | LoRa           |
+| Node       | Type    | Radios         |
+|------------|---------|----------------|
+| Gateway-01 | Gateway | LoRa/HaLow/WiFi|
+| Mobile-01 | Mobile | LoRa/WiFi      |
+| Mobile-02 | Mobile | LoRa/WiFi      |
+| Relay-03 | Relay | LoRa/HaLow     |
+| Sensor-04 | Sensor | LoRa           |
+| Sensor-05 | Sensor | LoRa           |
+| Sensor-06 | Sensor | LoRa           |
+| Sensor-07 | Sensor | LoRa           |
 
-Geographic spread: ~50 km north-south, representing realistic LoRa range.
+Geographic spread represents realistic LoRa range in mixed terrain.
 
 ## Future: Satellite Integration
 
