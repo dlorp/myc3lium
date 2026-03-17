@@ -11,6 +11,7 @@ from app.models import Message, Node, SensorData, Thread
 
 class CoordData(TypedDict):
     """Type definition for coordinate data"""
+
     lat: float
     lon: float
     name: str
