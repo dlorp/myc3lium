@@ -62,7 +62,7 @@ const drawHLine = (grid, x, y, length, char = BOX.H) => {
 /**
  * Draw box (currently unused but kept for future expansion)
  */
-// eslint-disable-next-line no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const drawBox = (grid, x, y, width, height) => {
   // Corners
   if (x >= 0 && x < COLUMNS) {
