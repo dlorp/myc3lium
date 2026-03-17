@@ -14,6 +14,9 @@ router = APIRouter(prefix="/api/messages", tags=["messages"])
 # Mock data store (in-memory for development)
 _mock_messages: list[Message] = []
 
+# Export for testing and internal use
+__all__ = ["router", "_mock_messages"]
+
 
 class MessageCreate(BaseModel):
     """Message creation payload"""

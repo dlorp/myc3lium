@@ -17,9 +17,9 @@ def reset_mock_nodes():
     API call in each test.
     """
     # Clear mock nodes before each test
-    nodes._mock_nodes.clear()
+    nodes._mock_nodes.clear()  # type: ignore[attr-defined]
 
     yield
 
     # Cleanup after test (ensures clean slate for next test)
-    nodes._mock_nodes.clear()
+    nodes._mock_nodes.clear()  # type: ignore[attr-defined]
