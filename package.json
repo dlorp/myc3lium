@@ -1,0 +1,21 @@
+{
+  "name": "myc3lium-font-atlas",
+  "version": "1.0.0",
+  "description": "IBM VGA 8×16 bitmap font atlas generator for MYC3LIUM teletext renderer",
+  "main": "generate-font-atlas.js",
+  "scripts": {
+    "generate": "node generate-font-atlas.js"
+  },
+  "keywords": [
+    "font",
+    "bitmap",
+    "IBM VGA",
+    "teletext",
+    "CP437"
+  ],
+  "author": "Frontend Designer",
+  "license": "MIT",
+  "dependencies": {
+    "canvas": "^2.11.2"
+  }
+}
