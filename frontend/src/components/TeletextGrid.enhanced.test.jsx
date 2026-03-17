@@ -157,7 +157,7 @@ describe('CRT Presets', () => {
   })
 
   it('all presets have valid numeric ranges', () => {
-    Object.entries(CRT_PRESETS).forEach(([name, config]) => {
+    Object.entries(CRT_PRESETS).forEach(([, config]) => {
       // Chromatic amount: 0.0-0.003
       expect(config.chromaticAmount).toBeGreaterThanOrEqual(0.0)
       expect(config.chromaticAmount).toBeLessThanOrEqual(0.003)
