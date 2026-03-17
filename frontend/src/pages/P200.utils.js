@@ -145,11 +145,11 @@ const drawLine = (grid, x0, y0, x1, y1, char) => {
  */
 export const getMockMeshData = () => ({
   nodes: [
-    { id: 'SPORE-01', type: 'SPORE', x: 20, y: 12, hopCount: 0, battery: 74, uptime: 15240 },
-    { id: 'HYPHA-03', type: 'HYPHA', x: 8, y: 6, hopCount: 1, battery: 89, uptime: 8420 },
-    { id: 'FROND-05', type: 'FROND', x: 32, y: 8, hopCount: 1, battery: 62, uptime: 4120 },
-    { id: 'RHIZOME-02', type: 'RHIZOME', x: 12, y: 18, hopCount: 2, battery: 55, uptime: 12300 },
-    { id: 'RHIZOME-03', type: 'RHIZOME', x: 28, y: 16, hopCount: 2, battery: 71, uptime: 9840 },
+    { id: 'SPORE-01', type: 'SPORE', x: 40, y: 12, hopCount: 0, battery: 74, uptime: 15240 },
+    { id: 'HYPHA-03', type: 'HYPHA', x: 16, y: 6, hopCount: 1, battery: 89, uptime: 8420 },
+    { id: 'FROND-05', type: 'FROND', x: 64, y: 8, hopCount: 1, battery: 62, uptime: 4120 },
+    { id: 'RHIZOME-02', type: 'RHIZOME', x: 24, y: 18, hopCount: 2, battery: 55, uptime: 12300 },
+    { id: 'RHIZOME-03', type: 'RHIZOME', x: 56, y: 16, hopCount: 2, battery: 71, uptime: 9840 },
   ],
   links: [
     { from: 'SPORE-01', to: 'HYPHA-03', quality: 'GOOD', rssi: -72, latency: 8, packetLoss: 0 },
