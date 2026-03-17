@@ -1,6 +1,6 @@
 """Tests for mock data generation"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -229,7 +229,7 @@ def test_sensor_data_generation():
 
 def test_sensor_data_diurnal_cycle():
     """Test that temperature data shows diurnal (day/night) cycle"""
-    base_time = datetime(2026, 3, 16, 15, 0, 0, tzinfo=UTC)  # 3 PM (warmest)
+    base_time = datetime(2026, 3, 16, 15, 0, 0, tzinfo=timezone.utc)  # 3 PM (warmest)
     source = MockMeshDataSource(seed=42, base_time=base_time)
     nodes = source.get_nodes()
 
