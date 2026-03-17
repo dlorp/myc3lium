@@ -15,8 +15,8 @@ client = TestClient(app)
 def setup_test_nodes():
     """Helper to set up test nodes in the mock store"""
     # Clear existing data
-    nodes_router._mock_nodes.clear()
-    messages_router._mock_messages.clear()
+    nodes_router._mock_nodes.clear()  # type: ignore[attr-defined]
+    messages_router._mock_messages.clear()  # type: ignore[attr-defined]
 
     # Add test nodes
     test_nodes = [
@@ -43,7 +43,7 @@ def setup_test_nodes():
         ),
     ]
 
-    nodes_router._mock_nodes.extend(test_nodes)
+    nodes_router._mock_nodes.extend(test_nodes)  # type: ignore[attr-defined]
 
 
 def setup_test_messages():
@@ -85,7 +85,7 @@ def setup_test_messages():
         ),
     ]
 
-    messages_router._mock_messages.extend(test_messages)
+    messages_router._mock_messages.extend(test_messages)  # type: ignore[attr-defined]
 
 
 class TestGetMessages:
@@ -392,7 +392,7 @@ class TestDeleteMessage:
 
         client.delete("/api/messages/msg_001")
 
-        node = next((n for n in nodes_router._mock_nodes if n.id == "node_001"), None)
+        node = next((n for n in nodes_router._mock_nodes if n.id == "node_001"), None)  # type: ignore[attr-defined]
         assert node is not None
 
 
