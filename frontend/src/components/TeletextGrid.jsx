@@ -213,7 +213,6 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
   }, [])
 
-<<<<<<< HEAD
   // Initialize render target for phosphor trails
   useEffect(() => {
     const width = resolution.x
@@ -229,9 +228,7 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
   }, [resolution])
 
-=======
   // Load font atlas
->>>>>>> 5e9e1f0 (feat: IBM VGA 8×16 bitmap font atlas)
   useEffect(() => {
     const loader = new THREE.TextureLoader()
     loader.load(
