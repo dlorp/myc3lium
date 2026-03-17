@@ -4,9 +4,16 @@ import math
 import random
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Literal, TypedDict
 
 from app.models import Message, Node, SensorData, Thread
+
+
+class CoordData(TypedDict):
+    """Type definition for coordinate data"""
+    lat: float
+    lon: float
+    name: str
 
 
 class MeshDataSource(ABC):
@@ -37,7 +44,7 @@ class MockMeshDataSource(MeshDataSource):
     """Mock implementation of MeshDataSource for testing and development"""
 
     # Anchorage, Alaska GPS coordinates for 8 nodes
-    ANCHORAGE_COORDS = [
+    ANCHORAGE_COORDS: list[CoordData] = [
         {"lat": 61.2181, "lon": -149.9003, "name": "Downtown"},  # Downtown Anchorage
         {"lat": 61.1919, "lon": -149.8478, "name": "Hillside"},  # Hillside area
         {"lat": 61.2147, "lon": -149.8947, "name": "Midtown"},  # Midtown
@@ -99,6 +106,7 @@ class MockMeshDataSource(MeshDataSource):
         for idx, (coord, node_type) in enumerate(zip(self.ANCHORAGE_COORDS, self.NODE_TYPES)):
             # Determine status based on seed and index
             status_roll = self.rng.random()
+            status: Literal["online", "offline", "degraded"]
             if status_roll < 0.75:
                 status = "online"
             elif status_roll < 0.95:
