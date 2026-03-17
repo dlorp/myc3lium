@@ -31,7 +31,6 @@ const COLORS = {
 const ATLAS_GLYPH_WIDTH = 8
 const ATLAS_GLYPH_HEIGHT = 16
 const ATLAS_COLS = 16
-const ATLAS_ROWS = 16 // Changed from 16 to match 128×256 atlas
 const ATLAS_WIDTH = 128
 const ATLAS_HEIGHT = 256 // Match existing atlas dimensions
 
@@ -173,12 +172,10 @@ const TeletextPlaneOptimized = ({ content }) => {
     
     // Each char is 2 triangles (6 vertices)
     const positions = new Float32Array(totalChars * 6 * 3)
-    const uvs = new Float32Array(totalChars * 6 * 2)
     const charUVs = new Float32Array(totalChars * 6 * 2)
     const rowIndices = new Float32Array(totalChars * 6)
 
     let posIdx = 0
-    let uvIdx = 0
     let charUVIdx = 0
     let rowIdxOffset = 0
 
@@ -343,7 +340,8 @@ const TeletextPlaneOptimized = ({ content }) => {
   return (
     <>
       {/* Character grid rendered to texture */}
-      <mesh geometry={geometry} position={[-COLUMNS * ATLAS_GLYPH_WIDTH / 2, -ROWS * ATLAS_GLYPH_HEIGHT / 2, 0]}>
+      <mesh position={[-COLUMNS * ATLAS_GLYPH_WIDTH / 2, -ROWS * ATLAS_GLYPH_HEIGHT / 2, 0]}>
+        <primitive object={geometry} attach="geometry" />
         <shaderMaterial
           ref={materialRef}
           uniforms={{

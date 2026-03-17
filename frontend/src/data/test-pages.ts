@@ -5,22 +5,20 @@
  * to test the bitmap font atlas rendering system.
  */
 
-export type PageContent = string[][];
-
 const COLS = 80;
 const ROWS = 25;
 
 /**
  * Create empty page grid
  */
-function createEmptyPage(): PageContent {
+function createEmptyPage() {
   return Array(ROWS).fill(null).map(() => Array(COLS).fill(' '));
 }
 
 /**
  * Write text to page at position
  */
-function writeText(page: PageContent, row: number, col: number, text: string) {
+function writeText(page, row, col, text) {
   for (let i = 0; i < text.length && col + i < COLS; i++) {
     page[row][col + i] = text[i];
   }
@@ -29,7 +27,7 @@ function writeText(page: PageContent, row: number, col: number, text: string) {
 /**
  * Draw box border using CP437 box drawing characters
  */
-function drawBox(page: PageContent, startRow: number, startCol: number, width: number, height: number) {
+function drawBox(page, startRow, startCol, width, height) {
   // Top border
   page[startRow][startCol] = '┌';
   for (let i = 1; i < width - 1; i++) {
@@ -54,7 +52,7 @@ function drawBox(page: PageContent, startRow: number, startCol: number, width: n
 /**
  * P100: Main Menu
  */
-export function generateP100(): PageContent {
+export function generateP100() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -91,7 +89,7 @@ export function generateP100(): PageContent {
 /**
  * P200: Lattice Topology Map
  */
-export function generateP200(): PageContent {
+export function generateP200() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -124,7 +122,7 @@ export function generateP200(): PageContent {
 /**
  * P300: Messaging Inbox
  */
-export function generateP300(): PageContent {
+export function generateP300() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -154,7 +152,7 @@ export function generateP300(): PageContent {
 /**
  * P400: Primary Map View
  */
-export function generateP400(): PageContent {
+export function generateP400() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -186,7 +184,7 @@ export function generateP400(): PageContent {
 /**
  * P500: Satellite Tracker
  */
-export function generateP500(): PageContent {
+export function generateP500() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -220,7 +218,7 @@ export function generateP500(): PageContent {
 /**
  * P700: Sensor Grid
  */
-export function generateP700(): PageContent {
+export function generateP700() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -252,7 +250,7 @@ export function generateP700(): PageContent {
 /**
  * P800: LLM Interface
  */
-export function generateP800(): PageContent {
+export function generateP800() {
   const page = createEmptyPage();
   
   drawBox(page, 0, 0, COLS, ROWS);
@@ -286,7 +284,7 @@ export function generateP800(): PageContent {
 /**
  * Page registry
  */
-export const TEST_PAGES: Record<number, () => PageContent> = {
+export const TEST_PAGES = {
   100: generateP100,
   200: generateP200,
   300: generateP300,
