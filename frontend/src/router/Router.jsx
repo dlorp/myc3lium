@@ -5,6 +5,7 @@ import P200 from '../pages/P200'
 import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
+import P800 from '../pages/P800'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -138,6 +139,16 @@ const Router = () => {
           element={
             <PageRoute>
               <P500 />
+            </PageRoute>
+          }
+        />
+        
+        {/* P800 - Local LLM Chat */}
+        <Route
+          path="/p/800"
+          element={
+            <PageRoute>
+              <P800 />
             </PageRoute>
           }
         />
