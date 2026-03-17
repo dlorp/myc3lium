@@ -194,7 +194,7 @@ const P400 = () => {
                 <div style={{ marginTop: '8px' }}>
                   <StatusBar 
                     value={reading.battery} 
-                    color={getBatteryColor(reading.battery) as any} 
+                    color={getBatteryColor(reading.battery) as 'cyan' | 'magenta' | 'yellow' | 'green'} 
                     label={`BATTERY ${reading.battery.toFixed(0)}%`} 
                   />
                 </div>
