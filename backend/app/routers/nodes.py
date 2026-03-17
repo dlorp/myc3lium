@@ -1,18 +1,18 @@
 """Node management endpoints"""
 
-import random
-from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional, cast
+from datetime import datetime, timezone
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.models import Node
+from app.services.mesh_store import MeshStore
 
 router = APIRouter(prefix="/api/nodes", tags=["nodes"])
 
-# Mock data store (in-memory for development)
-_mock_nodes: list[Node] = []
+# Global mesh store instance - will be set by main.py
+mesh_store: Optional[MeshStore] = None
 
 
 class NodePatch(BaseModel):
@@ -24,49 +24,6 @@ class NodePatch(BaseModel):
     rssi: Optional[int] = None
     battery: Optional[int] = Field(None, ge=0, le=100)
     position: Optional[dict[str, float]] = None
-
-
-def _generate_mock_data():
-    """Generate mock node data for development"""
-    if _mock_nodes:
-        return  # Already initialized
-
-    node_types = ["SPORE", "HYPHA", "FROND", "RHIZOME"]
-    statuses = ["online", "offline", "degraded"]
-    callsigns = [
-        "relay-alpha",
-        "sensor-beta",
-        "gateway-one",
-        "hub-central",
-        "edge-north",
-        "bridge-south",
-        "spore-cluster",
-        "myco-root",
-    ]
-
-    for i, callsign in enumerate(callsigns):
-        node = Node(
-            id=f"node_{i + 1:03d}",
-            type=cast(
-                Literal["SPORE", "HYPHA", "FROND", "RHIZOME"],
-                random.choice(node_types),
-            ),
-            callsign=callsign,
-            status=cast(
-                Literal["online", "offline", "degraded"],
-                random.choices(statuses, weights=[0.7, 0.1, 0.2])[0],
-            ),
-            rssi=random.randint(-90, -30) if random.random() > 0.2 else None,
-            battery=random.randint(10, 100) if random.random() > 0.3 else None,
-            last_seen=datetime.now(timezone.utc) - timedelta(seconds=random.randint(0, 3600)),
-            position={
-                "lat": 61.2181 + random.uniform(-0.5, 0.5),
-                "lon": -149.9003 + random.uniform(-0.5, 0.5),
-            }
-            if random.random() > 0.3
-            else None,
-        )
-        _mock_nodes.append(node)
 
 
 @router.get("", response_model=list[Node])
@@ -91,17 +48,18 @@ async def get_nodes(
     Returns:
         List of nodes matching the filter criteria
     """
-    _generate_mock_data()
+    if not mesh_store:
+        return []
 
-    filtered_nodes = _mock_nodes
+    nodes = mesh_store.get_all_nodes()
 
     if status:
-        filtered_nodes = [n for n in filtered_nodes if n.status == status]
+        nodes = [n for n in nodes if n.status == status]
 
     if type:
-        filtered_nodes = [n for n in filtered_nodes if n.type == type]
+        nodes = [n for n in nodes if n.type == type]
 
-    return filtered_nodes
+    return nodes
 
 
 @router.get("/{node_id}", response_model=Node)
@@ -118,13 +76,38 @@ async def get_node(node_id: str):
     Raises:
         HTTPException: 404 if node not found
     """
-    _generate_mock_data()
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
-    for node in _mock_nodes:
-        if node.id == node_id:
-            return node
+    node = mesh_store.get_node(node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
 
-    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+    return node
+
+
+@router.post("", response_model=Node, status_code=201)
+async def create_node(node: Node):
+    """
+    Create a new node in the mesh network
+
+    Args:
+        node: Node to create
+
+    Returns:
+        Created node
+
+    Raises:
+        HTTPException: 400 if node with same ID already exists
+    """
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
+
+    try:
+        created_node = mesh_store.add_node(node)
+        return created_node
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.patch("/{node_id}", response_model=Node)
@@ -144,20 +127,18 @@ async def update_node(node_id: str, patch: NodePatch):
     Raises:
         HTTPException: 404 if node not found
     """
-    _generate_mock_data()
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
-    for node in _mock_nodes:
-        if node.id == node_id:
-            # Apply partial updates
-            update_data = patch.model_dump(exclude_unset=True)
-            for field, value in update_data.items():
-                setattr(node, field, value)
+    # Apply partial updates
+    update_data = patch.model_dump(exclude_unset=True)
+    update_data["last_seen"] = datetime.now(timezone.utc)
 
-            # Update timestamp
-            node.last_seen = datetime.now(timezone.utc)
-            return node
+    updated_node = mesh_store.update_node(node_id, **update_data)
+    if not updated_node:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
 
-    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+    return updated_node
 
 
 @router.delete("/{node_id}", status_code=204)
@@ -171,14 +152,12 @@ async def delete_node(node_id: str):
     Raises:
         HTTPException: 404 if node not found
     """
-    _generate_mock_data()
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
-    for i, node in enumerate(_mock_nodes):
-        if node.id == node_id:
-            _mock_nodes.pop(i)
-            return
-
-    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+    removed = mesh_store.remove_node(node_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
 
 
 @router.post("/{node_id}/status", response_model=Node)
@@ -196,7 +175,8 @@ async def update_node_status(node_id: str, status: str):
     Raises:
         HTTPException: 404 if node not found, 400 if invalid status
     """
-    _generate_mock_data()
+    if not mesh_store:
+        raise HTTPException(status_code=503, detail="Mesh store not initialized")
 
     valid_statuses = ["online", "offline", "degraded"]
     if status not in valid_statuses:
@@ -204,10 +184,10 @@ async def update_node_status(node_id: str, status: str):
             status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
         )
 
-    for node in _mock_nodes:
-        if node.id == node_id:
-            node.status = cast(Literal["online", "offline", "degraded"], status)
-            node.last_seen = datetime.now(timezone.utc)
-            return node
+    updated_node = mesh_store.update_node(
+        node_id, status=status, last_seen=datetime.now(timezone.utc)
+    )
+    if not updated_node:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
 
-    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+    return updated_node
