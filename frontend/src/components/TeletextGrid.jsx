@@ -24,11 +24,29 @@ const VERTEX_SHADER = `
 
 const FRAGMENT_SHADER = `
   uniform sampler2D uTexture;
+  uniform sampler2D uPrevFrame;
   uniform vec2 uResolution;
   uniform float uTime;
   uniform float uCurvature;
+  uniform float uDeltaTime;
+  
+  // Effect toggles
+  uniform bool uEnableChromatic;
+  uniform bool uEnableBloom;
+  uniform bool uEnablePhosphor;
+  uniform bool uEnableNoise;
+  uniform bool uEnableFlicker;
+  
+  // Effect parameters
+  uniform float uChromaticAmount;
+  uniform float uBloomStrength;
+  uniform float uPhosphorDecay;
+  uniform float uNoiseAmount;
+  uniform float uFlickerAmount;
+  
   varying vec2 vUv;
 
+  // Curvature distortion
   vec2 distort(vec2 uv) {
     vec2 centered = uv * 2.0 - 1.0;
     float r2 = dot(centered, centered);
@@ -36,28 +54,109 @@ const FRAGMENT_SHADER = `
     return centered * 0.5 + 0.5;
   }
 
+  // High-quality random noise function
+  float random(vec3 scale, float seed) {
+    return fract(sin(dot(vec3(scale.xy, seed), vec3(12.9898, 78.233, 45.164))) * 43758.5453 + seed);
+  }
+
+  // 3D value noise for animated grain
+  float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    float n = i.x + i.y * 57.0 + 113.0 * i.z;
+    return mix(
+      mix(
+        mix(random(i, n), random(i + vec3(1.0, 0.0, 0.0), n), f.x),
+        mix(random(i + vec3(0.0, 1.0, 0.0), n), random(i + vec3(1.0, 1.0, 0.0), n), f.x),
+        f.y
+      ),
+      mix(
+        mix(random(i + vec3(0.0, 0.0, 1.0), n), random(i + vec3(1.0, 0.0, 1.0), n), f.x),
+        mix(random(i + vec3(0.0, 1.0, 1.0), n), random(i + vec3(1.0, 1.0, 1.0), n), f.x),
+        f.y
+      ),
+      f.z
+    );
+  }
+
   void main() {
     vec2 uv = distort(vUv);
+    
+    // Out of bounds check
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
       gl_FragColor = vec4(0.055, 0.043, 0.008, 1.0);
       return;
     }
 
-    vec3 tex = texture2D(uTexture, uv).rgb;
     vec2 texel = 1.0 / uResolution;
+    vec3 color = vec3(0.0);
 
-    vec3 glow = texture2D(uTexture, uv + vec2(texel.x, 0.0)).rgb;
-    glow += texture2D(uTexture, uv - vec2(texel.x, 0.0)).rgb;
-    glow += texture2D(uTexture, uv + vec2(0.0, texel.y)).rgb;
-    glow += texture2D(uTexture, uv - vec2(0.0, texel.y)).rgb;
-    glow *= 0.25;
+    // 1. RGB CHROMATIC ABERRATION (lateral)
+    if (uEnableChromatic) {
+      // Lateral horizontal misconvergence - RGB electron gun misalignment
+      vec2 offset = vec2(uChromaticAmount, 0.0);
+      float r = texture2D(uTexture, uv + offset).r;
+      float g = texture2D(uTexture, uv).g;
+      float b = texture2D(uTexture, uv - offset).b;
+      color = vec3(r, g, b);
+    } else {
+      color = texture2D(uTexture, uv).rgb;
+    }
 
+    // 2. WEIGHTED BLOOM (9-tap box blur)
+    if (uEnableBloom) {
+      vec3 bloom = vec3(0.0);
+      
+      // 3x3 weighted kernel (box blur approximation)
+      bloom += texture2D(uTexture, uv + texel * vec2(-1.0, -1.0)).rgb * 0.0625;
+      bloom += texture2D(uTexture, uv + texel * vec2(0.0, -1.0)).rgb * 0.125;
+      bloom += texture2D(uTexture, uv + texel * vec2(1.0, -1.0)).rgb * 0.0625;
+      
+      bloom += texture2D(uTexture, uv + texel * vec2(-1.0, 0.0)).rgb * 0.125;
+      bloom += texture2D(uTexture, uv).rgb * 0.25;
+      bloom += texture2D(uTexture, uv + texel * vec2(1.0, 0.0)).rgb * 0.125;
+      
+      bloom += texture2D(uTexture, uv + texel * vec2(-1.0, 1.0)).rgb * 0.0625;
+      bloom += texture2D(uTexture, uv + texel * vec2(0.0, 1.0)).rgb * 0.125;
+      bloom += texture2D(uTexture, uv + texel * vec2(1.0, 1.0)).rgb * 0.0625;
+      
+      // Add bloom to base color
+      color += bloom * uBloomStrength;
+    }
+
+    // 3. PHOSPHOR TRAILS (persistence of vision)
+    if (uEnablePhosphor) {
+      vec3 prevColor = texture2D(uPrevFrame, uv).rgb;
+      // Exponential decay based on actual time delta
+      float decay = pow(uPhosphorDecay, uDeltaTime * 60.0); // Normalize to 60fps
+      color = max(color, prevColor * decay);
+    }
+
+    // 4. SCANLINES (enhanced from original)
     float scan = sin((uv.y * uResolution.y + uTime * 20.0) * 3.14159);
     float scanline = mix(0.82, 1.0, scan * 0.5 + 0.5);
-    float vignette = smoothstep(0.8, 0.2, length(vUv - 0.5));
-
-    vec3 color = tex + glow * 0.35;
     color *= scanline;
+
+    // 5. STATIC NOISE (animated grain)
+    if (uEnableNoise) {
+      float noiseVal = noise(vec3(uv * uResolution * 0.5, uTime * 8.0));
+      noiseVal = noiseVal * 2.0 - 1.0; // Remap to -1..1
+      color += vec3(noiseVal) * uNoiseAmount;
+    }
+
+    // 6. SCREEN FLICKER (subtle brightness variation)
+    if (uEnableFlicker) {
+      // Combine slow sine wave with noise for organic feel
+      float flicker = sin(uTime * 12.0) * 0.5 + 0.5; // 12Hz flicker
+      flicker += noise(vec3(uTime * 4.0, 0.0, 0.0)) - 0.5;
+      flicker = 1.0 - (flicker * uFlickerAmount);
+      color *= flicker;
+    }
+
+    // 7. VIGNETTE
+    float vignette = smoothstep(0.8, 0.2, length(vUv - 0.5));
     color *= mix(0.9, 1.0, vignette);
 
     gl_FragColor = vec4(color, 1.0);
@@ -77,10 +176,12 @@ const normalizeContent = (content) => {
   })
 }
 
-const TeletextPlane = ({ content }) => {
+const TeletextPlane = ({ content, effectsConfig = {} }) => {
   const { viewport } = useThree()
   const canvasRef = useRef(document.createElement('canvas'))
   const materialRef = useRef(null)
+  const prevFrameTarget = useRef(null)
+  const lastFrameTime = useRef(0)
 
   const { texture, resolution, fontSize, charWidth, charHeight } = useMemo(() => {
     const fontSizeValue = 24
@@ -107,6 +208,21 @@ const TeletextPlane = ({ content }) => {
       charHeight: charHeightValue,
     }
   }, [])
+
+  // Initialize render target for phosphor trails
+  useEffect(() => {
+    const width = resolution.x
+    const height = resolution.y
+    prevFrameTarget.current = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+    })
+
+    return () => {
+      prevFrameTarget.current?.dispose()
+    }
+  }, [resolution])
 
   useEffect(() => {
     let active = true
@@ -143,9 +259,6 @@ const TeletextPlane = ({ content }) => {
       }
 
       texture.needsUpdate = true
-      if (materialRef.current?.uniforms) {
-        materialRef.current.uniforms.uResolution.value = resolution
-      }
     }
 
     draw()
@@ -153,13 +266,52 @@ const TeletextPlane = ({ content }) => {
     return () => {
       active = false
     }
-  }, [content, fontSize, charHeight, charWidth, resolution, texture])
+  }, [content, fontSize, charHeight, charWidth, texture])
 
   useFrame((state) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime
-    }
-  })
+    if (!materialRef.current) return
+
+    const now = state.clock.elapsedTime
+    const deltaTime = lastFrameTime.current ? now - lastFrameTime.current : 0.016
+    lastFrameTime.current = now
+
+    // Update uniforms
+    materialRef.current.uniforms.uTime.value = now
+    materialRef.current.uniforms.uDeltaTime.value = deltaTime
+  }, 1) // Priority 1 - update uniforms first
+
+  // Capture rendered frame for phosphor trails (runs after render)
+  useFrame((state) => {
+    if (!materialRef.current || !prevFrameTarget.current) return
+    
+    const gl = state.gl
+    
+    // Copy the current framebuffer to our previous frame texture
+    // This captures the RENDERED output including all shader effects
+    gl.copyFramebufferToTexture(
+      new THREE.Vector2(0, 0),
+      prevFrameTarget.current.texture,
+      0
+    )
+    
+    // Update the uniform so next frame can use it
+    materialRef.current.uniforms.uPrevFrame.value = prevFrameTarget.current.texture
+  }, 2) // Priority 2 - capture after rendering
+
+  // Default effect configuration
+  const config = {
+    enableChromatic: true,
+    enableBloom: true,
+    enablePhosphor: true,
+    enableNoise: true,
+    enableFlicker: true,
+    chromaticAmount: 0.001,
+    bloomStrength: 0.45,
+    phosphorDecay: 0.88,
+    noiseAmount: 0.04,
+    flickerAmount: 0.012,
+    ...effectsConfig,
+  }
 
   return (
     <mesh scale={[viewport.width, viewport.height, 1]}>
@@ -168,9 +320,25 @@ const TeletextPlane = ({ content }) => {
         ref={materialRef}
         uniforms={{
           uTexture: { value: texture },
+          uPrevFrame: { value: null },
           uResolution: { value: resolution },
           uTime: { value: 0 },
+          uDeltaTime: { value: 0.016 },
           uCurvature: { value: 0.08 },
+          
+          // Effect toggles
+          uEnableChromatic: { value: config.enableChromatic },
+          uEnableBloom: { value: config.enableBloom },
+          uEnablePhosphor: { value: config.enablePhosphor },
+          uEnableNoise: { value: config.enableNoise },
+          uEnableFlicker: { value: config.enableFlicker },
+          
+          // Effect parameters
+          uChromaticAmount: { value: config.chromaticAmount },
+          uBloomStrength: { value: config.bloomStrength },
+          uPhosphorDecay: { value: config.phosphorDecay },
+          uNoiseAmount: { value: config.noiseAmount },
+          uFlickerAmount: { value: config.flickerAmount },
         }}
         vertexShader={VERTEX_SHADER}
         fragmentShader={FRAGMENT_SHADER}
@@ -204,13 +372,25 @@ const FpsMonitor = ({ onSample }) => {
 
 TeletextPlane.propTypes = {
   content: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
+  effectsConfig: PropTypes.shape({
+    enableChromatic: PropTypes.bool,
+    enableBloom: PropTypes.bool,
+    enablePhosphor: PropTypes.bool,
+    enableNoise: PropTypes.bool,
+    enableFlicker: PropTypes.bool,
+    chromaticAmount: PropTypes.number,
+    bloomStrength: PropTypes.number,
+    phosphorDecay: PropTypes.number,
+    noiseAmount: PropTypes.number,
+    flickerAmount: PropTypes.number,
+  }),
 }
 
 FpsMonitor.propTypes = {
   onSample: PropTypes.func,
 }
 
-const TeletextGrid = ({ content, showFps = false }) => {
+const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
   const [fps, setFps] = useState(null)
 
   return (
@@ -236,7 +416,7 @@ const TeletextGrid = ({ content, showFps = false }) => {
         camera={{ position: [0, 0, 10], zoom: 1 }}
       >
         <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={1} />
-        <TeletextPlane content={content} />
+        <TeletextPlane content={content} effectsConfig={effectsConfig} />
         {showFps ? <FpsMonitor onSample={setFps} /> : null}
       </Canvas>
     </div>
@@ -246,6 +426,18 @@ const TeletextGrid = ({ content, showFps = false }) => {
 TeletextGrid.propTypes = {
   content: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
   showFps: PropTypes.bool,
+  effectsConfig: PropTypes.shape({
+    enableChromatic: PropTypes.bool,
+    enableBloom: PropTypes.bool,
+    enablePhosphor: PropTypes.bool,
+    enableNoise: PropTypes.bool,
+    enableFlicker: PropTypes.bool,
+    chromaticAmount: PropTypes.number,
+    bloomStrength: PropTypes.number,
+    phosphorDecay: PropTypes.number,
+    noiseAmount: PropTypes.number,
+    flickerAmount: PropTypes.number,
+  }),
 }
 
 export default TeletextGrid
