@@ -1,6 +1,6 @@
 """Tests for mock data generation"""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 
@@ -352,8 +352,6 @@ def test_update_node_status():
     battery_node = next((n for n in nodes if n.battery is not None), None)
     if battery_node is None:
         pytest.skip("No battery nodes generated")
-
-    initial_status = battery_node.status
 
     # Update with low battery
     source.update_node_status(battery_node.id, new_battery=5)

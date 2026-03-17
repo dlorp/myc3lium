@@ -1,7 +1,5 @@
 """Tests for mesh store CRUD operations"""
 
-from datetime import UTC, datetime
-
 import pytest
 
 from app.models import Message, Node, Thread
