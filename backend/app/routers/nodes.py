@@ -14,6 +14,9 @@ router = APIRouter(prefix="/api/nodes", tags=["nodes"])
 # Global mesh store instance - will be set by main.py
 mesh_store: Optional[MeshStore] = None
 
+# Export for testing and internal use
+__all__ = ["router", "_mock_nodes"]
+
 
 class NodePatch(BaseModel):
     """Partial node update payload"""
