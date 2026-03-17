@@ -14,6 +14,11 @@ const COLORS = {
   tertiary: '#C47A00',
 }
 
+// IBM VGA 8×16 font atlas parameters
+const ATLAS_GLYPH_WIDTH = 8
+const ATLAS_GLYPH_HEIGHT = 16
+const ATLAS_COLS = 16
+
 const VERTEX_SHADER = `
   varying vec2 vUv;
   void main() {
@@ -179,15 +184,14 @@ const normalizeContent = (content) => {
 const TeletextPlane = ({ content, effectsConfig = {} }) => {
   const { viewport } = useThree()
   const canvasRef = useRef(document.createElement('canvas'))
+  const fontAtlasRef = useRef(null)
   const materialRef = useRef(null)
   const prevFrameTarget = useRef(null)
   const lastFrameTime = useRef(0)
 
-  const { texture, resolution, fontSize, charWidth, charHeight } = useMemo(() => {
-    // Reduced font size for 80 columns (was 24 for 40 columns)
-    const fontSizeValue = 16
-    const charWidthValue = Math.ceil(fontSizeValue * 0.62)
-    const charHeightValue = Math.ceil(fontSizeValue * 1.18)
+  const { texture, resolution, charWidth, charHeight } = useMemo(() => {
+    const charWidthValue = ATLAS_GLYPH_WIDTH
+    const charHeightValue = ATLAS_GLYPH_HEIGHT
     const width = COLUMNS * charWidthValue
     const height = ROWS * charHeightValue
 
@@ -204,7 +208,6 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     return {
       texture: canvasTexture,
       resolution: new THREE.Vector2(width, height),
-      fontSize: fontSizeValue,
       charWidth: charWidthValue,
       charHeight: charHeightValue,
     }
@@ -225,36 +228,117 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
   }, [resolution])
 
+  // Load font atlas
   useEffect(() => {
-    let active = true
-    const draw = async () => {
-      if (document.fonts?.load) {
-        try {
-          await document.fonts.load(`${fontSize}px "VT323"`)
-        } catch (error) {
-          // Ignore font loading errors and draw with fallback fonts.
-        }
+    const loader = new THREE.TextureLoader()
+    loader.load(
+      '/fonts/vga-8x16-atlas.png',
+      (atlasTexture) => {
+        atlasTexture.minFilter = THREE.NearestFilter
+        atlasTexture.magFilter = THREE.NearestFilter
+        atlasTexture.generateMipmaps = false
+        fontAtlasRef.current = atlasTexture
+      },
+      undefined,
+      (error) => {
+        console.error('Failed to load font atlas:', error)
       }
+    )
+  }, [])
 
-      if (!active) return
+  // Initialize render target for phosphor trails
+  useEffect(() => {
+    const width = resolution.x
+    const height = resolution.y
+    prevFrameTarget.current = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+    })
 
+    return () => {
+      prevFrameTarget.current?.dispose()
+    }
+  }, [resolution])
+
+  useEffect(() => {
+    if (!fontAtlasRef.current) return
+
+    const draw = () => {
       const grid = normalizeContent(content)
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
+      // Clear canvas with background color
       ctx.fillStyle = COLORS.background
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.font = `${fontSize}px "VT323", monospace`
-      ctx.textBaseline = 'top'
 
+      // Create temporary canvas for font atlas access
+      const atlasCanvas = document.createElement('canvas')
+      const atlasTexture = fontAtlasRef.current
+      
+      // Load atlas image data
+      const atlasImage = atlasTexture.image
+      if (!atlasImage || !atlasImage.complete) return
+
+      atlasCanvas.width = atlasImage.width
+      atlasCanvas.height = atlasImage.height
+      const atlasCtx = atlasCanvas.getContext('2d')
+      if (!atlasCtx) return
+
+      atlasCtx.drawImage(atlasImage, 0, 0)
+
+      // Render each character using bitmap glyphs
       for (let row = 0; row < ROWS; row += 1) {
         const rowColor = row % 3 === 0 ? COLORS.primary : row % 3 === 1 ? COLORS.secondary : COLORS.tertiary
-        ctx.fillStyle = rowColor
+        
         for (let col = 0; col < COLUMNS; col += 1) {
           const char = grid[row][col]
-          if (char && char !== ' ') {
-            ctx.fillText(char, col * charWidth, row * charHeight)
+          if (!char || char === ' ') continue
+
+          const charCode = char.charCodeAt(0)
+          
+          // Calculate atlas position
+          const atlasCol = charCode % ATLAS_COLS
+          const atlasRow = Math.floor(charCode / ATLAS_COLS)
+          const atlasX = atlasCol * ATLAS_GLYPH_WIDTH
+          const atlasY = atlasRow * ATLAS_GLYPH_HEIGHT
+
+          // Get glyph bitmap data
+          const glyphData = atlasCtx.getImageData(
+            atlasX,
+            atlasY,
+            ATLAS_GLYPH_WIDTH,
+            ATLAS_GLYPH_HEIGHT
+          )
+
+          // Create colored glyph
+          const coloredGlyph = ctx.createImageData(ATLAS_GLYPH_WIDTH, ATLAS_GLYPH_HEIGHT)
+          const rgb = hexToRgb(rowColor)
+
+          for (let i = 0; i < glyphData.data.length; i += 4) {
+            const alpha = glyphData.data[i + 3]
+            if (alpha > 0) {
+              coloredGlyph.data[i] = rgb.r
+              coloredGlyph.data[i + 1] = rgb.g
+              coloredGlyph.data[i + 2] = rgb.b
+              coloredGlyph.data[i + 3] = alpha
+            }
+          }
+
+          // Draw glyph to target position
+          const tempCanvas = document.createElement('canvas')
+          tempCanvas.width = ATLAS_GLYPH_WIDTH
+          tempCanvas.height = ATLAS_GLYPH_HEIGHT
+          const tempCtx = tempCanvas.getContext('2d')
+          if (tempCtx) {
+            tempCtx.putImageData(coloredGlyph, 0, 0)
+            ctx.drawImage(
+              tempCanvas,
+              col * charWidth,
+              row * charHeight
+            )
           }
         }
       }
@@ -263,11 +347,7 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
 
     draw()
-
-    return () => {
-      active = false
-    }
-  }, [content, fontSize, charHeight, charWidth, texture])
+  }, [content, charHeight, charWidth, resolution, texture])
 
   useFrame((state) => {
     if (!materialRef.current) return
@@ -346,6 +426,17 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
       />
     </mesh>
   )
+}
+
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 255, g: 255, b: 255 }
 }
 
 const FpsMonitor = ({ onSample }) => {
