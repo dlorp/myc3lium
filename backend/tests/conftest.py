@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures for test isolation"""
 
 import pytest
+
 from app.routers import nodes
 
 
