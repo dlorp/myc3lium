@@ -3,8 +3,8 @@
 import math
 import random
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime, timedelta
-from typing import Literal, TypedDict
+from datetime import datetime, timedelta, timezone
+from typing import Literal, TypedDict, Optional
 
 from app.models import Message, Node, SensorData, Thread
 
@@ -79,7 +79,7 @@ class MockMeshDataSource(MeshDataSource):
         (0, 4, "WiFi"),  # Downtown <-> Airport (backbone)
     ]
 
-    def __init__(self, seed: int = 42, base_time: datetime | None = None):
+    def __init__(self, seed: int = 42, base_time: Optional[datetime] = None):
         """
         Initialize mock data source
 
@@ -88,7 +88,7 @@ class MockMeshDataSource(MeshDataSource):
             base_time: Base timestamp for data generation (defaults to now)
         """
         self.rng = random.Random(seed)
-        self.base_time = base_time or datetime.now(UTC)
+        self.base_time = base_time or datetime.now(timezone.utc)
         self._nodes: list[Node] = []
         self._threads: list[Thread] = []
         self._messages: list[Message] = []
@@ -294,7 +294,7 @@ class MockMeshDataSource(MeshDataSource):
 
         return sensor_data
 
-    def simulate_battery_drain(self, node_id: str, hours: float = 1.0) -> int | None:
+    def simulate_battery_drain(self, node_id: str, hours: float = 1.0) -> Optional[int]:
         """
         Simulate battery drain for a node over time
 
@@ -326,7 +326,7 @@ class MockMeshDataSource(MeshDataSource):
         new_battery = max(0, int(node.battery - drain_amount))
         return new_battery
 
-    def update_node_status(self, node_id: str, new_battery: int | None = None):
+    def update_node_status(self, node_id: str, new_battery: Optional[int] = None):
         """
         Update a node's status based on battery or other factors
 
@@ -343,5 +343,5 @@ class MockMeshDataSource(MeshDataSource):
                         node.status = "offline"
                     elif new_battery < 10:
                         node.status = "degraded"
-                node.last_seen = datetime.now(UTC)
+                node.last_seen = datetime.now(timezone.utc)
                 break
