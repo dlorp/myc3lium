@@ -191,7 +191,7 @@ const P700 = () => {
                 }}
               >
                 <TeletextText color="gray">{formatTime(entry.timestamp)}</TeletextText>
-                <TeletextText color={getLevelColor(entry.level) as any}>
+                <TeletextText color={getLevelColor(entry.level) as 'cyan' | 'magenta' | 'yellow' | 'green'}>
                   {getLevelIcon(entry.level)} [{entry.level.padEnd(7, ' ')}]
                 </TeletextText>
                 <TeletextText color="cyan">[{entry.source}]</TeletextText>
