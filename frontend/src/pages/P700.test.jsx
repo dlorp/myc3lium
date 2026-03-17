@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react'
 import P700 from './P700'
 import { getMockSensorData, updateSensorReadings, renderSensorGrid } from './P700.utils'
 
+// Mock scrollIntoView
+global.HTMLElement.prototype.scrollIntoView = vi.fn()
+
 // Mock navigation store
 vi.mock('../store/navigationStore', () => ({
   default: vi.fn((selector) =>
