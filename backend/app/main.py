@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import nodes, ws
+from app.routers import nodes, threads, ws
 from app.services.mesh_store import MeshStore
 from app.services.mock_data import MockMeshDataSource
 
@@ -40,6 +40,7 @@ mesh_store.load_from_source(
 
 # Include routers
 app.include_router(nodes.router)
+app.include_router(threads.router)
 app.include_router(ws.router)
 
 
