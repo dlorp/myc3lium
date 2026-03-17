@@ -18,7 +18,6 @@ const COLORS = {
 const ATLAS_GLYPH_WIDTH = 8
 const ATLAS_GLYPH_HEIGHT = 16
 const ATLAS_COLS = 16
-const ATLAS_ROWS = 16
 
 const VERTEX_SHADER = `
   varying vec2 vUv;
