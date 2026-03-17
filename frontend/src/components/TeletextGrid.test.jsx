@@ -33,7 +33,7 @@ beforeAll(() => {
 })
 
 describe('TeletextGrid', () => {
-  it('renders a 40x25 teletext grid container', () => {
+  it('renders an 80x25 teletext grid container', () => {
     const content = Array.from({ length: ROWS }, () =>
       Array.from({ length: COLUMNS }, () => ' '),
     )
