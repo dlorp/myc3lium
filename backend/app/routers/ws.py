@@ -48,7 +48,7 @@ def set_mesh_store(mesh_store: MeshStore):
         ws_event = event_map.get(event_type, event_type)
 
         message = {
-            "type": ws_event,
+            "event": ws_event,
             "data": data,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -79,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket):
     Message format:
     ```json
     {
-        "type": "node_added | node_updated | node_removed | message_added | ...",
+        "event": "node_added | node_updated | node_removed | message_added | ...",
         "data": { ... },
         "timestamp": "2026-03-16T12:00:00Z"
     }
@@ -97,7 +97,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Send welcome message
         await manager.send_personal_message(
             {
-                "type": "connected",
+                "event": "connected",
                 "data": {
                     "client_id": client_id,
                     "message": "Connected to MYC3LIUM network",
@@ -115,7 +115,7 @@ async def websocket_endpoint(websocket: WebSocket):
             stats["last_update"] = stats["last_update"].isoformat()
             await manager.send_personal_message(
                 {
-                    "type": "stats",
+                    "event": "stats",
                     "data": stats,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
@@ -135,7 +135,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # Echo back (clients can send keepalive pings)
             await manager.send_personal_message(
                 {
-                    "type": "echo",
+                    "event": "echo",
                     "data": {"received": data},
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
@@ -147,7 +147,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Broadcast disconnection to other clients
         await manager.broadcast(
             {
-                "type": "client_disconnected",
+                "event": "client_disconnected",
                 "data": {"client_id": client_id, "connections": manager.get_connection_count()},
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
