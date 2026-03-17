@@ -2,9 +2,10 @@
 
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Literal, cast
+from typing import Literal, Optional, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.models import Node
 
@@ -12,6 +13,17 @@ router = APIRouter(prefix="/api/nodes", tags=["nodes"])
 
 # Mock data store (in-memory for development)
 _mock_nodes: list[Node] = []
+
+
+class NodePatch(BaseModel):
+    """Partial node update payload"""
+
+    type: Optional[Literal["SPORE", "HYPHA", "FROND", "RHIZOME"]] = None
+    callsign: Optional[str] = None
+    status: Optional[Literal["online", "offline", "degraded"]] = None
+    rssi: Optional[int] = None
+    battery: Optional[int] = Field(None, ge=0, le=100)
+    position: Optional[dict[str, float]] = None
 
 
 def _generate_mock_data():
@@ -58,15 +70,38 @@ def _generate_mock_data():
 
 
 @router.get("", response_model=list[Node])
-async def get_nodes():
+async def get_nodes(
+    status: Optional[Literal["online", "offline", "degraded"]] = Query(
+        None, description="Filter by node status"
+    ),
+    type: Optional[Literal["SPORE", "HYPHA", "FROND", "RHIZOME"]] = Query(
+        None, description="Filter by node type"
+    ),
+):
     """
-    Get all mesh network nodes
+    Get all mesh network nodes with optional filters
 
     Returns a list of all nodes in the mycelial network with their current status,
     signal strength, battery levels, and last seen timestamps.
+
+    Args:
+        status: Filter nodes by status (online/offline/degraded)
+        type: Filter nodes by type (SPORE/HYPHA/FROND/RHIZOME)
+
+    Returns:
+        List of nodes matching the filter criteria
     """
     _generate_mock_data()
-    return _mock_nodes
+
+    filtered_nodes = _mock_nodes
+
+    if status:
+        filtered_nodes = [n for n in filtered_nodes if n.status == status]
+
+    if type:
+        filtered_nodes = [n for n in filtered_nodes if n.type == type]
+
+    return filtered_nodes
 
 
 @router.get("/{node_id}", response_model=Node)
@@ -88,6 +123,60 @@ async def get_node(node_id: str):
     for node in _mock_nodes:
         if node.id == node_id:
             return node
+
+    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+
+
+@router.patch("/{node_id}", response_model=Node)
+async def update_node(node_id: str, patch: NodePatch):
+    """
+    Update node properties
+
+    Partial update of a node. Only provided fields will be updated.
+
+    Args:
+        node_id: Node to update
+        patch: Fields to update
+
+    Returns:
+        Updated node
+
+    Raises:
+        HTTPException: 404 if node not found
+    """
+    _generate_mock_data()
+
+    for node in _mock_nodes:
+        if node.id == node_id:
+            # Apply partial updates
+            update_data = patch.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(node, field, value)
+
+            # Update timestamp
+            node.last_seen = datetime.now(timezone.utc)
+            return node
+
+    raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+
+
+@router.delete("/{node_id}", status_code=204)
+async def delete_node(node_id: str):
+    """
+    Delete a node from the network
+
+    Args:
+        node_id: Node to delete
+
+    Raises:
+        HTTPException: 404 if node not found
+    """
+    _generate_mock_data()
+
+    for i, node in enumerate(_mock_nodes):
+        if node.id == node_id:
+            _mock_nodes.pop(i)
+            return
 
     raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
 
