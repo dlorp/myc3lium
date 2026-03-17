@@ -103,19 +103,18 @@ const renderSatelliteView = (grid, satellites) => {
   let row = 3
   writeText(grid, 2, row, `${BOX.HH}${BOX.HH} SATELLITE TRACKER ${BOX.HH} pyorbital + SatDump ${BOX.HH}${BOX.HH}${BOX.HH}`)
   row += 2
-  writeText(grid, 2, row, 'SAT'); writeText(grid, 16, row, 'AZ'); writeText(grid, 22, row, 'EL'); writeText(grid, 28, row, 'FREQ'); writeText(grid, 40, row, 'ETA'); writeText(grid, 48, row, 'AOS'); writeText(grid, 56, row, 'LOS'); writeText(grid, 64, row, 'MAX'); row++
+  writeText(grid, 2, row, 'SATELLITE'); writeText(grid, 22, row, 'AZ'); writeText(grid, 30, row, 'EL'); writeText(grid, 38, row, 'FREQUENCY'); writeText(grid, 54, row, 'ETA'); writeText(grid, 62, row, 'AOS'); writeText(grid, 70, row, 'MAX'); row++
   drawHLine(grid, 2, row, COLUMNS - 4, BOX.H); row++
   satellites.forEach((sat, i) => {
     const prefix = sat.pass ? `${ARROW} ` : '  '
     writeText(grid, 2, row + i * 2, prefix + sat.name)
-    writeText(grid, 16, row + i * 2, sat.azimuth !== null ? sat.azimuth.toFixed(0) + '°' : '---')
-    writeText(grid, 22, row + i * 2, sat.elevation !== null ? sat.elevation.toFixed(0) + '°' : '---')
-    writeText(grid, 28, row + i * 2, sat.frequency)
-    writeText(grid, 40, row + i * 2, sat.eta)
-    writeText(grid, 48, row + i * 2, sat.aos || '---')
-    writeText(grid, 56, row + i * 2, sat.los || '---')
-    writeText(grid, 64, row + i * 2, sat.maxEl)
-    writeText(grid, 2, row + i * 2 + 1, `  MODE: ${sat.mode}`)
+    writeText(grid, 22, row + i * 2, sat.azimuth !== null ? sat.azimuth.toFixed(0) + '°' : '---')
+    writeText(grid, 30, row + i * 2, sat.elevation !== null ? sat.elevation.toFixed(0) + '°' : '---')
+    writeText(grid, 38, row + i * 2, sat.frequency)
+    writeText(grid, 54, row + i * 2, sat.eta)
+    writeText(grid, 62, row + i * 2, sat.aos || '---')
+    writeText(grid, 70, row + i * 2, sat.maxEl)
+    writeText(grid, 2, row + i * 2 + 1, `  MODE: ${sat.mode} │ LOS: ${sat.los || '---'}`)
   })
 }
 
@@ -151,17 +150,18 @@ const renderSensorTelemetryView = (grid, sensors) => {
   let row = 3
   writeText(grid, 2, row, `${BOX.HH}${BOX.HH} SENSOR TELEMETRY ${BOX.HH} RHIZOME GRID ${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}`)
   row += 2
-  writeText(grid, 2, row, 'NODE'); writeText(grid, 18, row, 'TEMP'); writeText(grid, 26, row, 'HUM'); writeText(grid, 32, row, 'PRES'); writeText(grid, 40, row, 'MOT'); writeText(grid, 46, row, 'BAT'); writeText(grid, 52, row, 'TREND'); writeText(grid, 66, row, 'ST'); row++
+  writeText(grid, 2, row, 'NODE'); writeText(grid, 24, row, 'TEMP'); writeText(grid, 34, row, 'HUMIDITY'); writeText(grid, 46, row, 'PRESSURE'); writeText(grid, 58, row, 'MOTION'); writeText(grid, 68, row, 'BATTERY'); row++
   drawHLine(grid, 2, row, COLUMNS - 4, BOX.H); row++
   sensors.forEach((sensor) => {
     writeText(grid, 2, row, `${sensor.id} //${sensor.callsign}`)
-    writeText(grid, 18, row, sensor.temp.toFixed(1) + '°C')
-    writeText(grid, 26, row, sensor.humidity.toFixed(0) + '%')
-    writeText(grid, 32, row, sensor.pressure.toFixed(0) + 'mb')
-    writeText(grid, 40, row, sensor.motion ? 'YES' : 'NO')
-    writeText(grid, 46, row, sensor.battery + '%')
-    drawSparkline(grid, 52, row, 12, sensor.trend)
-    writeText(grid, 66, row, sensor.status)
+    writeText(grid, 24, row, sensor.temp.toFixed(1) + '°C')
+    writeText(grid, 34, row, sensor.humidity.toFixed(0) + '%')
+    writeText(grid, 46, row, sensor.pressure.toFixed(0) + 'mb')
+    writeText(grid, 58, row, sensor.motion ? 'YES' : 'NO')
+    writeText(grid, 68, row, sensor.battery + '%')
+    writeText(grid, 2, row + 1, `  TREND: `)
+    drawSparkline(grid, 11, row + 1, 20, sensor.trend)
+    writeText(grid, 35, row + 1, `STATUS: ${sensor.status}`)
     row += 2
   })
   drawHLine(grid, 2, ROWS - 3, COLUMNS - 4, BOX.H)
