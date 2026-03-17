@@ -21,7 +21,6 @@ const colorMap: Record<ColorType, string> = {
 export const StatusBar: React.FC<StatusBarProps> = ({ value, color, label }) => {
   const barColor = colorMap[color];
   const clampedValue = Math.max(0, Math.min(100, value));
-  const barWidth = `${clampedValue}%`;
   
   // Fill character based on percentage ranges
   const getFillChar = (percentage: number): string => {

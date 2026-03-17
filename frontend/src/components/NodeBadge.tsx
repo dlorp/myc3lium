@@ -29,6 +29,8 @@ export const NodeBadge: React.FC<NodeBadgeProps> = ({ node }) => {
   const statusColor = statusColorMap[node.status];
   const statusIcon = statusIconMap[node.status];
 
+  const displayText = `${statusIcon} ${node.id} // "${node.callsign}"`;
+  
   return (
     <span
       style={{
@@ -38,7 +40,7 @@ export const NodeBadge: React.FC<NodeBadgeProps> = ({ node }) => {
         color: statusColor,
       }}
     >
-      {statusIcon} {node.id} // "{node.callsign}"
+      {displayText}
     </span>
   );
 };
