@@ -1,7 +1,7 @@
 """In-memory mesh network state management with event emission"""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Callable
 
 from app.models import Message, Node, Thread
 
@@ -121,7 +121,7 @@ class MeshStore:
             True if node was removed, False if not found
         """
         if node_id in self._nodes:
-            node = self._nodes.pop(node_id)
+            self._nodes.pop(node_id)
             self._emit_event("node_removed", {"id": node_id})
 
             # Also remove threads involving this node
@@ -235,7 +235,7 @@ class MeshStore:
             True if thread was removed, False if not found
         """
         if thread_id in self._threads:
-            thread = self._threads.pop(thread_id)
+            self._threads.pop(thread_id)
             self._emit_event("thread_removed", {"id": thread_id})
             return True
         return False
@@ -321,7 +321,7 @@ class MeshStore:
             True if message was removed, False if not found
         """
         if message_id in self._messages:
-            message = self._messages.pop(message_id)
+            self._messages.pop(message_id)
             self._emit_event("message_removed", {"id": message_id})
             return True
         return False
