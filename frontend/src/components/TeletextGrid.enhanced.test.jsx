@@ -183,13 +183,13 @@ describe('CRT Presets', () => {
 
 describe('Shader Effect Integration', () => {
   const mockContent = Array.from({ length: 25 }, () => 
-    Array.from({ length: 40 }, () => 'X')
+    Array.from({ length: 80 }, () => 'X')
   )
 
-  it('renders full 40x25 grid with effects', () => {
+  it('renders full 80x25 grid with effects', () => {
     render(<TeletextGrid content={mockContent} />)
     const grid = screen.getByTestId('teletext-grid')
-    expect(grid).toHaveAttribute('data-cols', '40')
+    expect(grid).toHaveAttribute('data-cols', '80')
     expect(grid).toHaveAttribute('data-rows', '25')
   })
 
