@@ -1,5 +1,6 @@
-from typing import Optional
 """WebSocket connection manager for real-time updates"""
+
+from typing import Optional
 
 from fastapi import WebSocket
 
