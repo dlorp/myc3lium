@@ -152,7 +152,7 @@ const P400 = () => {
                   <TeletextText color="cyan">
                     {reading.callsign} ({reading.nodeId.slice(0, 8)})
                   </TeletextText>
-                  <TeletextText color={getStatusColor(reading.status) as any}>
+                  <TeletextText color={getStatusColor(reading.status) as 'cyan' | 'magenta' | 'yellow' | 'green'}>
                     [{reading.status}]
                   </TeletextText>
                 </div>
