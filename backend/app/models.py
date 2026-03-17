@@ -22,7 +22,9 @@ class Node(BaseModel):
     last_seen: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp"
     )
-    position: Optional[dict[str, float]] = Field(None, description="Geographic coordinates (lat/lon)")
+    position: Optional[dict[str, float]] = Field(
+        None, description="Geographic coordinates (lat/lon)"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
