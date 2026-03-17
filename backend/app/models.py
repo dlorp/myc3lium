@@ -206,7 +206,9 @@ class CameraStream(BaseModel):
     name: str = Field(..., max_length=128, description="Human-readable camera name")
     stream_url: str = Field(..., max_length=512, description="Camera stream URL")
     status: Literal["active", "inactive", "error"] = Field(..., description="Stream status")
-    resolution: str | None = Field(None, max_length=32, description="Stream resolution (e.g., 1920x1080)")
+    resolution: str | None = Field(
+        None, max_length=32, description="Stream resolution (e.g., 1920x1080)"
+    )
     fps: int | None = Field(None, ge=1, le=120, description="Frames per second")
     last_frame: datetime | None = Field(None, description="Timestamp of last received frame")
 
@@ -237,7 +239,9 @@ class SystemStatus(BaseModel):
     last_update: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), description="Last status update"
     )
-    health: Literal["healthy", "degraded", "critical"] = Field(..., description="Overall system health")
+    health: Literal["healthy", "degraded", "critical"] = Field(
+        ..., description="Overall system health"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
