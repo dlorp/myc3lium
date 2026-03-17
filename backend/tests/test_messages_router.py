@@ -6,17 +6,18 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import Message, Node
-from app.routers import messages as messages_router
 from app.routers import nodes as nodes_router
 
 client = TestClient(app)
 
 
 def setup_test_nodes():
-    """Helper to set up test nodes in the mock store"""
+    """Helper to set up test nodes in the mesh store"""
+    # Get the mesh_store from nodes router
+    mesh_store = nodes_router.mesh_store
+
     # Clear existing data
-    nodes_router._mock_nodes.clear()  # type: ignore[attr-defined]
-    messages_router._mock_messages.clear()  # type: ignore[attr-defined]
+    mesh_store.clear()
 
     # Add test nodes
     test_nodes = [
@@ -43,12 +44,16 @@ def setup_test_nodes():
         ),
     ]
 
-    nodes_router._mock_nodes.extend(test_nodes)  # type: ignore[attr-defined]
+    for node in test_nodes:
+        mesh_store.add_node(node)
 
 
 def setup_test_messages():
-    """Helper to set up test messages in the mock store"""
+    """Helper to set up test messages in the mesh store"""
     setup_test_nodes()
+
+    # Get the mesh_store from nodes router
+    mesh_store = nodes_router.mesh_store
 
     test_messages = [
         Message(
@@ -85,7 +90,8 @@ def setup_test_messages():
         ),
     ]
 
-    messages_router._mock_messages.extend(test_messages)  # type: ignore[attr-defined]
+    for message in test_messages:
+        mesh_store.add_message(message)
 
 
 class TestGetMessages:
@@ -390,9 +396,12 @@ class TestDeleteMessage:
         """Test that deleting a message doesn't delete nodes"""
         setup_test_messages()
 
+        # Get the mesh_store from nodes router
+        mesh_store = nodes_router.mesh_store
+
         client.delete("/api/messages/msg_001")
 
-        node = next((n for n in nodes_router._mock_nodes if n.id == "node_001"), None)  # type: ignore[attr-defined]
+        node = mesh_store.get_node("node_001")
         assert node is not None
 
 

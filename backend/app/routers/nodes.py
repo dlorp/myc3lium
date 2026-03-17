@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/nodes", tags=["nodes"])
 mesh_store: Optional[MeshStore] = None
 
 # Export for testing and internal use
-__all__ = ["router", "_mock_nodes"]
+__all__ = ["router"]
 
 
 class NodePatch(BaseModel):
