@@ -1,3 +1,4 @@
+from typing import Optional
 """WebSocket connection manager for real-time updates"""
 
 from fastapi import WebSocket
@@ -41,7 +42,7 @@ class ConnectionManager:
                 # Client disconnected, remove from pool
                 self.disconnect(client_id)
 
-    async def broadcast(self, message: dict, exclude: set[str] | None = None):
+    async def broadcast(self, message: dict, exclude: Optional[set[str]] = None):
         """Broadcast message to all connected clients (optionally excluding some)"""
         exclude = exclude or set()
         disconnected = []

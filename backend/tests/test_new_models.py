@@ -1,6 +1,6 @@
 """Tests for new Phase 2 Pydantic models"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -104,8 +104,8 @@ def test_thread_optional_fields():
 
 def test_satellite_pass_valid():
     """Test valid SatellitePass creation"""
-    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=UTC)
-    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=UTC)
+    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=timezone.utc)
+    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=timezone.utc)
 
     sat_pass = SatellitePass(
         id="pass_001",
@@ -128,8 +128,8 @@ def test_satellite_pass_valid():
 
 def test_satellite_pass_elevation_range():
     """Test SatellitePass max_elevation validation (0.0-90.0)"""
-    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=UTC)
-    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=UTC)
+    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=timezone.utc)
+    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=timezone.utc)
 
     # Valid elevations
     for elevation in [0.0, 45.0, 90.0]:
@@ -148,8 +148,8 @@ def test_satellite_pass_elevation_range():
 
 def test_satellite_pass_azimuth_range():
     """Test SatellitePass azimuth validation (0.0-360.0)"""
-    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=UTC)
-    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=UTC)
+    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=timezone.utc)
+    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=timezone.utc)
 
     # Valid azimuths
     sat_pass = SatellitePass(
@@ -178,8 +178,8 @@ def test_satellite_pass_azimuth_range():
 
 def test_satellite_pass_optional_azimuths():
     """Test SatellitePass with optional azimuth fields"""
-    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=UTC)
-    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=UTC)
+    aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=timezone.utc)
+    los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=timezone.utc)
 
     sat_pass = SatellitePass(id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=45.0)
 
@@ -197,7 +197,7 @@ def test_camera_stream_valid():
         status="active",
         resolution="1920x1080",
         fps=30,
-        last_frame=datetime(2026, 3, 16, 12, 0, 0, tzinfo=UTC),
+        last_frame=datetime(2026, 3, 16, 12, 0, 0, tzinfo=timezone.utc),
     )
 
     assert camera.id == "cam_001"
@@ -207,7 +207,7 @@ def test_camera_stream_valid():
     assert camera.status == "active"
     assert camera.resolution == "1920x1080"
     assert camera.fps == 30
-    assert camera.last_frame == datetime(2026, 3, 16, 12, 0, 0, tzinfo=UTC)
+    assert camera.last_frame == datetime(2026, 3, 16, 12, 0, 0, tzinfo=timezone.utc)
 
 
 def test_camera_stream_status_types():

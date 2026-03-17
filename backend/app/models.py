@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,12 +17,12 @@ class Node(BaseModel):
     )
     callsign: str = Field(..., max_length=32, description="Human-readable node identifier")
     status: Literal["online", "offline", "degraded"] = Field(..., description="Current node status")
-    rssi: int | None = Field(None, description="Signal strength (dBm)")
-    battery: int | None = Field(None, ge=0, le=100, description="Battery percentage")
+    rssi: Optional[int] = Field(None, description="Signal strength (dBm)")
+    battery: Optional[int] = Field(None, ge=0, le=100, description="Battery percentage")
     last_seen: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp"
     )
-    position: dict[str, float] | None = Field(None, description="Geographic coordinates (lat/lon)")
+    position: Optional[dict[str, float]] = Field(None, description="Geographic coordinates (lat/lon)")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -46,7 +46,7 @@ class Connection(BaseModel):
     source_id: str = Field(..., max_length=64, description="Source node ID")
     target_id: str = Field(..., max_length=64, description="Target node ID")
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
-    latency: int | None = Field(None, description="Latency in milliseconds")
+    latency: Optional[int] = Field(None, description="Latency in milliseconds")
     established: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Connection established time",
@@ -96,7 +96,7 @@ class Message(BaseModel):
 
     id: str = Field(..., max_length=64, description="Message identifier")
     sender_id: str = Field(..., max_length=64, description="Sending node ID")
-    recipient_id: str | None = Field(
+    recipient_id: Optional[str] = Field(
         None, max_length=64, description="Target node ID (null for broadcast)"
     )
     content: str = Field(..., max_length=1024, description="Message content")
@@ -148,9 +148,9 @@ class Thread(BaseModel):
     source_id: str = Field(..., max_length=64, description="Source node ID")
     target_id: str = Field(..., max_length=64, description="Target node ID")
     radio_type: Literal["LoRa", "HaLow", "WiFi"] = Field(..., description="Radio technology type")
-    rssi: int | None = Field(None, description="Signal strength (dBm)")
+    rssi: Optional[int] = Field(None, description="Signal strength (dBm)")
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
-    latency: int | None = Field(None, description="Latency in milliseconds")
+    latency: Optional[int] = Field(None, description="Latency in milliseconds")
     established: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Thread established time",
@@ -180,8 +180,8 @@ class SatellitePass(BaseModel):
     aos: datetime = Field(..., description="Acquisition of Signal (rise time)")
     los: datetime = Field(..., description="Loss of Signal (set time)")
     max_elevation: float = Field(..., ge=0.0, le=90.0, description="Maximum elevation in degrees")
-    azimuth_aos: float | None = Field(None, ge=0.0, le=360.0, description="Azimuth at AOS")
-    azimuth_los: float | None = Field(None, ge=0.0, le=360.0, description="Azimuth at LOS")
+    azimuth_aos: Optional[float] = Field(None, ge=0.0, le=360.0, description="Azimuth at AOS")
+    azimuth_los: Optional[float] = Field(None, ge=0.0, le=360.0, description="Azimuth at LOS")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -206,11 +206,11 @@ class CameraStream(BaseModel):
     name: str = Field(..., max_length=128, description="Human-readable camera name")
     stream_url: str = Field(..., max_length=512, description="Camera stream URL")
     status: Literal["active", "inactive", "error"] = Field(..., description="Stream status")
-    resolution: str | None = Field(
+    resolution: Optional[str] = Field(
         None, max_length=32, description="Stream resolution (e.g., 1920x1080)"
     )
-    fps: int | None = Field(None, ge=1, le=120, description="Frames per second")
-    last_frame: datetime | None = Field(None, description="Timestamp of last received frame")
+    fps: Optional[int] = Field(None, ge=1, le=120, description="Frames per second")
+    last_frame: Optional[datetime] = Field(None, description="Timestamp of last received frame")
 
     model_config = ConfigDict(
         json_schema_extra={

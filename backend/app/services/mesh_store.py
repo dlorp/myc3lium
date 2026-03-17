@@ -1,7 +1,8 @@
 """In-memory mesh network state management with event emission"""
 
+from typing import Optional
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from app.models import Message, Node, Thread
 
@@ -65,7 +66,7 @@ class MeshStore:
         self._emit_event("node_added", node.model_dump())
         return node
 
-    def get_node(self, node_id: str) -> Node | None:
+    def get_node(self, node_id: str) -> Optional[Node]:
         """
         Get a node by ID
 
@@ -86,7 +87,7 @@ class MeshStore:
         """
         return list(self._nodes.values())
 
-    def update_node(self, node_id: str, **updates) -> Node | None:
+    def update_node(self, node_id: str, **updates) -> Optional[Node]:
         """
         Update a node's fields
 
@@ -163,7 +164,7 @@ class MeshStore:
         self._emit_event("thread_added", thread.model_dump())
         return thread
 
-    def get_thread(self, thread_id: str) -> Thread | None:
+    def get_thread(self, thread_id: str) -> Optional[Thread]:
         """
         Get a thread by ID
 
@@ -200,7 +201,7 @@ class MeshStore:
             if thread.source_id == node_id or thread.target_id == node_id
         ]
 
-    def update_thread(self, thread_id: str, **updates) -> Thread | None:
+    def update_thread(self, thread_id: str, **updates) -> Optional[Thread]:
         """
         Update a thread's fields
 
@@ -269,7 +270,7 @@ class MeshStore:
         self._emit_event("message_added", message.model_dump())
         return message
 
-    def get_message(self, message_id: str) -> Message | None:
+    def get_message(self, message_id: str) -> Optional[Message]:
         """
         Get a message by ID
 
@@ -347,7 +348,7 @@ class MeshStore:
             "active_node_count": online_nodes,
             "thread_count": len(self._threads),
             "message_count": len(self._messages),
-            "last_update": datetime.now(UTC),
+            "last_update": datetime.now(timezone.utc),
         }
 
     def load_from_source(self, nodes: list[Node], threads: list[Thread], messages: list[Message]):
