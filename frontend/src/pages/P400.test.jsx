@@ -141,7 +141,7 @@ describe('P400.utils', () => {
       
       expect(grid).toBeInstanceOf(Array)
       expect(grid.length).toBe(25) // ROWS
-      expect(grid[0].length).toBe(40) // COLUMNS
+      expect(grid[0].length).toBe(80) // COLUMNS
     })
     
     it('includes header text', () => {

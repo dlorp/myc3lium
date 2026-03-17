@@ -414,8 +414,8 @@ export const renderTacticalMap = (gpsData, panX = 0, panY = 0, zoom = 1, selecte
     writeText(grid, 1, infoY + 2 + i, info)
   })
   
-  // Waypoint list (right side)
-  writeText(grid, 22, infoY + 1, 'WAYPOINTS:')
+  // Waypoint list (middle)
+  writeText(grid, 30, infoY + 1, 'WAYPOINTS:')
   gpsData.waypoints.slice(0, 3).forEach((wp, i) => {
     const dist = calculateDistance(
       gpsData.currentPosition.lat,
@@ -431,7 +431,7 @@ export const renderTacticalMap = (gpsData, panX = 0, panY = 0, zoom = 1, selecte
     )
     
     const info = `${SYMBOLS.WAYPOINT}${wp.name.slice(0, 6)} ${dist.toFixed(1)}km ${Math.round(bearing)}°`
-    writeText(grid, 22, infoY + 2 + i, info)
+    writeText(grid, 30, infoY + 2 + i, info)
   })
   
   // Controls
@@ -440,7 +440,7 @@ export const renderTacticalMap = (gpsData, panX = 0, panY = 0, zoom = 1, selecte
   
   // Selected node detail (if any)
   if (selectedNode) {
-    const detailX = COLUMNS - 20
+    const detailX = COLUMNS - 25
     const detailY = 3
     
     writeText(grid, detailX, detailY, `NODE: ${selectedNode.id}`)
