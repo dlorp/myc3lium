@@ -29,6 +29,7 @@ ws.set_mesh_store(mesh_store)
 
 # Make mesh_store available to routers
 nodes.mesh_store = mesh_store
+messages.mesh_store = mesh_store
 
 # Load mock data
 mock_source = MockMeshDataSource(seed=42)

@@ -3,23 +3,31 @@
 import pytest
 
 from app.routers import nodes
+from app.services.mock_data import MockMeshDataSource
 
 
 @pytest.fixture(autouse=True)
-def reset_mock_nodes():
-    """Reset mock nodes to empty state before each test
+def reset_mesh_store():
+    """Reset mesh store to default mock state before each test
 
-    This ensures test isolation by clearing mock data between tests.
-    Without this, deleted/modified nodes persist across tests causing
-    count mismatches and data leakage.
+    This ensures test isolation by resetting mock data between tests.
+    Without this, deleted/modified nodes/messages/threads persist across tests
+    causing count mismatches and data leakage.
 
-    The _generate_mock_data() function will repopulate the data on first
-    API call in each test.
+    Reloads the same mock data set that main.py uses for consistency.
     """
-    # Clear mock nodes before each test
-    nodes._mock_nodes.clear()  # type: ignore[attr-defined]
+    # Reload mock data before each test
+    if nodes.mesh_store:
+        nodes.mesh_store.clear()
+        mock_source = MockMeshDataSource(seed=42)
+        nodes.mesh_store.load_from_source(
+            mock_source.get_nodes(),
+            mock_source.get_threads(),
+            mock_source.get_messages(),
+        )
 
     yield
 
     # Cleanup after test (ensures clean slate for next test)
-    nodes._mock_nodes.clear()  # type: ignore[attr-defined]
+    if nodes.mesh_store:
+        nodes.mesh_store.clear()
