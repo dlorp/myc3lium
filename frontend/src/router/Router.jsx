@@ -5,7 +5,8 @@ import P200 from '../pages/P200'
 import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
-import P600 from '../pages/P500'
+import P600 from '../pages/P600'
+import P800 from '../pages/P800'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -139,12 +140,22 @@ const Router = () => {
           element={
             <PageRoute>
         
-        {/* P600 - Radio Config */}
+        {/* P600 - Satellite Tracking */}
         <Route
           path="/p/600"
           element={
             <PageRoute>
               <P600 />
+            </PageRoute>
+          }
+        />
+
+        {/* P800 - Command Interface */}
+        <Route
+          path="/p/800"
+          element={
+            <PageRoute>
+              <P800 />
             </PageRoute>
           }
         />
