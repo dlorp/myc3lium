@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBM VGA 8×16 Font Atlas Generator</title>
+  <style>
+    body {
+      margin: 20px;
+      font-family: monospace;
+      background: #0B0F14;
+      color: #A3D9C9;
+    }
+    canvas {
+      border: 1px solid #2F6F6F;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .info {
+      margin-top: 20px;
+      padding: 10px;
+      background: #1B2735;
+      border: 1px solid #2F6F6F;
+    }
+    button {
+      background: #2F6F6F;
+      color: #A3D9C9;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #3F7F7F;
+    }
+  </style>
+</head>
+<body>
+  <h1>IBM VGA 8×16 Font Atlas Generator</h1>
+  <p>Generates CP437 charset atlas for MYC3LIUM teletext renderer</p>
+  
+  <canvas id="atlas" width="128" height="128"></canvas>
+  
+  <div class="info">
+    <h3>Atlas Specifications</h3>
+    <ul>
+      <li>Grid: 16×16 characters (256 total)</li>
+      <li>Cell: 8×16 pixels</li>
+      <li>Atlas: 128×128 pixels</li>
+      <li>Charset: IBM VGA Code Page 437</li>
+    </ul>
+    <button onclick="downloadAtlas()">Download PNG</button>
+    <button onclick="downloadMetadata()">Download JSON</button>
+  </div>
+
+  <script>
+    // IBM VGA CP437 full character map (256 chars)
+    const CP437_CHARS = [
+      // 0x00-0x1F: Control characters (rendered as symbols in VGA)
+      '\u0000', '☺', '☻', '♥', '♦', '♣', '♠', '•', '◘', '○', '◙', '♂', '♀', '♪', '♫', '☼',
+      '►', '◄', '↕', '‼', '¶', '§', '▬', '↨', '↑', '↓', '→', '←', '∟', '↔', '▲', '▼',
+      
+      // 0x20-0x7F: Standard ASCII
+      ' ', '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/',
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+      '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+      'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_',
+      '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+      'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~', '⌂',
+      
+      // 0x80-0xFF: Extended ASCII / box drawing / international
+      'Ç', 'ü', 'é', 'â', 'ä', 'à', 'å', 'ç', 'ê', 'ë', 'è', 'ï', 'î', 'ì', 'Ä', 'Å',
+      'É', 'æ', 'Æ', 'ô', 'ö', 'ò', 'û', 'ù', 'ÿ', 'Ö', 'Ü', '¢', '£', '¥', '₧', 'ƒ',
+      'á', 'í', 'ó', 'ú', 'ñ', 'Ñ', 'ª', 'º', '¿', '⌐', '¬', '½', '¼', '¡', '«', '»',
+      '░', '▒', '▓', '│', '┤', '╡', '╢', '╖', '╕', '╣', '║', '╗', '╝', '╜', '╛', '┐',
+      '└', '┴', '┬', '├', '─', '┼', '╞', '╟', '╚', '╔', '╩', '╦', '╠', '═', '╬', '╧',
+      '╨', '╤', '╥', '╙', '╘', '╒', '╓', '╫', '╪', '┘', '┌', '█', '▄', '▌', '▐', '▀',
+      'α', 'ß', 'Γ', 'π', 'Σ', 'σ', 'µ', 'τ', 'Φ', 'Θ', 'Ω', 'δ', '∞', 'φ', 'ε', '∩',
+      '≡', '±', '≥', '≤', '⌠', '⌡', '÷', '≈', '°', '∙', '·', '√', 'ⁿ', '²', '■', '\u00A0'
+    ];
+
+    const CHAR_WIDTH = 8;
+    const CHAR_HEIGHT = 16;
+    const GRID_SIZE = 16;
+    const ATLAS_SIZE = 128;
+
+    const canvas = document.getElementById('atlas');
+    const ctx = canvas.getContext('2d');
+
+    // Background: black
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
+
+    // Font rendering settings
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px "Courier New", "Courier", monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+
+    // Render each character
+    for (let i = 0; i < 256; i++) {
+      const char = CP437_CHARS[i];
+      const col = i % GRID_SIZE;
+      const row = Math.floor(i / GRID_SIZE);
+      
+      const x = col * CHAR_WIDTH;
+      const y = row * CHAR_HEIGHT;
+      
+      // Draw character (offset slightly for centering)
+      ctx.fillText(char, x + 1, y);
+    }
+
+    function downloadAtlas() {
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ibm-vga-8x16.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('✓ Font atlas downloaded');
+      });
+    }
+
+    function downloadMetadata() {
+      const metadata = {
+        version: '1.0.0',
+        charset: 'IBM VGA Code Page 437',
+        charWidth: CHAR_WIDTH,
+        charHeight: CHAR_HEIGHT,
+        gridSize: GRID_SIZE,
+        atlasWidth: ATLAS_SIZE,
+        atlasHeight: ATLAS_SIZE,
+        totalChars: 256,
+        usage: {
+          texCoordU: 'charCode % 16 * 8 / 128',
+          texCoordV: 'Math.floor(charCode / 16) * 16 / 128',
+          charWidth: '8 / 128',
+          charHeight: '16 / 128'
+        }
+      };
+
+      const json = JSON.stringify(metadata, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ibm-vga-8x16.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log('✓ Metadata JSON downloaded');
+    }
+
+    console.log('IBM VGA 8×16 Font Atlas Generator');
+    console.log('Atlas rendered. Click buttons to download.');
+  </script>
+</body>
+</html>

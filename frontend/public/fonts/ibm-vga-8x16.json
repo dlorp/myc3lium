@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "charset": "IBM VGA Code Page 437",
+  "charWidth": 8,
+  "charHeight": 16,
+  "gridSize": 16,
+  "atlasWidth": 128,
+  "atlasHeight": 128,
+  "totalChars": 256,
+  "usage": {
+    "texCoordU": "charIndex % 16 * 8 / 128",
+    "texCoordV": "Math.floor(charIndex / 16) * 16 / 128"
+  }
+}
