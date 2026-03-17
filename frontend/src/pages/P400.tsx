@@ -57,10 +57,10 @@ const P400 = () => {
       }
 
       // Generate history data for sparklines
-      const tempHistory = Array.from({ length: 20 }, (_, i) => 
+      const tempHistory = Array.from({ length: 20 }, () => 
         temp + (Math.random() - 0.5) * 5
       );
-      const humidityHistory = Array.from({ length: 20 }, (_, i) => 
+      const humidityHistory = Array.from({ length: 20 }, () => 
         humidity + (Math.random() - 0.5) * 10
       );
 
