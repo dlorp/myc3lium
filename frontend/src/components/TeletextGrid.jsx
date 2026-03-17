@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 
-const COLUMNS = 40
+const COLUMNS = 80
 const ROWS = 25
 
 const COLORS = {
@@ -83,7 +83,8 @@ const TeletextPlane = ({ content }) => {
   const materialRef = useRef(null)
 
   const { texture, resolution, fontSize, charWidth, charHeight } = useMemo(() => {
-    const fontSizeValue = 24
+    // Reduced font size for 80 columns (was 24 for 40 columns)
+    const fontSizeValue = 16
     const charWidthValue = Math.ceil(fontSizeValue * 0.62)
     const charHeightValue = Math.ceil(fontSizeValue * 1.18)
     const width = COLUMNS * charWidthValue
