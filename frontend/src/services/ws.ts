@@ -25,6 +25,7 @@ export type WebSocketEventType =
 
 export interface WebSocketMessage {
   event: WebSocketEventType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   timestamp: string;
 }
@@ -158,19 +159,19 @@ export class MeshWebSocketClient {
   /**
    * Handle incoming WebSocket message
    */
-  private handleMessage(message: WebSocketMessage): void {
+  private handleMessage(msg: WebSocketMessage): void {
     // Handle special 'connected' event to capture client ID
-    if (message.event === 'connected' && message.data?.client_id) {
-      this._connectionId = message.data.client_id;
+    if (msg.event === 'connected' && msg.data?.client_id) {
+      this._connectionId = msg.data.client_id;
       console.log('[WS] Client ID:', this._connectionId);
     }
 
     // Call event-specific handlers
-    const handlers = this.eventHandlers.get(message.event);
+    const handlers = this.eventHandlers.get(msg.event);
     if (handlers) {
       handlers.forEach((handler) => {
         try {
-          handler(message);
+          handler(msg);
         } catch (error) {
           console.error('[WS] Handler error:', error);
         }
@@ -180,7 +181,7 @@ export class MeshWebSocketClient {
     // Call global handlers
     this.globalHandlers.forEach((handler) => {
       try {
-        handler(message);
+        handler(msg);
       } catch (error) {
         console.error('[WS] Global handler error:', error);
       }
