@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import nodes, ws
+from app.routers import nodes, threads, ws
 
 app = FastAPI(
     title="MYC3LIUM API",
@@ -23,6 +23,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(nodes.router)
+app.include_router(threads.router)
 app.include_router(ws.router)
 
 
