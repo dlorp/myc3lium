@@ -26,6 +26,10 @@ def test_websocket_echo():
         welcome = websocket.receive_json()
         assert welcome["event"] == "connected"
 
+        # Receive stats message
+        stats = websocket.receive_json()
+        assert stats["event"] == "stats"
+
         # Send a message
         websocket.send_text("ping")
 
@@ -131,6 +135,8 @@ def test_websocket_invalid_json():
     """Test WebSocket handles non-JSON gracefully"""
     with client.websocket_connect("/ws") as websocket:
         # Receive welcome
+        websocket.receive_json()
+        # Receive stats
         websocket.receive_json()
 
         # Send plain text (not JSON)
