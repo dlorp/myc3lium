@@ -1,6 +1,8 @@
 """Pydantic models for MYC3LIUM API"""
 
-from datetime import UTC, datetime
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,7 +20,7 @@ class Node(BaseModel):
     rssi: int | None = Field(None, description="Signal strength (dBm)")
     battery: int | None = Field(None, ge=0, le=100, description="Battery percentage")
     last_seen: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Last update timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp"
     )
     position: dict[str, float] | None = Field(None, description="Geographic coordinates (lat/lon)")
 
@@ -46,7 +48,7 @@ class Connection(BaseModel):
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
     latency: int | None = Field(None, description="Latency in milliseconds")
     established: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Connection established time",
     )
 
@@ -73,7 +75,7 @@ class SensorData(BaseModel):
     value: float = Field(..., description="Sensor reading value")
     unit: str = Field(..., max_length=16, description="Unit of measurement")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Reading timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Reading timestamp"
     )
 
     model_config = ConfigDict(
@@ -99,7 +101,7 @@ class Message(BaseModel):
     )
     content: str = Field(..., max_length=1024, description="Message content")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Message timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Message timestamp"
     )
     hops: int = Field(0, ge=0, description="Number of hops to destination")
 
@@ -125,7 +127,7 @@ class NodeUpdate(BaseModel):
     )
     data: dict = Field(..., description="Event payload")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Event timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp"
     )
 
     model_config = ConfigDict(
@@ -150,7 +152,7 @@ class Thread(BaseModel):
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
     latency: int | None = Field(None, description="Latency in milliseconds")
     established: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Thread established time",
     )
 
@@ -233,7 +235,7 @@ class SystemStatus(BaseModel):
     thread_count: int = Field(..., ge=0, description="Total number of threads (connections)")
     message_count: int = Field(..., ge=0, description="Total messages processed")
     last_update: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Last status update"
+        default_factory=lambda: datetime.now(timezone.utc), description="Last status update"
     )
     health: Literal["healthy", "degraded", "critical"] = Field(..., description="Overall system health")
 
