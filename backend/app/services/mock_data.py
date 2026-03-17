@@ -4,7 +4,7 @@ import math
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import Literal, TypedDict, Optional
+from typing import Literal, Optional, TypedDict
 
 from app.models import Message, Node, SensorData, Thread
 

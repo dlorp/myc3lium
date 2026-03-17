@@ -1,8 +1,8 @@
 """In-memory mesh network state management with event emission"""
 
-from typing import Optional
 from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import Optional
 
 from app.models import Message, Node, Thread
 
