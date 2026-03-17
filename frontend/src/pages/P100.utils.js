@@ -152,16 +152,16 @@ export const getMockData = () => ({
 export const renderDashboard = (data) => {
   const grid = createGrid()
 
-  // Header
-  writeText(grid, 1, 0, `${DOT}MYC3LIUM${DOT}`)
-  writeText(grid, 14, 0, `${formatTime()}`)
-  writeText(grid, 23, 0, `[GPS: ${data.gps.locked ? 'LOCK' : 'WAIT'}]`)
-  writeText(grid, 35, 0, `${data.battery.percent}%`)
+  // Header - now spanning 80 columns
+  writeText(grid, 1, 0, `${DOT}MYC3LIUM NEXUS TERMINAL${DOT}`)
+  writeText(grid, 32, 0, `${formatTime()}`)
+  writeText(grid, 45, 0, `[GPS: ${data.gps.locked ? 'LOCK' : 'WAIT'}]`)
+  writeText(grid, 70, 0, `BATT: ${data.battery.percent}%`)
   drawHLine(grid, 0, 1, COLUMNS)
 
-  // Title banner - more compact
-  drawBox(grid, 2, 2, 36, 3, true)
-  writeText(grid, 8, 3, 'MYC3LIUM - NEXUS TERMINAL')
+  // Title banner - expanded for 80 columns
+  drawBox(grid, 2, 2, 76, 3, true)
+  writeText(grid, 20, 3, '══════ MYC3LIUM - TACTICAL MESH NEXUS TERMINAL ══════')
 
   // Menu section - compressed spacing
   let row = 6
@@ -189,49 +189,47 @@ export const renderDashboard = (data) => {
 
   row++ // Separator
 
-  // Radio Status Section
-  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}RADIO STATUS${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}`)
+  // Radio Status Section - expanded for 80 columns with wider progress bars
+  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}RADIO STATUS${BOX.HH}${'═'.repeat(63)}`)
   row++
 
   // LoRa
   writeText(grid, 2, row, `LoRa  [${data.radio.lora.status}]`)
-  drawProgressBar(grid, 20, row, 15, data.radio.lora.strength)
-  writeText(grid, 36, row, `${data.radio.lora.strength}%`)
+  drawProgressBar(grid, 20, row, 40, data.radio.lora.strength)
+  writeText(grid, 62, row, `${data.radio.lora.strength}% Signal`)
   row++
 
   // HaLow
   writeText(grid, 2, row, `HaLow [${data.radio.halow.status}]`)
-  drawProgressBar(grid, 20, row, 15, data.radio.halow.strength)
-  writeText(grid, 36, row, `${data.radio.halow.strength}%`)
+  drawProgressBar(grid, 20, row, 40, data.radio.halow.strength)
+  writeText(grid, 62, row, `${data.radio.halow.strength}% Signal`)
   row++
 
   // WiFi
   writeText(grid, 2, row, `WiFi  [${data.radio.wifi.status}]`)
-  drawProgressBar(grid, 20, row, 15, data.radio.wifi.strength)
-  writeText(grid, 36, row, `${data.radio.wifi.strength}%`)
+  drawProgressBar(grid, 20, row, 40, data.radio.wifi.strength)
+  writeText(grid, 62, row, `${data.radio.wifi.strength}% Signal`)
   row++
 
   row++ // Separator
 
   // Satellite
-  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}NEXT PASS${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}`)
+  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}NEXT SATELLITE PASS${BOX.HH}${'═'.repeat(56)}`)
   row++
-  writeText(grid, 2, row, `AOS: ${data.satellite.nextPass} (${data.satellite.minutesUntil}m)`)
+  writeText(grid, 2, row, `Acquisition of Signal (AOS): ${data.satellite.nextPass} UTC (T-${data.satellite.minutesUntil} minutes)`)
   row++
 
   row++ // Separator
 
   // System Stats
-  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}SYSTEM${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}${BOX.HH}`)
+  writeText(grid, 2, row, `${BOX.HH}${BOX.HH}SYSTEM STATUS${BOX.HH}${'═'.repeat(62)}`)
   row++
-  writeText(grid, 2, row, `Uptime: ${data.system.uptime}`)
-  row++
-  writeText(grid, 2, row, `CPU:    ${data.system.cpu}%    Temp: ${data.system.temp}°C`)
+  writeText(grid, 2, row, `Uptime: ${data.system.uptime}                CPU Load: ${data.system.cpu}%               Temperature: ${data.system.temp}°C`)
   row++
 
   // Footer
   drawHLine(grid, 0, ROWS - 2, COLUMNS)
-  writeText(grid, 2, ROWS - 1, 'Type page number (100-800) to navigate')
+  writeText(grid, 2, ROWS - 1, 'Type page number (100-800) to navigate │ [H]elp │ [Q]uit │ [R]efresh')
 
   return grid
 }
