@@ -57,10 +57,10 @@ const P400 = () => {
       }
 
       // Generate history data for sparklines
-      const tempHistory = Array.from({ length: 20 }, (_, i) => 
+      const tempHistory = Array.from({ length: 20 }, () => 
         temp + (Math.random() - 0.5) * 5
       );
-      const humidityHistory = Array.from({ length: 20 }, (_, i) => 
+      const humidityHistory = Array.from({ length: 20 }, () => 
         humidity + (Math.random() - 0.5) * 10
       );
 
@@ -152,7 +152,7 @@ const P400 = () => {
                   <TeletextText color="cyan">
                     {reading.callsign} ({reading.nodeId.slice(0, 8)})
                   </TeletextText>
-                  <TeletextText color={getStatusColor(reading.status) as any}>
+                  <TeletextText color={getStatusColor(reading.status) as 'cyan' | 'magenta' | 'yellow' | 'green'}>
                     [{reading.status}]
                   </TeletextText>
                 </div>
@@ -194,7 +194,7 @@ const P400 = () => {
                 <div style={{ marginTop: '8px' }}>
                   <StatusBar 
                     value={reading.battery} 
-                    color={getBatteryColor(reading.battery) as any} 
+                    color={getBatteryColor(reading.battery) as 'cyan' | 'magenta' | 'yellow' | 'green'} 
                     label={`BATTERY ${reading.battery.toFixed(0)}%`} 
                   />
                 </div>

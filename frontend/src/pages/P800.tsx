@@ -21,8 +21,7 @@ const P800: React.FC = () => {
       exitCode: 0,
     },
   ]);
-  const [inputHistory, setInputHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+
 
   const historyEndRef = useRef<HTMLDivElement>(null);
 
@@ -240,7 +239,7 @@ const P800: React.FC = () => {
 
       <div style={{ marginTop: '12px' }}>
         <TeletextText color="gray">
-          Type "help" for available commands | "clear" to clear screen | "exit" to return to menu
+          Type &ldquo;help&rdquo; for available commands | &ldquo;clear&rdquo; to clear screen | &ldquo;exit&rdquo; to return to menu
         </TeletextText>
       </div>
 
