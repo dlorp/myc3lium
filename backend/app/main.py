@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import messages, nodes, ws
+from app.routers import nodes, ws
 from app.services.mesh_store import MeshStore
 
 app = FastAPI(
@@ -31,7 +31,6 @@ nodes.mesh_store = mesh_store
 
 # Include routers
 app.include_router(nodes.router)
-app.include_router(messages.router)
 app.include_router(ws.router)
 
 
