@@ -7,7 +7,6 @@ import {
   renderRoutesTable,
   getMockMeshData, 
   updateNodePositions,
-  calculateQualityPercent,
   validateNode,
   validateLink,
 } from './P200.utils'
@@ -301,6 +300,34 @@ const P200 = () => {
            meshData.nodes.length > 0
   }, [meshData])
 
+  // SECURITY: Memoize content rendering (moved before early returns to satisfy React hooks rules)
+  const content = useMemo(() => {
+    if (viewMode === 'graph') {
+      return renderLatticeMap(
+        meshData, 
+        selectedNode, 
+        selectedLink, 
+        frame,
+        hoveredNode,
+        hoveredLink,
+        filterType,
+        showLegend
+      )
+    } else {
+      return renderRoutesTable(meshData)
+    }
+  }, [
+    meshData,
+    selectedNode,
+    selectedLink,
+    frame,
+    hoveredNode,
+    hoveredLink,
+    filterType,
+    showLegend,
+    viewMode,
+  ])
+
   // Loading state
   if (nodesLoading || threadsLoading) {
     const loadingGrid = Array.from({ length: 25 }, () => 
@@ -308,7 +335,7 @@ const P200 = () => {
     )
     const msg = 'LOADING MESH DATA...'
     for (let i = 0; i < msg.length && i < 40; i++) {
-      if (12 < 25) {
+      if (15 + i < 40) {
         loadingGrid[12][15 + i] = msg[i]
       }
     }
@@ -363,7 +390,7 @@ const P200 = () => {
     )
     const msg = 'INITIALIZING MESH DATA...'
     for (let i = 0; i < msg.length && i < 40; i++) {
-      if (12 < 25) {
+      if (5 + i < 40) {
         errorGrid[12][5 + i] = msg[i]
       }
     }
@@ -375,34 +402,6 @@ const P200 = () => {
       </div>
     )
   }
-
-  // SECURITY: Memoize content rendering
-  const content = useMemo(() => {
-    if (viewMode === 'graph') {
-      return renderLatticeMap(
-        meshData, 
-        selectedNode, 
-        selectedLink, 
-        frame,
-        hoveredNode,
-        hoveredLink,
-        filterType,
-        showLegend
-      )
-    } else {
-      return renderRoutesTable(meshData)
-    }
-  }, [
-    meshData,
-    selectedNode,
-    selectedLink,
-    frame,
-    hoveredNode,
-    hoveredLink,
-    filterType,
-    showLegend,
-    viewMode,
-  ])
 
   return (
     <div 
