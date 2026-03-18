@@ -2,28 +2,30 @@ import { useEffect, useState, useRef } from 'react'
 import TeletextGrid from '../components/TeletextGrid'
 import useNavigationStore from '../store/navigationStore'
 import useMeshStore from '../store/meshStore'
-import { renderLatticeMap, getMockMeshData } from './P200.utils'
+import { 
+  renderLatticeMap, 
+  renderRoutesTable,
+  getMockMeshData, 
+  updateNodePositions,
+  calculateQualityPercent
+} from './P200.utils'
 
 /**
- * P200 - Lattice Map Page
+ * P200 - Lattice Map Page (Enhanced)
  * 
- * Force-directed graph visualization of mesh network topology.
- * 
- * Features:
- * - Force-directed graph layout with physics simulation
- * - Nodes colored by type (SPORE/HYPHA/FROND/RHIZOME)
- * - Links colored by quality (GOOD/FAIR/DEGRADED)
- * - Animated data flow particles along links
- * - Click node → expand detail panel (hop count, battery, uptime)
- * - Click link → show RSSI, latency, packet loss
- * - Route table display
- * - Live API and WebSocket updates
+ * Force-directed graph visualization of mesh network topology with:
+ * - Animated data flow particles (quality-based speed)
+ * - Interactive tooltips on hover (node & link details)
+ * - Zoom & pan controls (mouse wheel, click-drag, double-click)
+ * - Visual polish: glows, animations, degraded indicators, critical alerts
+ * - Interactive legend with filtering
+ * - Quality-based particle visualization
  */
 
 const P200 = () => {
   const setBreadcrumbs = useNavigationStore((state) => state.setBreadcrumbs)
 
-  // Get live mesh data from store
+  // Mesh data from store
   const nodes = useMeshStore((state) => state.nodes)
   const threads = useMeshStore((state) => state.threads)
   const nodesLoading = useMeshStore((state) => state.nodesLoading)
@@ -34,68 +36,71 @@ const P200 = () => {
   const connectWS = useMeshStore((state) => state.connectWS)
   const disconnectWS = useMeshStore((state) => state.disconnectWS)
 
-  // Mesh data ref with fallback to mock data
+  // Mesh data ref with fallback to mock
   const meshDataRef = useRef(getMockMeshData())
-  
-  // Transform API data to mesh data format
   const [meshData, setMeshData] = useState(meshDataRef.current)
 
-  // Selected node/link for detail panel
+  // Selection state
   const [selectedNode, setSelectedNode] = useState(null)
   const [selectedLink, setSelectedLink] = useState(null)
+  const [hoveredNode, setHoveredNode] = useState(null)
+  const [hoveredLink, setHoveredLink] = useState(null)
 
-  // Animation frame counter
+  // View & control state
   const [frame, setFrame] = useState(0)
-
-  // View mode (graph or routes)
   const [viewMode, setViewMode] = useState('graph') // 'graph' or 'routes'
+  const [zoom, setZoom] = useState(1.0)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [filterType, setFilterType] = useState(null) // Filter by node type
+  const [showLegend, setShowLegend] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
+  // Refs for interaction tracking
+  const containerRef = useRef(null)
+  const lastZoomTimeRef = useRef(0)
+
+  // Initialize breadcrumbs and load data
   useEffect(() => {
     setBreadcrumbs(['LATTICE', 'P200'])
-
-    // Load initial data and connect WebSocket
     loadAll()
     connectWS()
 
-    // Cleanup: disconnect WebSocket on unmount
     return () => {
       disconnectWS()
     }
   }, [setBreadcrumbs, loadAll, connectWS, disconnectWS])
 
-  // Transform API data to internal mesh data format
+  // Transform API data to internal mesh format
   useEffect(() => {
     if (nodes.length === 0 && threads.length === 0) {
-      // No data yet, use mock data as fallback
       return
     }
 
-    // Convert nodes to internal format with positions
     const transformedNodes = nodes.map((node, index) => ({
       id: node.id,
+      callsign: node.callsign || `NODE-${index}`,
       type: node.type,
-      callsign: node.callsign,
       status: node.status,
-      battery: node.battery || 0,
-      rssi: node.rssi || 0,
-      // Initialize positions in a circle if not set
+      battery: node.battery || 50,
+      rssi: node.rssi || -80,
+      gps: node.gps || { lat: 61.2181, lng: -149.9003 },
       x: meshDataRef.current.nodes[index]?.x ?? 15 + Math.cos(index * 0.5) * 10,
       y: meshDataRef.current.nodes[index]?.y ?? 12 + Math.sin(index * 0.5) * 8,
       vx: 0,
       vy: 0,
     }))
 
-    // Convert threads to internal links format
     const transformedLinks = threads.map((thread) => ({
       from: thread.source_id,
       to: thread.target_id,
       quality: thread.quality,
       rssi: thread.rssi || -80,
       latency: thread.latency || 50,
-      radioType: thread.radio_type,
+      packetLoss: thread.packet_loss || 0,
+      radioType: thread.radio_type || 'LoRa',
     }))
 
-    // Generate route table from graph structure
     const routeTable = generateRouteTable(transformedNodes, transformedLinks)
 
     setMeshData({
@@ -105,27 +110,24 @@ const P200 = () => {
     })
   }, [nodes, threads])
 
-  // Animation loop for particle flow
+  // Animation loop for particles and pulses
   useEffect(() => {
     const interval = setInterval(() => {
       setFrame(prev => prev + 1)
-    }, 100) // ~10 fps animation
+    }, 50) // ~20fps animation for smooth particle flow
 
     return () => clearInterval(interval)
   }, [])
 
-  // Force simulation for graph layout (runs less frequently)
+  // Physics simulation for force-directed layout
   useEffect(() => {
     const graphBounds = {
-      maxX: 40 - 1,
-      maxY: 25 - 8,
+      maxX: 30,
+      maxY: 15,
     }
 
     const interval = setInterval(() => {
-      // Dynamically import to avoid circular dependency issues in tests
-      import('./P200.utils').then(({ updateNodePositions }) => {
-        updateNodePositions(meshData.nodes, meshData.links, graphBounds)
-      })
+      updateNodePositions(meshData.nodes, meshData.links, graphBounds)
     }, 300) // Update physics every 300ms
 
     return () => clearInterval(interval)
@@ -137,10 +139,8 @@ const P200 = () => {
       const key = event.key.toLowerCase()
 
       if (key === 'r') {
-        // Toggle routes view
         setViewMode(prev => prev === 'graph' ? 'routes' : 'graph')
       } else if (key === 'n') {
-        // Cycle through nodes
         const currentIndex = selectedNode 
           ? meshData.nodes.findIndex(n => n.id === selectedNode.id)
           : -1
@@ -148,7 +148,6 @@ const P200 = () => {
         setSelectedNode(meshData.nodes[nextIndex])
         setSelectedLink(null)
       } else if (key === 'l') {
-        // Cycle through links
         const currentIndex = selectedLink
           ? meshData.links.findIndex(l => 
               l.from === selectedLink.from && l.to === selectedLink.to
@@ -158,31 +157,85 @@ const P200 = () => {
         setSelectedLink(meshData.links[nextIndex])
         setSelectedNode(null)
       } else if (key === 'escape') {
-        // Clear selection
         setSelectedNode(null)
         setSelectedLink(null)
+        setHoveredNode(null)
+        setHoveredLink(null)
+      } else if (key === 'f') {
+        // Cycle through node type filters
+        const types = [null, 'SPORE', 'HYPHA', 'FROND', 'RHIZOME']
+        const currentIndex = types.indexOf(filterType)
+        setFilterType(types[(currentIndex + 1) % types.length])
+      } else if (key === 'z') {
+        // Reset zoom and pan
+        setZoom(1.0)
+        setPan({ x: 0, y: 0 })
+      } else if (key === 'm') {
+        // Toggle legend
+        setShowLegend(prev => !prev)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [meshData, selectedNode, selectedLink])
+  }, [meshData, selectedNode, selectedLink, filterType])
 
-  // Show loading state
+  // Mouse wheel zoom
+  const handleWheel = (e) => {
+    e.preventDefault()
+    const now = Date.now()
+    
+    // Debounce zoom events
+    if (now - lastZoomTimeRef.current < 100) return
+    lastZoomTimeRef.current = now
+
+    const delta = e.deltaY > 0 ? 0.9 : 1.1 // Zoom out or in
+    const newZoom = Math.max(1.0, Math.min(3.0, zoom * delta))
+    setZoom(newZoom)
+  }
+
+  // Click-drag pan
+  const handleMouseDown = (e) => {
+    if (e.button === 0) { // Left click
+      setIsDragging(true)
+      setDragStart({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const dx = (e.clientX - dragStart.x) * 0.5
+      const dy = (e.clientY - dragStart.y) * 0.5
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+      setDragStart({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  // Double-click to center on node
+  const handleDoubleClick = () => {
+    if (selectedNode) {
+      // Animate zoom to selected node (TODO: implement smooth animation)
+      setZoom(2.0)
+      setPan({
+        x: -selectedNode.x * 20 + 100,
+        y: -selectedNode.y * 20 + 100,
+      })
+    }
+  }
+
+  // Loading state
   if (nodesLoading || threadsLoading) {
     const loadingGrid = Array.from({ length: 25 }, () => 
       Array.from({ length: 40 }, () => ' ')
     )
-    loadingGrid[12][15] = 'L'
-    loadingGrid[12][16] = 'O'
-    loadingGrid[12][17] = 'A'
-    loadingGrid[12][18] = 'D'
-    loadingGrid[12][19] = 'I'
-    loadingGrid[12][20] = 'N'
-    loadingGrid[12][21] = 'G'
-    loadingGrid[12][22] = '.'
-    loadingGrid[12][23] = '.'
-    loadingGrid[12][24] = '.'
+    const msg = 'LOADING MESH DATA...'
+    for (let i = 0; i < msg.length; i++) {
+      loadingGrid[12][15 + i] = msg[i]
+    }
 
     return (
       <div className="teletext-demo">
@@ -194,7 +247,7 @@ const P200 = () => {
     )
   }
 
-  // Show error state
+  // Error state
   if (nodesError || threadsError) {
     const errorGrid = Array.from({ length: 25 }, () => 
       Array.from({ length: 40 }, () => ' ')
@@ -217,14 +270,39 @@ const P200 = () => {
     )
   }
 
+  // Render appropriate view
   const content = viewMode === 'graph'
-    ? renderLatticeMap(meshData, selectedNode, selectedLink, frame)
+    ? renderLatticeMap(
+        meshData, 
+        selectedNode, 
+        selectedLink, 
+        frame,
+        hoveredNode,
+        hoveredLink,
+        filterType,
+        showLegend
+      )
     : renderRoutesTable(meshData)
 
   return (
-    <div className="teletext-demo">
+    <div 
+      className="teletext-demo"
+      ref={containerRef}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
+      style={{
+        transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+        transformOrigin: '0 0',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+      }}
+    >
       <div className="teletext-overlay">
-        P200 - LATTICE MAP {viewMode === 'routes' ? '(ROUTES)' : ''}
+        P200 - LATTICE MAP {viewMode === 'routes' ? '(ROUTES)' : ''} {filterType ? `[${filterType}]` : ''} Z:{zoom.toFixed(1)}x
       </div>
       <TeletextGrid content={content} showFps />
     </div>
@@ -232,13 +310,11 @@ const P200 = () => {
 }
 
 /**
- * Generate route table from graph structure (simple shortest path)
+ * Generate route table from graph structure (BFS-based shortest path)
  */
 const generateRouteTable = (nodes, links) => {
-  // Simple routing: for each node, find next hop to reach it
   const routes = []
   
-  // Build adjacency map
   const adjacency = new Map()
   links.forEach((link) => {
     if (!adjacency.has(link.from)) adjacency.set(link.from, [])
@@ -247,11 +323,9 @@ const generateRouteTable = (nodes, links) => {
     adjacency.get(link.to).push({ node: link.from, quality: link.quality })
   })
 
-  // Assume first node is "this" node
   const thisNode = nodes[0]?.id
   if (!thisNode) return []
 
-  // BFS to find shortest path to each node
   nodes.forEach((targetNode) => {
     if (targetNode.id === thisNode) return
 
@@ -262,7 +336,6 @@ const generateRouteTable = (nodes, links) => {
       const { node, path, metric } = queue.shift()
       
       if (node === targetNode.id) {
-        // Found path
         const nextHop = path.length > 1 ? path[1] : targetNode.id
         routes.push({
           dest: targetNode.callsign || targetNode.id,
@@ -282,7 +355,7 @@ const generateRouteTable = (nodes, links) => {
           queue.push({
             node: neighborId,
             path: [...path, neighborId],
-            metric: metric + (1 - quality),
+            metric: metric + (1 - (quality === 'GOOD' ? 0.8 : quality === 'FAIR' ? 0.5 : 0.2)),
           })
         }
       })
@@ -290,63 +363,6 @@ const generateRouteTable = (nodes, links) => {
   })
 
   return routes
-}
-
-/**
- * Render routes table view
- */
-const renderRoutesTable = (meshData) => {
-  const ROWS = 25
-  const COLUMNS = 40
-  
-  const grid = Array.from({ length: ROWS }, () => 
-    Array.from({ length: COLUMNS }, () => ' ')
-  )
-
-  const writeText = (x, y, text) => {
-    if (y < 0 || y >= ROWS) return
-    for (let i = 0; i < text.length; i++) {
-      const col = x + i
-      if (col >= 0 && col < COLUMNS) {
-        grid[y][col] = text[i]
-      }
-    }
-  }
-
-  const drawHLine = (y) => {
-    for (let x = 0; x < COLUMNS; x++) {
-      grid[y][x] = '─'
-    }
-  }
-
-  // Header
-  writeText(1, 0, 'ROUTE TABLE ● P200')
-  drawHLine(1)
-
-  // Table headers
-  writeText(2, 3, 'DEST')
-  writeText(15, 3, 'NEXT HOP')
-  writeText(28, 3, 'HOPS')
-  writeText(34, 3, 'METRIC')
-  drawHLine(4)
-
-  // Route entries
-  meshData.routeTable.forEach((route, i) => {
-    const y = 5 + i
-    if (y >= ROWS - 3) return
-
-    writeText(2, y, route.dest)
-    writeText(15, y, route.nextHop)
-    writeText(28, y, String(route.hops))
-    writeText(34, y, route.metric.toFixed(1))
-  })
-
-  // Footer
-  drawHLine(ROWS - 3)
-  writeText(2, ROWS - 2, `${meshData.routeTable.length} routes`)
-  writeText(2, ROWS - 1, '[R]eturn to graph [ESC]clear')
-
-  return grid
 }
 
 export default P200

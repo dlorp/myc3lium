@@ -4,24 +4,26 @@ import { COLUMNS, ROWS } from '../components/TeletextGrid'
 const BOX = {
   TL: '┌', TR: '┐', BL: '└', BR: '┘',
   H: '─', V: '│',
+  VDASH: '┆', HDASH: '┄',
 }
 
 const DOT = '●'
 const ARROW = '▸'
 
-// Node types with colors (represented as character symbols for ASCII rendering)
+// Node types with colors and symbols
 const NODE_TYPES = {
-  SPORE: { color: 'cyan', symbol: '◆' },     // #00FFFF
-  HYPHA: { color: 'green', symbol: '●' },    // #00FF00
-  FROND: { color: 'yellow', symbol: '◇' },   // #FFFF00
-  RHIZOME: { color: 'blue', symbol: '■' },   // #0000FF
+  SPORE: { color: '#00FFFF', symbol: '◆', label: 'SPORE' },
+  HYPHA: { color: '#00FF00', symbol: '●', label: 'HYPHA' },
+  FROND: { color: '#FFFF00', symbol: '◇', label: 'FROND' },
+  RHIZOME: { color: '#0000FF', symbol: '■', label: 'RHIZOME' },
 }
 
-// Link quality status
+// Link quality status with color mappings
 const LINK_QUALITY = {
-  GOOD: { symbol: '═', color: 'cyan' },      // Cyan
-  FAIR: { symbol: '─', color: 'yellow' },    // Yellow
-  DEGRADED: { symbol: '·', color: 'orange' }, // Orange
+  GOOD: { symbol: '═', color: '#00FF00', percent: 85, label: 'GOOD' },
+  FAIR: { symbol: '─', color: '#FFFF00', percent: 60, label: 'FAIR' },
+  DEGRADED: { symbol: '·', color: '#FF6600', percent: 30, label: 'DEGRADED' },
+  OFFLINE: { symbol: '∘', color: '#444444', percent: 0, label: 'OFFLINE' },
 }
 
 /**
@@ -60,42 +62,7 @@ const drawHLine = (grid, x, y, length, char = BOX.H) => {
 }
 
 /**
- * Draw box (currently unused but kept for future expansion)
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const drawBox = (grid, x, y, width, height) => {
-  // Corners
-  if (x >= 0 && x < COLUMNS) {
-    if (y >= 0 && y < ROWS) grid[y][x] = BOX.TL
-    if (y + height - 1 >= 0 && y + height - 1 < ROWS) {
-      grid[y + height - 1][x] = BOX.BL
-    }
-  }
-  if (x + width - 1 >= 0 && x + width - 1 < COLUMNS) {
-    if (y >= 0 && y < ROWS) grid[y][x + width - 1] = BOX.TR
-    if (y + height - 1 >= 0 && y + height - 1 < ROWS) {
-      grid[y + height - 1][x + width - 1] = BOX.BR
-    }
-  }
-
-  // Horizontal lines
-  drawHLine(grid, x + 1, y, width - 2, BOX.H)
-  drawHLine(grid, x + 1, y + height - 1, width - 2, BOX.H)
-
-  // Vertical lines
-  for (let i = 1; i < height - 1; i++) {
-    const row = y + i
-    if (row >= 0 && row < ROWS) {
-      if (x >= 0 && x < COLUMNS) grid[row][x] = BOX.V
-      if (x + width - 1 >= 0 && x + width - 1 < COLUMNS) {
-        grid[row][x + width - 1] = BOX.V
-      }
-    }
-  }
-}
-
-/**
- * Draw a character at grid position (for nodes/particles)
+ * Draw a character at grid position
  */
 const drawChar = (grid, x, y, char) => {
   const col = Math.round(x)
@@ -108,7 +75,7 @@ const drawChar = (grid, x, y, char) => {
 /**
  * Draw line between two points (Bresenham's algorithm)
  */
-const drawLine = (grid, x0, y0, x1, y1, char) => {
+const drawLine = (grid, x0, y0, x1, y1, char, dashed = false) => {
   x0 = Math.round(x0)
   y0 = Math.round(y0)
   x1 = Math.round(x1)
@@ -119,11 +86,15 @@ const drawLine = (grid, x0, y0, x1, y1, char) => {
   const sx = x0 < x1 ? 1 : -1
   const sy = y0 < y1 ? 1 : -1
   let err = dx - dy
+  let step = 0
 
-  let maxIter = 100 // Safety limit
+  let maxIter = 100
   while (maxIter-- > 0) {
-    if (x0 >= 0 && x0 < COLUMNS && y0 >= 0 && y0 < ROWS) {
-      grid[y0][x0] = char
+    // Draw only on odd steps if dashed
+    if (!dashed || step % 2 === 0) {
+      if (x0 >= 0 && x0 < COLUMNS && y0 >= 0 && y0 < ROWS) {
+        grid[y0][x0] = char
+      }
     }
 
     if (x0 === x1 && y0 === y1) break
@@ -137,26 +108,112 @@ const drawLine = (grid, x0, y0, x1, y1, char) => {
       err += dx
       y0 += sy
     }
+    step++
   }
 }
 
 /**
- * Mock mesh network data
+ * Mock mesh network data with extended attributes
  */
 export const getMockMeshData = () => ({
   nodes: [
-    { id: 'SPORE-01', type: 'SPORE', x: 40, y: 12, hopCount: 0, battery: 74, uptime: 15240 },
-    { id: 'HYPHA-03', type: 'HYPHA', x: 16, y: 6, hopCount: 1, battery: 89, uptime: 8420 },
-    { id: 'FROND-05', type: 'FROND', x: 64, y: 8, hopCount: 1, battery: 62, uptime: 4120 },
-    { id: 'RHIZOME-02', type: 'RHIZOME', x: 24, y: 18, hopCount: 2, battery: 55, uptime: 12300 },
-    { id: 'RHIZOME-03', type: 'RHIZOME', x: 56, y: 16, hopCount: 2, battery: 71, uptime: 9840 },
+    { 
+      id: 'SPORE-01', 
+      callsign: 'ROOT',
+      type: 'SPORE', 
+      x: 15, y: 10, 
+      gps: { lat: 61.2181, lng: -149.9003 },
+      battery: 74, 
+      status: 'active',
+      uptime: 15240 
+    },
+    { 
+      id: 'HYPHA-03', 
+      callsign: 'RELAY-A',
+      type: 'HYPHA', 
+      x: 8, y: 4, 
+      gps: { lat: 61.2200, lng: -149.8900 },
+      battery: 89, 
+      status: 'active',
+      uptime: 8420 
+    },
+    { 
+      id: 'FROND-05', 
+      callsign: 'EDGE-1',
+      type: 'FROND', 
+      x: 22, y: 5, 
+      gps: { lat: 61.2150, lng: -149.8850 },
+      battery: 62, 
+      status: 'active',
+      uptime: 4120 
+    },
+    { 
+      id: 'RHIZOME-02', 
+      callsign: 'MESH-2',
+      type: 'RHIZOME', 
+      x: 10, y: 12, 
+      gps: { lat: 61.2220, lng: -149.9050 },
+      battery: 15, 
+      status: 'warning',
+      uptime: 12300 
+    },
+    { 
+      id: 'RHIZOME-03', 
+      callsign: 'EDGE-2',
+      type: 'RHIZOME', 
+      x: 20, y: 14, 
+      gps: { lat: 61.2160, lng: -149.8800 },
+      battery: 71, 
+      status: 'active',
+      uptime: 9840 
+    },
   ],
   links: [
-    { from: 'SPORE-01', to: 'HYPHA-03', quality: 'GOOD', rssi: -72, latency: 8, packetLoss: 0 },
-    { from: 'SPORE-01', to: 'FROND-05', quality: 'GOOD', rssi: -78, latency: 12, packetLoss: 0 },
-    { from: 'SPORE-01', to: 'RHIZOME-02', quality: 'FAIR', rssi: -85, latency: 42, packetLoss: 2 },
-    { from: 'HYPHA-03', to: 'RHIZOME-02', quality: 'GOOD', rssi: -74, latency: 15, packetLoss: 0 },
-    { from: 'FROND-05', to: 'RHIZOME-03', quality: 'DEGRADED', rssi: -91, latency: 98, packetLoss: 11 },
+    { 
+      from: 'SPORE-01', 
+      to: 'HYPHA-03', 
+      quality: 'GOOD', 
+      rssi: -72, 
+      latency: 8, 
+      packetLoss: 0,
+      radioType: 'LoRa'
+    },
+    { 
+      from: 'SPORE-01', 
+      to: 'FROND-05', 
+      quality: 'GOOD', 
+      rssi: -78, 
+      latency: 12, 
+      packetLoss: 0,
+      radioType: 'LoRa'
+    },
+    { 
+      from: 'SPORE-01', 
+      to: 'RHIZOME-02', 
+      quality: 'FAIR', 
+      rssi: -85, 
+      latency: 42, 
+      packetLoss: 2,
+      radioType: 'LoRa'
+    },
+    { 
+      from: 'HYPHA-03', 
+      to: 'RHIZOME-02', 
+      quality: 'GOOD', 
+      rssi: -74, 
+      latency: 15, 
+      packetLoss: 0,
+      radioType: 'LoRa'
+    },
+    { 
+      from: 'FROND-05', 
+      to: 'RHIZOME-03', 
+      quality: 'DEGRADED', 
+      rssi: -91, 
+      latency: 98, 
+      packetLoss: 11,
+      radioType: 'LoRa'
+    },
   ],
   routeTable: [
     { dest: 'HYPHA-03', nextHop: 'HYPHA-03', hops: 1, metric: 1.2 },
@@ -167,8 +224,7 @@ export const getMockMeshData = () => ({
 })
 
 /**
- * Simple force-directed graph layout simulation
- * Updates node positions based on physics
+ * Force-directed graph layout simulation
  */
 export const updateNodePositions = (nodes, links, bounds) => {
   const REPULSION = 2.0
@@ -179,30 +235,26 @@ export const updateNodePositions = (nodes, links, bounds) => {
   const centerX = bounds.maxX / 2
   const centerY = bounds.maxY / 2
 
-  // Initialize velocities if not present
   nodes.forEach(node => {
     if (!node.vx) node.vx = 0
     if (!node.vy) node.vy = 0
   })
 
-  // Calculate forces
   nodes.forEach(node => {
     let fx = 0
     let fy = 0
 
-    // Repulsion between all nodes
     nodes.forEach(other => {
       if (node === other) return
       const dx = node.x - other.x
       const dy = node.y - other.y
-      const distSq = dx * dx + dy * dy + 0.01 // Avoid division by zero
+      const distSq = dx * dx + dy * dy + 0.01
       const dist = Math.sqrt(distSq)
       const force = REPULSION / distSq
       fx += (dx / dist) * force
       fy += (dy / dist) * force
     })
 
-    // Attraction along links
     links.forEach(link => {
       let other = null
       if (link.from === node.id) {
@@ -219,21 +271,17 @@ export const updateNodePositions = (nodes, links, bounds) => {
       }
     })
 
-    // Pull toward center
     fx += (centerX - node.x) * CENTER_PULL
     fy += (centerY - node.y) * CENTER_PULL
 
-    // Update velocity
     node.vx = (node.vx + fx) * DAMPING
     node.vy = (node.vy + fy) * DAMPING
   })
 
-  // Apply velocity and boundary constraints
   nodes.forEach(node => {
     node.x += node.vx
     node.y += node.vy
 
-    // Keep within bounds (with margin)
     const margin = 2
     node.x = Math.max(margin, Math.min(bounds.maxX - margin, node.x))
     node.y = Math.max(margin, Math.min(bounds.maxY - margin, node.y))
@@ -241,7 +289,7 @@ export const updateNodePositions = (nodes, links, bounds) => {
 }
 
 /**
- * Generate animated data flow particles along links
+ * Generate animated data flow particles with quality-based speed
  */
 export const generateParticles = (links, nodes, time) => {
   const particles = []
@@ -252,14 +300,21 @@ export const generateParticles = (links, nodes, time) => {
 
     if (!fromNode || !toNode) return
 
-    // Create particles at different phases along the link
-    const numParticles = link.quality === 'GOOD' ? 2 : 1
+    // Speed inversely correlates with latency
+    const baseSpeed = 1.0 / (1 + link.latency / 50)
+    const numParticles = link.quality === 'GOOD' ? 2 : (link.quality === 'DEGRADED' ? 0 : 1)
+    
     for (let i = 0; i < numParticles; i++) {
-      const phase = (time * 0.02 + linkIndex * 0.3 + i * 0.5) % 1.0
+      const phase = (time * baseSpeed * 0.02 + linkIndex * 0.3 + i * 0.5) % 1.0
       const x = fromNode.x + (toNode.x - fromNode.x) * phase
       const y = fromNode.y + (toNode.y - fromNode.y) * phase
 
-      particles.push({ x, y, link })
+      particles.push({ 
+        x, y, 
+        link,
+        quality: link.quality,
+        rssi: link.rssi
+      })
     }
   })
 
@@ -267,12 +322,37 @@ export const generateParticles = (links, nodes, time) => {
 }
 
 /**
- * Render P200 lattice map to grid
+ * Calculate link quality percentage based on RSSI and latency
  */
-export const renderLatticeMap = (meshData, selectedNode, selectedLink, time) => {
+export const calculateQualityPercent = (link) => {
+  // RSSI: -30 to -120 dBm (better to worse)
+  const rssiPercent = Math.max(0, Math.min(100, (-30 - link.rssi) * -1.25 + 100))
+  
+  // Latency: 0-200ms (better to worse)
+  const latencyPercent = Math.max(0, Math.min(100, (1 - link.latency / 200) * 100))
+  
+  // Packet loss: 0-50% (better to worse)
+  const lossPercent = Math.max(0, Math.min(100, (1 - (link.packetLoss || 0) / 50) * 100))
+  
+  // Combined quality
+  return Math.round((rssiPercent * 0.4 + latencyPercent * 0.3 + lossPercent * 0.3))
+}
+
+/**
+ * Render P200 lattice map with enhanced animations and interactivity
+ */
+export const renderLatticeMap = (
+  meshData, 
+  selectedNode, 
+  selectedLink, 
+  time,
+  hoveredNode,
+  hoveredLink,
+  filterType,
+  showLegend
+) => {
   const grid = createGrid()
 
-  // Define graph bounds (leaving space for UI)
   const graphBounds = {
     minX: 0,
     minY: 3,
@@ -280,47 +360,85 @@ export const renderLatticeMap = (meshData, selectedNode, selectedLink, time) => 
     maxY: ROWS - 8,
   }
 
-  // Note: updateNodePositions should be called externally before render
-  // to keep render function pure
-
   // Header
   writeText(grid, 1, 0, `LATTICE MAP ${DOT} P200`)
   writeText(grid, 24, 0, `${meshData.nodes.length} CELLS`)
   drawHLine(grid, 0, 1, COLUMNS)
 
-  // Draw links first (so they're under nodes)
+  // Draw links with dashing for degraded connections
   meshData.links.forEach(link => {
     const fromNode = meshData.nodes.find(n => n.id === link.from)
     const toNode = meshData.nodes.find(n => n.id === link.to)
 
     if (fromNode && toNode) {
+      const isDegraded = link.quality === 'DEGRADED'
+      const isOffline = link.quality === 'OFFLINE'
       const linkChar = LINK_QUALITY[link.quality]?.symbol || '·'
+      
       const x0 = graphBounds.minX + fromNode.x
       const y0 = graphBounds.minY + fromNode.y
       const x1 = graphBounds.minX + toNode.x
       const y1 = graphBounds.minY + toNode.y
 
-      drawLine(grid, x0, y0, x1, y1, linkChar)
+      drawLine(grid, x0, y0, x1, y1, linkChar, isDegraded)
+      
+      // Highlight selected link with enhanced marker
+      if (selectedLink && 
+          selectedLink.from === link.from && 
+          selectedLink.to === link.to) {
+        const midX = (x0 + x1) / 2
+        const midY = (y0 + y1) / 2
+        drawChar(grid, midX, midY, '*')
+      }
     }
   })
 
-  // Draw animated particles
+  // Draw animated particles with quality-based coloring
   const particles = generateParticles(meshData.links, meshData.nodes, time)
   particles.forEach(particle => {
     const x = graphBounds.minX + particle.x
     const y = graphBounds.minY + particle.y
-    drawChar(grid, x, y, DOT)
+    // Vary particle symbol based on quality
+    let symbol = DOT
+    if (particle.quality === 'FAIR') symbol = '◦'
+    if (particle.quality === 'DEGRADED') symbol = '·'
+    drawChar(grid, x, y, symbol)
   })
 
-  // Draw nodes
+  // Draw nodes with glow effect (represented by surrounding markers)
   meshData.nodes.forEach(node => {
     const x = graphBounds.minX + node.x
     const y = graphBounds.minY + node.y
-    const nodeChar = NODE_TYPES[node.type]?.symbol || '?'
+    
+    // Apply filter
+    if (filterType && filterType !== node.type) {
+      return
+    }
 
-    drawChar(grid, x, y, nodeChar)
+    let nodeChar = NODE_TYPES[node.type]?.symbol || '?'
+    
+    // Gray out offline/low battery nodes
+    if (node.status === 'offline' || node.battery < 5) {
+      nodeChar = nodeChar.toLowerCase()
+    }
 
-    // Label for selected node or central node
+    // Pulsing animation for critical alerts (battery < 20%)
+    const isAlert = node.battery < 20
+    const pulse = isAlert && Math.floor(time / 500) % 2 === 0
+
+    if (!pulse) {
+      drawChar(grid, x, y, nodeChar)
+      
+      // Glow effect (draw halo)
+      if (hoveredNode && hoveredNode.id === node.id) {
+        drawChar(grid, x - 1, y, '◊')
+        drawChar(grid, x + 1, y, '◊')
+        drawChar(grid, x, y - 1, '◊')
+        drawChar(grid, x, y + 1, '◊')
+      }
+    }
+
+    // Label nodes
     if (node.type === 'SPORE' || (selectedNode && selectedNode.id === node.id)) {
       const labelX = Math.min(x + 2, COLUMNS - node.id.length - 1)
       const labelY = y
@@ -334,38 +452,99 @@ export const renderLatticeMap = (meshData, selectedNode, selectedLink, time) => 
   drawHLine(grid, 0, ROWS - 7, COLUMNS)
 
   if (selectedNode) {
-    // Node detail
-    writeText(grid, 2, ROWS - 6, `NODE: ${selectedNode.id}`)
-    writeText(grid, 2, ROWS - 5, `Type: ${selectedNode.type}`)
-    writeText(grid, 2, ROWS - 4, `Hops: ${selectedNode.hopCount}`)
-    writeText(grid, 22, ROWS - 5, `Batt: ${selectedNode.battery}%`)
+    // Node detail with extended info
+    writeText(grid, 2, ROWS - 6, `NODE: ${selectedNode.id} (${selectedNode.callsign})`)
+    writeText(grid, 2, ROWS - 5, `Type: ${selectedNode.type} | Batt: ${selectedNode.battery}%`)
+    writeText(grid, 2, ROWS - 4, `GPS: ${selectedNode.gps.lat.toFixed(4)},${selectedNode.gps.lng.toFixed(4)}`)
+    writeText(grid, 22, ROWS - 5, `Status: ${selectedNode.status.toUpperCase()}`)
     writeText(grid, 22, ROWS - 4, `Up: ${Math.floor(selectedNode.uptime / 60)}m`)
   } else if (selectedLink) {
-    // Link detail
-    writeText(grid, 2, ROWS - 6, `LINK: ${selectedLink.from} ${ARROW} ${selectedLink.to}`)
-    writeText(grid, 2, ROWS - 5, `RSSI: ${selectedLink.rssi}dBm`)
-    writeText(grid, 2, ROWS - 4, `Lat: ${selectedLink.latency}ms`)
-    writeText(grid, 22, ROWS - 5, `Loss: ${selectedLink.packetLoss}%`)
-    writeText(grid, 22, ROWS - 4, `Q: ${selectedLink.quality}`)
+    // Link detail with quality percentage
+    const qualityPercent = calculateQualityPercent(selectedLink)
+    writeText(grid, 2, ROWS - 6, `LINK: ${selectedLink.from.substring(0, 8)} → ${selectedLink.to.substring(0, 8)}`)
+    writeText(grid, 2, ROWS - 5, `RSSI: ${selectedLink.rssi}dBm | Lat: ${selectedLink.latency}ms | Loss: ${selectedLink.packetLoss}%`)
+    writeText(grid, 2, ROWS - 4, `Quality: ${qualityPercent}% [${selectedLink.quality}] | Radio: ${selectedLink.radioType}`)
   } else {
     // Summary stats
     const goodLinks = meshData.links.filter(l => l.quality === 'GOOD').length
+    const fairLinks = meshData.links.filter(l => l.quality === 'FAIR').length
     const degradedLinks = meshData.links.filter(l => l.quality === 'DEGRADED').length
+    const activeNodes = meshData.nodes.filter(n => n.status === 'active').length
 
-    writeText(grid, 2, ROWS - 6, `MESH TOPOLOGY`)
-    writeText(grid, 2, ROWS - 5, `Links: ${meshData.links.length}`)
-    writeText(grid, 2, ROWS - 4, `Good: ${goodLinks}`)
-    writeText(grid, 22, ROWS - 5, `Degraded: ${degradedLinks}`)
-    writeText(grid, 22, ROWS - 4, `Proto: BATMAN`)
+    writeText(grid, 2, ROWS - 6, `MESH TOPOLOGY SUMMARY`)
+    writeText(grid, 2, ROWS - 5, `Active: ${activeNodes}/${meshData.nodes.length} | Links: ${meshData.links.length}`)
+    writeText(grid, 2, ROWS - 4, `Good: ${goodLinks} | Fair: ${fairLinks} | Degraded: ${degradedLinks}`)
+    writeText(grid, 22, ROWS - 5, `Avg Quality: ${Math.round(
+      meshData.links.reduce((sum, l) => sum + calculateQualityPercent(l), 0) / meshData.links.length
+    )}%`)
+    writeText(grid, 22, ROWS - 4, `Protocol: BATMAN-ADV`)
   }
 
-  // Legend
-  writeText(grid, 2, ROWS - 2, `${NODE_TYPES.SPORE.symbol}SPORE ${NODE_TYPES.HYPHA.symbol}HYPHA`)
-  writeText(grid, 18, ROWS - 2, `${NODE_TYPES.FROND.symbol}FROND ${NODE_TYPES.RHIZOME.symbol}RHIZOME`)
+  // Enhanced Legend with quality indicators
+  if (showLegend) {
+    writeText(grid, 2, ROWS - 2, `${NODE_TYPES.SPORE.symbol}SPORE ${NODE_TYPES.HYPHA.symbol}HYPHA ${NODE_TYPES.FROND.symbol}FROND ${NODE_TYPES.RHIZOME.symbol}RHIZOME`)
+    writeText(grid, 2, ROWS - 1, `${LINK_QUALITY.GOOD.symbol}GOOD ${LINK_QUALITY.FAIR.symbol}FAIR ${LINK_QUALITY.DEGRADED.symbol}DEGRADED`)
+  } else {
+    writeText(grid, 2, ROWS - 2, `Nodes: ${NODE_TYPES.SPORE.symbol} ${NODE_TYPES.HYPHA.symbol} ${NODE_TYPES.FROND.symbol} ${NODE_TYPES.RHIZOME.symbol}`)
+    writeText(grid, 2, ROWS - 1, `Quality: ${LINK_QUALITY.GOOD.symbol}● ${LINK_QUALITY.FAIR.symbol}● ${LINK_QUALITY.DEGRADED.symbol}●`)
+  }
 
   // Footer instructions
   drawHLine(grid, 0, ROWS - 1, COLUMNS, '─')
-  writeText(grid, 1, ROWS - 1, '[R]outes [N]ext node [L]ink detail')
+  writeText(grid, 1, ROWS - 1, '[R]outes [N]ode [L]ink [F]ilter [Z]oom [M]sg')
+
+  return grid
+}
+
+/**
+ * Render routes table view
+ */
+export const renderRoutesTable = (meshData) => {
+  const ROWS_LOCAL = 25
+  const COLUMNS_LOCAL = 40
+  
+  const grid = Array.from({ length: ROWS_LOCAL }, () => 
+    Array.from({ length: COLUMNS_LOCAL }, () => ' ')
+  )
+
+  const writeTextLocal = (x, y, text) => {
+    if (y < 0 || y >= ROWS_LOCAL) return
+    for (let i = 0; i < text.length; i++) {
+      const col = x + i
+      if (col >= 0 && col < COLUMNS_LOCAL) {
+        grid[y][col] = text[i]
+      }
+    }
+  }
+
+  const drawHLineLocal = (y) => {
+    for (let x = 0; x < COLUMNS_LOCAL; x++) {
+      grid[y][x] = '─'
+    }
+  }
+
+  writeTextLocal(1, 0, 'ROUTE TABLE ● P200')
+  drawHLineLocal(1)
+
+  writeTextLocal(2, 3, 'DEST')
+  writeTextLocal(15, 3, 'NEXT HOP')
+  writeTextLocal(28, 3, 'HOPS')
+  writeTextLocal(34, 3, 'METRIC')
+  drawHLineLocal(4)
+
+  meshData.routeTable.forEach((route, i) => {
+    const y = 5 + i
+    if (y >= ROWS_LOCAL - 3) return
+
+    writeTextLocal(2, y, route.dest)
+    writeTextLocal(15, y, route.nextHop)
+    writeTextLocal(28, y, String(route.hops))
+    writeTextLocal(34, y, route.metric.toFixed(1))
+  })
+
+  drawHLineLocal(ROWS_LOCAL - 3)
+  writeTextLocal(2, ROWS_LOCAL - 2, `${meshData.routeTable.length} routes`)
+  writeTextLocal(2, ROWS_LOCAL - 1, '[R]eturn to graph [ESC]clear')
 
   return grid
 }
