@@ -30,8 +30,9 @@ export const sanitizeString = (str, maxLength = 50) => {
   if (typeof str !== 'string') return ''
   return str
     .slice(0, maxLength)
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control chars
-    .replace(/[<>\"'`]/g, '') // Remove HTML special chars
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f\x7f]/g, '') // Remove control chars
+    .replace(/[<>"'`]/g, '') // Remove HTML special chars
     .trim()
 }
 
@@ -100,7 +101,6 @@ const BOX = {
 }
 
 const DOT = '●'
-const ARROW = '▸'
 
 // Node types with colors and symbols
 const NODE_TYPES = {
@@ -121,8 +121,6 @@ const LINK_QUALITY = {
 // Constants for resource limits and performance
 const PARTICLE_LIMIT_PER_LINK = 50
 const MAX_PARTICLES_TOTAL = 500
-const PHYSICS_THROTTLE_MS = 300
-const ZOOM_THROTTLE_MS = 100
 
 /**
  * Create empty grid
