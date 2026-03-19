@@ -34,7 +34,6 @@ interface StreamMetrics {
 
 const P500: React.FC = () => {
   const [selectedCamera, setSelectedCamera] = useState<CameraNode | null>(null);
-  const [frameCount, setFrameCount] = useState(0);
   const [quality, setQuality] = useState<StreamQuality>('HIGH');
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -46,7 +45,6 @@ const P500: React.FC = () => {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
-  const lastFrameTimeRef = useRef(0);
   const snapshotCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Stream metrics state
