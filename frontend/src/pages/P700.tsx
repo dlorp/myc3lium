@@ -157,6 +157,12 @@ const P700 = () => {
   }, []);
 
   // Keyboard controls
+  // Apply filters and search
+  const filteredEntries = searchLogEntries(
+    filterLogEntries(logEntries, selectedNodeId, selectedEventType),
+    searchQuery
+  );
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -174,13 +180,7 @@ const P700 = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Apply filters and search
-  const filteredEntries = searchLogEntries(
-    filterLogEntries(logEntries, selectedNodeId, selectedEventType),
-    searchQuery
-  );
+  }, [filteredEntries]);
 
   const stats = getLogStatistics(logEntries);
   const uniqueNodeIds = getUniqueNodeIds(logEntries);
