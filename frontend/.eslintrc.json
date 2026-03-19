@@ -33,5 +33,5 @@
       "version": "detect"
     }
   },
-  "ignorePatterns": ["dist", "node_modules", "*.config.js", "*.config.ts", "**/*.d.ts"]
+  "ignorePatterns": ["dist", "node_modules", "*.config.js", "*.config.ts", "**/*.d.ts", "**/*.utils.js"]
 }
