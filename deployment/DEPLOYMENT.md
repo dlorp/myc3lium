@@ -1,6 +1,6 @@
 # 🍄 MYC3LIUM Hardware Deployment Guide
 
-**Quick Start Guide for Friday Deployment**
+**Quick Start Guide for production Deployment**
 
 This guide will get your MYC3LIUM mesh node running in under 30 minutes.
 

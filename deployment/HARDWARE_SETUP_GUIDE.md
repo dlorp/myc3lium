@@ -1,7 +1,7 @@
-# MYC3LIUM Phase 4 - Friday Hardware Deployment Guide
+# MYC3LIUM Phase 4 - production Hardware Deployment Guide
 
-**Hardware Arrives:** Friday Morning (00:00 UTC)  
-**Setup Window:** 4 hours (Friday 00:00 - 04:00 UTC)  
+**Hardware Arrives:** production Morning (00:00 UTC)  
+**Setup Window:** 4 hours (production 00:00 - 04:00 UTC)  
 **Status:** READY FOR PRODUCTION
 
 ---
@@ -75,10 +75,10 @@ cd myc3lium
 # Copy environment
 cp .env.example .env
 
-# Edit .env with Friday hardware addresses
+# Edit .env with production hardware addresses
 # Key variables:
 # - RETICULUM_INTERFACE=<hardware-serial-port>
-# - CAMERA_RTMP_URL=<Friday-camera-url>
+# - CAMERA_RTMP_URL=<production-camera-url>
 # - NODE_IDS=P400-01,P400-02,...,P400-12
 ```
 
@@ -127,7 +127,7 @@ bash deployment/tests/integration-test.sh
 
 ---
 
-## Friday Timeline
+## production Timeline
 
 ### 00:00-00:15 - Hardware Connection
 - Connect LoRa modem to serial port
@@ -251,7 +251,7 @@ myc3lium/
 │   ├── DEPLOYMENT.md             (detailed guide)
 │   ├── API.md                    (endpoint docs)
 │   ├── MANIFEST.md               (file listing)
-│   ├── FRIDAY_SETUP_GUIDE.md     (THIS FILE)
+│   ├── PRODUCTION_SETUP_GUIDE.md     (THIS FILE)
 │   ├── setup-all.sh              (automated setup)
 │   ├── config/                   (configuration files)
 │   ├── scripts/                  (utility scripts)
@@ -311,7 +311,7 @@ python backend/app.py
 
 ---
 
-**READY FOR FRIDAY DEPLOYMENT** ✓
+**READY FOR PRODUCTION DEPLOYMENT** ✓
 
 *Last Updated: 2024-03-19T00:33 UTC*  
-*Hardware Arrival: Friday 00:00 UTC*
+*Hardware Arrival: production 00:00 UTC*

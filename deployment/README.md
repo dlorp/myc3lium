@@ -6,7 +6,7 @@
 
 ## Quick Start
 
-**For impatient humans with hardware arriving Friday:**
+**For impatient humans with hardware arriving production:**
 
 ```bash
 # 1. Copy to your Raspberry Pi:
