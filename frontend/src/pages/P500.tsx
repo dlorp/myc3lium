@@ -119,7 +119,7 @@ const P500: React.FC = () => {
       const firstOnline = cameras.find((c) => c.status === 'ONLINE');
       if (firstOnline) setSelectedCamera(firstOnline);
     }
-  }, []);
+  }, [selectedCamera, cameras]);
 
   // Update timestamp and metrics every second
   useEffect(() => {
@@ -165,7 +165,7 @@ const P500: React.FC = () => {
     } else if (metrics.signal < 25 && quality === 'MEDIUM') {
       setQuality('LOW');
     }
-  }, [metrics.bandwidth, metrics.signal, quality]);
+  }, [metrics.bandwidth, metrics.signal, quality, qualityBitrates]);
 
   // Connection state machine
   useEffect(() => {
