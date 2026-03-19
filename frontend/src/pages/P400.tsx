@@ -1,5 +1,5 @@
 import { useEffect, useState, startTransition } from 'react';
-import { TeletextPanel, TeletextText, Sparkline, StatusBar } from '../components';
+import { TeletextPanel, TeletextText, Sparkline } from '../components';
 import useNavigationStore from '../store/navigationStore';
 import useMeshStore from '../store/meshStore';
 import {
@@ -378,9 +378,6 @@ const P400 = () => {
         {sortedReadings.map((reading) => {
           const isExpanded = expandedRows.has(reading.nodeId);
           const tempColor = getThresholdColor(reading.temperature, 'temperature');
-          const humColor = getThresholdColor(reading.humidity, 'humidity');
-          const presColor = getThresholdColor(reading.pressure, 'pressure');
-          const batColor = getThresholdColor(reading.battery, 'battery');
 
           return (
             <div key={reading.nodeId}>

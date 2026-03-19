@@ -133,11 +133,12 @@ export const getSortFunction = (column: SortColumn, ascending: boolean) => {
         aVal = a.battery;
         bVal = b.battery;
         break;
-      case 'status':
+      case 'status': {
         const statusOrder = { GOOD: 0, WARNING: 1, CRITICAL: 2 };
         aVal = statusOrder[a.status];
         bVal = statusOrder[b.status];
         break;
+      }
       default:
         return 0;
     }

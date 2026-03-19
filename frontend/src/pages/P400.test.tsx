@@ -6,8 +6,6 @@ import {
   getSortFunction,
   exportToCSV,
   type SensorReading,
-  type AlertLevel,
-  type SortColumn,
 } from './P400.utils';
 
 describe('P400 - Sensor Grid Utilities', () => {
@@ -243,14 +241,14 @@ describe('P400 - Sensor Grid Utilities', () => {
             setAttribute: () => {},
             click: () => {},
             style: {},
-          } as any;
+          } as HTMLElement;
         }
-        return {} as any;
+        return {} as HTMLElement;
       };
       global.document.body = {
         appendChild: () => {},
         removeChild: () => {},
-      } as any;
+      } as unknown as HTMLBodyElement;
     });
 
     it('should export data without errors', () => {
@@ -286,9 +284,9 @@ describe('P400 - Sensor Grid Utilities', () => {
             },
             click: () => {},
             style: {},
-          } as any;
+          } as HTMLElement;
         }
-        return {} as any;
+        return {} as HTMLElement;
       };
 
       exportToCSV(readings, filename);
@@ -306,9 +304,9 @@ describe('P400 - Sensor Grid Utilities', () => {
             },
             click: () => {},
             style: {},
-          } as any;
+          } as HTMLElement;
         }
-        return {} as any;
+        return {} as HTMLElement;
       };
 
       exportToCSV(readings);
