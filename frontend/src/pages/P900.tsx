@@ -1,25 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useState, useEffect } from 'react';
+import TeletextPanel from '../components/TeletextPanel';
 import '../styles/teletext.css';
 
 /**
- * P900 - Intelligence Dashboard
+ * P900 - Intelligence & ATAK Integration
  * 
- * Real-time intelligence gathering and visualization:
- * - Mesh topology (force-directed graph)
+ * Specialized intelligence features:
+ * - RF source detection (TDOA localization)
  * - RSSI heatmap overlay
- * - Position tracking
- * - RF source detection
  * - ATAK integration status
+ * - Spectrum monitoring
+ * 
+ * Note: Network topology is on P200 (LatticeMapPage)
  */
-
-interface MeshNode {
-  id: string;
-  position: { lat: number; lon: number; alt: number };
-  radio: 'lora' | 'halow' | 'wifi';
-  rssi: number;
-  neighbors: string[];
-}
 
 interface RFSource {
   id: string;
@@ -36,12 +29,14 @@ interface HeatmapPoint {
 }
 
 const P900: React.FC = () => {
-  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([]);
   const [rfSources, setRFSources] = useState<RFSource[]>([]);
   const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([]);
   const [atakConnected, setAtakConnected] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [atakStats, setAtakStats] = useState({
+    videoFeeds: 0,
+    cotMessagesSent: 0,
+    multicastGroup: '239.2.3.1:6969'
+  });
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -55,9 +50,6 @@ const P900: React.FC = () => {
       const data = JSON.parse(event.data);
       
       switch (data.type) {
-        case 'topology_update':
-          setMeshNodes(data.nodes);
-          break;
         case 'rssi_measurement':
           updateHeatmap(data);
           break;
@@ -66,6 +58,9 @@ const P900: React.FC = () => {
           break;
         case 'atak_status':
           setAtakConnected(data.connected);
+          if (data.stats) {
+            setAtakStats(data.stats);
+          }
           break;
       }
     };
@@ -73,8 +68,6 @@ const P900: React.FC = () => {
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-    
-    wsRef.current = ws;
     
     return () => {
       ws.close();
@@ -100,380 +93,141 @@ const P900: React.FC = () => {
     });
   };
 
-  // 3D mesh topology visualization
-  useEffect(() => {
-    if (!canvasRef.current || meshNodes.length === 0) return;
+  // Generate ASCII heatmap
+  const renderHeatmap = () => {
+    if (heatmapData.length === 0) {
+      return <div style={{ color: '#666' }}>No signal data collected</div>;
+    }
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      canvasRef.current.width / canvasRef.current.height,
-      0.1,
-      1000
+    const chars = ['·', '░', '▒', '▓', '█'];
+    
+    return (
+      <div style={{ fontFamily: 'monospace', lineHeight: '1', letterSpacing: '0.1em' }}>
+        {heatmapData.slice(-50).map((point, idx) => {
+          const intensity = Math.floor((point.value + 120) / 24); // Normalize -120 to 0 dBm
+          const charIndex = Math.max(0, Math.min(chars.length - 1, intensity));
+          return <span key={idx}>{chars[charIndex]}</span>;
+        })}
+      </div>
     );
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
-
-    // Create nodes
-    meshNodes.forEach((node, idx) => {
-      const geometry = new THREE.SphereGeometry(0.5, 16, 16);
-      
-      // Color by radio type
-      const colors = {
-        lora: 0xff0000,
-        halow: 0x00ff00,
-        wifi: 0x0000ff
-      };
-      
-      const material = new THREE.MeshBasicMaterial({
-        color: colors[node.radio]
-      });
-      
-      const sphere = new THREE.Mesh(geometry, material);
-      
-      // Position nodes in 3D space (layout algorithm)
-      sphere.position.set(
-        Math.cos(idx * 0.5) * 5,
-        Math.sin(idx * 0.3) * 3,
-        idx * 0.2 - meshNodes.length * 0.1
-      );
-      
-      scene.add(sphere);
-      
-      // Create edges to neighbors
-      node.neighbors.forEach(neighborId => {
-        const neighborIdx = meshNodes.findIndex(n => n.id === neighborId);
-        if (neighborIdx > idx) {  // Avoid duplicate edges
-          const points = [
-            sphere.position,
-            new THREE.Vector3(
-              Math.cos(neighborIdx * 0.5) * 5,
-              Math.sin(neighborIdx * 0.3) * 3,
-              neighborIdx * 0.2 - meshNodes.length * 0.1
-            )
-          ];
-          
-          const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-          const lineMaterial = new THREE.LineBasicMaterial({
-            color: 0xffffff,
-            opacity: 0.3,
-            transparent: true
-          });
-          
-          const line = new THREE.Line(lineGeometry, lineMaterial);
-          scene.add(line);
-        }
-      });
-    });
-
-    camera.position.z = 15;
-
-    // Animation loop
-    const animate = () => {
-      requestAnimationFrame(animate);
-      scene.rotation.y += 0.005;
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    return () => {
-      renderer.dispose();
-    };
-  }, [meshNodes]);
+  };
 
   return (
-    <div className="teletext-page">
-      <div className="teletext-header">
-        <span className="teletext-title">P900</span>
-        <span className="teletext-separator">│</span>
-        <span>INTELLIGENCE</span>
-        <span className="teletext-separator">│</span>
-        <span className={`status-${atakConnected ? 'online' : 'offline'}`}>
-          ATAK {atakConnected ? 'CONNECTED' : 'OFFLINE'}
+    <div style={{ padding: '20px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <span style={{ fontSize: '24px', color: '#00FFFF', fontFamily: 'IBM VGA, monospace' }}>
+          P900 │ INTELLIGENCE & ATAK
+        </span>
+        <span style={{ 
+          marginLeft: '20px', 
+          fontSize: '16px',
+          color: atakConnected ? '#00FF00' : '#FF0000',
+          fontFamily: 'IBM VGA, monospace'
+        }}>
+          {atakConnected ? '● ATAK CONNECTED' : '○ ATAK OFFLINE'}
         </span>
       </div>
 
-      <div className="intelligence-grid">
-        {/* Mesh Topology Visualization */}
-        <div className="panel topology-panel">
-          <div className="panel-header">MESH TOPOLOGY</div>
-          <canvas 
-            ref={canvasRef} 
-            width={600} 
-            height={400}
-            className="topology-canvas"
-          />
-          <div className="topology-legend">
-            <span className="legend-item">
-              <span className="legend-color" style={{background: '#ff0000'}}></span>
-              LoRa
-            </span>
-            <span className="legend-item">
-              <span className="legend-color" style={{background: '#00ff00'}}></span>
-              HaLow
-            </span>
-            <span className="legend-item">
-              <span className="legend-color" style={{background: '#0000ff'}}></span>
-              WiFi
-            </span>
-          </div>
-        </div>
-
-        {/* RF Sources List */}
-        <div className="panel rf-sources-panel">
-          <div className="panel-header">RF SOURCES DETECTED</div>
-          <div className="rf-sources-list">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        {/* RF Sources Panel */}
+        <TeletextPanel title="RF SOURCES DETECTED" color="cyan">
+          <div style={{ fontFamily: 'IBM VGA, monospace', fontSize: '14px' }}>
             {rfSources.length === 0 ? (
-              <div className="no-data">No RF sources detected</div>
+              <div style={{ color: '#666' }}>No RF sources detected</div>
             ) : (
-              <table className="rf-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>
-                    <th>FREQ (MHz)</th>
-                    <th>RSSI</th>
-                    <th>POSITION</th>
-                    <th>AGE</th>
+                  <tr style={{ borderBottom: '1px solid #00FFFF' }}>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>FREQ (MHz)</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>RSSI</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>POSITION</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>AGE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rfSources.slice(-10).reverse().map(source => (
-                    <tr key={source.id}>
-                      <td>{(source.frequency / 1e6).toFixed(3)}</td>
-                      <td>{source.rssi} dBm</td>
-                      <td>
+                    <tr key={source.id} style={{ borderBottom: '1px solid #004444' }}>
+                      <td style={{ padding: '4px', color: '#00FFFF' }}>
+                        {(source.frequency / 1e6).toFixed(3)}
+                      </td>
+                      <td style={{ padding: '4px', color: '#00FFFF' }}>
+                        {source.rssi} dBm
+                      </td>
+                      <td style={{ padding: '4px', color: '#00FFFF' }}>
                         {source.position 
                           ? `${source.position.lat.toFixed(4)}, ${source.position.lon.toFixed(4)}`
                           : 'Unknown'
                         }
                       </td>
-                      <td>{Math.floor((Date.now() - source.timestamp) / 1000)}s</td>
+                      <td style={{ padding: '4px', color: '#00FFFF' }}>
+                        {Math.floor((Date.now() - source.timestamp) / 1000)}s
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
           </div>
-        </div>
-
-        {/* Node Status */}
-        <div className="panel nodes-panel">
-          <div className="panel-header">MESH NODES ({meshNodes.length})</div>
-          <div className="nodes-list">
-            {meshNodes.map(node => (
-              <div key={node.id} className="node-item">
-                <span className="node-id">{node.id}</span>
-                <span className={`node-radio radio-${node.radio}`}>
-                  {node.radio.toUpperCase()}
-                </span>
-                <span className="node-rssi">
-                  {node.rssi} dBm
-                </span>
-                <span className="node-neighbors">
-                  {node.neighbors.length} link{node.neighbors.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RSSI Heatmap */}
-        <div className="panel heatmap-panel">
-          <div className="panel-header">SIGNAL STRENGTH HEATMAP</div>
-          <div className="heatmap-container">
-            {heatmapData.length > 0 ? (
-              <div className="heatmap-points">
-                {heatmapData.map((point, idx) => {
-                  // Simple ASCII heatmap representation
-                  const intensity = Math.floor((point.value + 120) / 5);  // Normalize -120 to 0 dBm
-                  const char = intensity > 10 ? '█' : intensity > 5 ? '▓' : intensity > 2 ? '░' : '·';
-                  
-                  return (
-                    <span key={idx} className="heatmap-point">
-                      {char}
-                    </span>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="no-data">No signal data collected</div>
-            )}
-          </div>
-        </div>
+        </TeletextPanel>
 
         {/* ATAK Integration Status */}
-        <div className="panel atak-panel">
-          <div className="panel-header">ATAK INTEGRATION</div>
-          <div className="atak-status">
-            <div className="status-row">
-              <span>Status:</span>
-              <span className={atakConnected ? 'status-good' : 'status-bad'}>
+        <TeletextPanel title="ATAK INTEGRATION" color="magenta">
+          <div style={{ fontFamily: 'IBM VGA, monospace', fontSize: '14px', lineHeight: '1.8' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #440044', padding: '4px 0' }}>
+              <span style={{ color: '#FF00FF' }}>Status:</span>
+              <span style={{ color: atakConnected ? '#00FF00' : '#FF0000' }}>
                 {atakConnected ? '● CONNECTED' : '○ DISCONNECTED'}
               </span>
             </div>
-            <div className="status-row">
-              <span>Video Feeds:</span>
-              <span>{meshNodes.filter(n => n.id.includes('cam')).length}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #440044', padding: '4px 0' }}>
+              <span style={{ color: '#FF00FF' }}>Video Feeds:</span>
+              <span style={{ color: '#00FFFF' }}>{atakStats.videoFeeds}</span>
             </div>
-            <div className="status-row">
-              <span>CoT Messages Sent:</span>
-              <span>--</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #440044', padding: '4px 0' }}>
+              <span style={{ color: '#FF00FF' }}>CoT Messages:</span>
+              <span style={{ color: '#00FFFF' }}>{atakStats.cotMessagesSent}</span>
             </div>
-            <div className="status-row">
-              <span>Multicast Group:</span>
-              <span>239.2.3.1:6969</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+              <span style={{ color: '#FF00FF' }}>Multicast:</span>
+              <span style={{ color: '#00FFFF', fontSize: '12px' }}>{atakStats.multicastGroup}</span>
             </div>
           </div>
-        </div>
+        </TeletextPanel>
+
+        {/* RSSI Heatmap */}
+        <TeletextPanel title="SIGNAL STRENGTH HEATMAP" color="yellow">
+          <div style={{ color: '#FFFF00' }}>
+            {renderHeatmap()}
+          </div>
+        </TeletextPanel>
+
+        {/* Spectrum Info */}
+        <TeletextPanel title="SPECTRUM MONITORING" color="green">
+          <div style={{ fontFamily: 'IBM VGA, monospace', fontSize: '14px', lineHeight: '1.8', color: '#00FF00' }}>
+            <div>LoRa 915 MHz: Active</div>
+            <div>HaLow 900 MHz: Active</div>
+            <div>WiFi 2.4 GHz: Active</div>
+            <div>WiFi 5 GHz: Active</div>
+            <div style={{ marginTop: '12px', color: '#888888' }}>
+              TDOA localization: {rfSources.filter(s => s.position).length} sources positioned
+            </div>
+          </div>
+        </TeletextPanel>
       </div>
 
-      <style>{`
-        .intelligence-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          grid-template-rows: auto auto auto;
-          gap: 1rem;
-          padding: 1rem;
-        }
-
-        .panel {
-          border: 2px solid #0f0;
-          background: #000;
-          padding: 0.5rem;
-        }
-
-        .panel-header {
-          color: #0f0;
-          font-weight: bold;
-          margin-bottom: 0.5rem;
-          border-bottom: 1px solid #0f0;
-          padding-bottom: 0.25rem;
-        }
-
-        .topology-panel {
-          grid-column: 1 / 2;
-          grid-row: 1 / 3;
-        }
-
-        .topology-canvas {
-          width: 100%;
-          background: #000;
-          border: 1px solid #0a0;
-        }
-
-        .topology-legend {
-          display: flex;
-          gap: 1rem;
-          margin-top: 0.5rem;
-          font-size: 0.8rem;
-        }
-
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-        }
-
-        .legend-color {
-          display: inline-block;
-          width: 1rem;
-          height: 1rem;
-          border: 1px solid #0f0;
-        }
-
-        .rf-sources-panel {
-          grid-column: 2 / 3;
-          grid-row: 1 / 2;
-        }
-
-        .rf-table {
-          width: 100%;
-          font-size: 0.8rem;
-          border-collapse: collapse;
-        }
-
-        .rf-table th {
-          color: #0f0;
-          text-align: left;
-          border-bottom: 1px solid #0a0;
-          padding: 0.25rem;
-        }
-
-        .rf-table td {
-          color: #0f0;
-          padding: 0.25rem;
-        }
-
-        .nodes-panel {
-          grid-column: 2 / 3;
-          grid-row: 2 / 3;
-        }
-
-        .nodes-list {
-          max-height: 300px;
-          overflow-y: auto;
-          font-size: 0.8rem;
-        }
-
-        .node-item {
-          display: grid;
-          grid-template-columns: 2fr 1fr 1fr 1fr;
-          gap: 0.5rem;
-          padding: 0.25rem;
-          border-bottom: 1px solid #0a0;
-        }
-
-        .node-id {
-          color: #0f0;
-        }
-
-        .node-radio {
-          font-weight: bold;
-        }
-
-        .radio-lora { color: #f00; }
-        .radio-halow { color: #0f0; }
-        .radio-wifi { color: #00f; }
-
-        .heatmap-panel {
-          grid-column: 1 / 2;
-          grid-row: 3 / 4;
-        }
-
-        .heatmap-points {
-          font-family: monospace;
-          line-height: 1;
-          letter-spacing: 0.1em;
-          color: #0f0;
-        }
-
-        .atak-panel {
-          grid-column: 2 / 3;
-          grid-row: 3 / 4;
-        }
-
-        .atak-status {
-          font-size: 0.9rem;
-        }
-
-        .status-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 0.25rem 0;
-          border-bottom: 1px solid #0a0;
-        }
-
-        .status-good { color: #0f0; }
-        .status-bad { color: #f00; }
-
-        .no-data {
-          color: #666;
-          text-align: center;
-          padding: 2rem;
-        }
-
-        .status-online { color: #0f0; }
-        .status-offline { color: #f00; }
-      `}</style>
+      {/* Legend */}
+      <div style={{ marginTop: '20px' }}>
+        <TeletextPanel title="LEGEND" color="cyan">
+          <div style={{ fontFamily: 'IBM VGA, monospace', fontSize: '12px', lineHeight: '1.6', color: '#00FFFF' }}>
+            <div><strong>RF Source Detection:</strong> Passive TDOA (Time Difference of Arrival) localization</div>
+            <div><strong>ATAK Integration:</strong> Cursor on Target (CoT) protocol for tactical mapping</div>
+            <div><strong>Heatmap:</strong> Real-time RSSI measurements across mesh (· weak → █ strong)</div>
+            <div style={{ marginTop: '8px', color: '#888888' }}>
+              Network topology: See P200 (Lattice Map)
+            </div>
+          </div>
+        </TeletextPanel>
+      </div>
     </div>
   );
 };
