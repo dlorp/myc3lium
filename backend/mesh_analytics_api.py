@@ -5,10 +5,9 @@ Integrates mesh_graph_analyzer.py with FastAPI
 Provides BloodHound-style queries + Maltego transforms
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
-
 import logging
+
+from fastapi import APIRouter, HTTPException
 
 from mesh_graph_analyzer import MeshGraphAnalyzer
 
