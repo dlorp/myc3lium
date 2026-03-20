@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from hardware_interfaces import HardwareManager
 from intelligence import ATAKIntegration, IntelligenceGathering, SensorFusion
+from mesh_analytics_api import router as mesh_analytics_router
 from security import SecurityManager
 
 # Configure logging
