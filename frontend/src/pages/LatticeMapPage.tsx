@@ -31,8 +31,22 @@ const LatticeMapPage: React.FC = () => {
     loadAll();
     connectWS();
 
+    // Also connect to intelligence WebSocket for real-time updates
+    const intelligenceWS = new WebSocket('ws://localhost:8000/ws/intelligence');
+    
+    intelligenceWS.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'topology_update') {
+        // Real-time topology updates from BATMAN-adv
+        console.log('Real-time topology update:', data);
+        // Would integrate with meshStore to update nodes/threads
+      }
+    };
+
     return () => {
       disconnectWS();
+      intelligenceWS.close();
     };
   }, [loadAll, connectWS, disconnectWS]);
 
