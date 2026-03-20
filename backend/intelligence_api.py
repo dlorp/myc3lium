@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="MYC3LIUM Intelligence API")
 
+# Include mesh analytics router
+app.include_router(mesh_analytics_router)
+
 # Initialize hardware on startup
 hardware = HardwareManager()
 
