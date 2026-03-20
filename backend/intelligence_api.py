@@ -326,7 +326,7 @@ async def broadcast_to_clients(message: dict):
     for connection in active_connections:
         try:
             await connection.send_json(message)
-        except:
+        except Exception:
             disconnected.append(connection)
 
     # Clean up disconnected clients

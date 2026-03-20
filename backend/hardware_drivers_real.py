@@ -358,7 +358,7 @@ class MPU6050_IMU_Driver:
             logger.error(f"IMU accel read error: {e}")
             return (0.0, 0.0, 9.8)
 
-    def read_gyro(self) -> Tuple[float, float, float]:
+    def read_gyro(self) -> tuple[float, float, float]:
         """
         Read gyroscope (rad/s)
         Returns: (gx, gy, gz)

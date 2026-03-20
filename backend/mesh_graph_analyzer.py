@@ -129,7 +129,7 @@ class MeshGraphAnalyzer:
         # Get local node MAC
         try:
             local_mac = open('/sys/class/net/bat0/address').read().strip()
-        except:
+        except Exception:
             local_mac = "00:00:00:00:00:00"
 
         # Add local node

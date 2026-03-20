@@ -334,7 +334,7 @@ class HardwareManager:
             if result.returncode == 0:
                 self.wifi = WiFiInterface('wlan0')
                 print("✓ WiFi detected on wlan0")
-        except:
+        except Exception:
             print("✗ WiFi not detected")
 
         # Detect IMU (I2C)
