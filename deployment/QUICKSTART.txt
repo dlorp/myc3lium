@@ -1,0 +1,185 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   🍄 MYC3LIUM QUICK START CARD                               ║
+║                Hardware Deployment - Production Ready                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: PREPARE SD CARD (5 min)                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  1. Download: Raspberry Pi OS Lite (64-bit)
+     https://www.raspberrypi.com/software/operating-systems/
+  
+  2. Flash to SD card using Raspberry Pi Imager
+  
+  3. Enable SSH: Create empty file "ssh" on boot partition
+  
+  4. (Optional) Configure WiFi: Create wpa_supplicant.conf on boot partition
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: FIRST BOOT & COPY FILES (5 min)                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  1. Boot Pi with SD card
+  
+  2. Find Pi on network:
+     ping raspberrypi.local
+  
+  3. SSH in:
+     ssh pi@raspberrypi.local
+     (password: raspberry)
+  
+  4. Copy deployment package:
+     scp -r deployment/ pi@raspberrypi.local:~/
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: RUN SETUP (15-20 min) ☕                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  On the Pi:
+  
+     cd ~/deployment
+     chmod +x setup-all.sh
+     sudo ./setup-all.sh
+  
+  Sit back and wait. Script will:
+  - Install all dependencies
+  - Configure interfaces
+  - Deploy backend & WebUI
+  - Start services
+  - Run tests
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: ASSEMBLE HARDWARE (5 min)                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Power OFF, then:
+  
+  1. Attach Waveshare SX1262 LoRa HAT to GPIO pins
+  2. Plug in Heltec HT-HC01P HaLow module (USB)
+  3. Attach UPS HAT (optional but recommended)
+  4. Connect touchscreen (optional)
+  5. Power ON
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STEP 5: ACCESS & VERIFY (2 min)                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  WebUI:
+    http://<pi-ip-address>
+  
+  System Status:
+    ssh myc3lium@<pi-ip-address>
+    myc3lium-status
+  
+  Run Tests:
+    cd ~/deployment/tests
+    sudo ./test-all.sh
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TOTAL TIME: ~30 MINUTES                                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          IMPORTANT COMMANDS                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  System Status:
+    myc3lium-status
+
+  Service Management:
+    sudo systemctl restart reticulum
+    sudo systemctl restart myc3lium-backend
+    sudo systemctl restart batman-adv
+
+  View Logs:
+    journalctl -fu reticulum.service
+    journalctl -fu myc3lium-backend.service
+
+  Mesh Status:
+    batctl o                  # BATMAN neighbors
+    rnstatus                  # Reticulum status
+    bash /opt/myc3lium/mesh-status.sh
+
+  Test Components:
+    sudo python3 /opt/myc3lium/test-lora.py
+    bash /opt/myc3lium/test-halow.sh
+    bash /opt/myc3lium/test-mesh.sh
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          NETWORK PORTS                                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  80     - WebUI (HTTP)
+  8000   - Backend API
+  4242   - Reticulum TCP
+  4965   - Reticulum UDP (mesh)
+  29716  - Reticulum discovery
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          FILE LOCATIONS                                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Application:
+    /opt/myc3lium/backend/          # Backend API
+    /opt/myc3lium/logs/             # Application logs
+    /var/www/myc3lium/              # WebUI
+
+  Reticulum:
+    /home/myc3lium/.reticulum/config              # Main config
+    /home/myc3lium/.reticulum/storage/identities/ # Identity keys (BACKUP!)
+
+  Configuration:
+    /etc/nginx/sites-available/myc3lium           # Nginx config
+    /etc/systemd/system/reticulum.service         # Reticulum service
+    /etc/systemd/system/myc3lium-backend.service  # Backend service
+    /etc/systemd/system/batman-adv.service        # BATMAN service
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          TROUBLESHOOTING                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Services won't start:
+    journalctl -u <service-name> -n 100
+
+  No mesh neighbors:
+    sudo systemctl restart batman-adv
+    batctl if
+    iw dev wlan0 info
+
+  WebUI not loading:
+    nginx -t
+    systemctl status nginx
+    curl http://localhost:8000/health
+
+  LoRa not working:
+    ls -l /dev/spidev*
+    sudo python3 /opt/myc3lium/test-lora.py
+
+  Full diagnostic:
+    cd ~/deployment/tests
+    sudo ./test-all.sh
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          SECURITY CHECKLIST                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  [ ] Change myc3lium password:    sudo passwd myc3lium
+  [ ] Change pi password:          passwd
+  [ ] Backup Reticulum identity:   /home/myc3lium/.reticulum/storage/identities/
+  [ ] Review firewall rules:       sudo ufw status
+  [ ] Update system:               sudo apt update && sudo apt upgrade
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          SUPPORT                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Full documentation:  DEPLOYMENT.md
+  Package README:      README.md
+  
+  Reticulum docs:      https://reticulum.network/manual/
+  BATMAN-adv docs:     https://www.open-mesh.org/
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    🍄 MYC3LIUM v1.0.0 - Production Ready                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
