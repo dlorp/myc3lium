@@ -107,7 +107,9 @@ def test_mesh_store_emits_message_added(mesh_store):
 
     # First create nodes
     sender = Node(id="sender", type="HYPHA", callsign="sender", status="online")
-    recipient = Node(id="recipient", type="SPORE", callsign="recipient", status="online")
+    recipient = Node(
+        id="recipient", type="SPORE", callsign="recipient", status="online"
+    )
     mesh_store.add_node(sender)
     mesh_store.add_node(recipient)
 
@@ -257,7 +259,9 @@ async def test_message_added_broadcasts_to_websockets(mesh_store, manager):
 
     # Create nodes
     sender = Node(id="sender", type="HYPHA", callsign="sender", status="online")
-    recipient = Node(id="recipient", type="SPORE", callsign="recipient", status="online")
+    recipient = Node(
+        id="recipient", type="SPORE", callsign="recipient", status="online"
+    )
     mesh_store.add_node(sender)
     mesh_store.add_node(recipient)
 
@@ -394,7 +398,9 @@ async def test_broadcast_message_format_for_message_added(mesh_store):
 
     # Create nodes
     sender = Node(id="sender", type="HYPHA", callsign="sender", status="online")
-    recipient = Node(id="recipient", type="SPORE", callsign="recipient", status="online")
+    recipient = Node(
+        id="recipient", type="SPORE", callsign="recipient", status="online"
+    )
     mesh_store.add_node(sender)
     mesh_store.add_node(recipient)
 

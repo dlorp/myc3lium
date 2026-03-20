@@ -184,7 +184,8 @@ async def update_node_status(node_id: str, status: str):
     valid_statuses = ["online", "offline", "degraded"]
     if status not in valid_statuses:
         raise HTTPException(
-            status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
         )
 
     updated_node = mesh_store.update_node(

@@ -309,10 +309,14 @@ class TestCreateMessage:
         """Test that missing required fields cause validation error"""
         setup_test_nodes()
 
-        response = client.post("/api/messages", json={"content": "No sender", "hops": 0})
+        response = client.post(
+            "/api/messages", json={"content": "No sender", "hops": 0}
+        )
         assert response.status_code == 422
 
-        response = client.post("/api/messages", json={"sender_id": "node_001", "hops": 0})
+        response = client.post(
+            "/api/messages", json={"sender_id": "node_001", "hops": 0}
+        )
         assert response.status_code == 422
 
     def test_create_message_with_max_content_length(self):

@@ -23,32 +23,36 @@ logger = logging.getLogger(__name__)
 
 class RadioType(Enum):
     """Available radio interfaces"""
-    LORA = "lora"          # Long range, low bandwidth (2-10km, 0.3-50 kbps)
-    HALOW = "halow"        # Medium range, high bandwidth (1km, 32 Mbps)
-    WIFI = "wifi"          # Short range, highest bandwidth (100m, 100+ Mbps)
+
+    LORA = "lora"  # Long range, low bandwidth (2-10km, 0.3-50 kbps)
+    HALOW = "halow"  # Medium range, high bandwidth (1km, 32 Mbps)
+    WIFI = "wifi"  # Short range, highest bandwidth (100m, 100+ Mbps)
 
 
 @dataclass
 class LinkMetrics:
     """Real-time link quality metrics"""
-    rssi: float = 0.0              # Signal strength (dBm)
-    snr: float = 0.0               # Signal-to-noise ratio (dB)
-    packet_loss: float = 0.0       # Packet loss rate (0-1)
-    latency_ms: float = 0.0        # Round-trip time
-    bandwidth_kbps: float = 0.0    # Available bandwidth
+
+    rssi: float = 0.0  # Signal strength (dBm)
+    snr: float = 0.0  # Signal-to-noise ratio (dB)
+    packet_loss: float = 0.0  # Packet loss rate (0-1)
+    latency_ms: float = 0.0  # Round-trip time
+    bandwidth_kbps: float = 0.0  # Available bandwidth
 
     # Calculated metrics
-    etx: float = 1.0               # Expected Transmission Count (lower is better)
+    etx: float = 1.0  # Expected Transmission Count (lower is better)
     last_update: float = field(default_factory=time.time)
 
     def update_etx(self):
         """Calculate ETX from packet loss"""
         if self.packet_loss >= 1.0:
-            self.etx = float('inf')
+            self.etx = float("inf")
         else:
             # ETX = 1 / (1 - packet_loss) for both directions
             # Simplified: assume symmetric links
-            self.etx = 1.0 / (1.0 - self.packet_loss) if self.packet_loss < 1.0 else 999.0
+            self.etx = (
+                1.0 / (1.0 - self.packet_loss) if self.packet_loss < 1.0 else 999.0
+            )
         self.last_update = time.time()
 
     def calculate_quality(self) -> float:
@@ -71,6 +75,7 @@ class LinkMetrics:
 @dataclass
 class RadioCapabilities:
     """Static capabilities of each radio type"""
+
     radio_type: RadioType
     max_range_m: int
     max_bandwidth_kbps: int
@@ -85,28 +90,28 @@ class RadioCapabilities:
 RADIO_CAPS = {
     RadioType.LORA: RadioCapabilities(
         radio_type=RadioType.LORA,
-        max_range_m=10000,      # 10 km line of sight
-        max_bandwidth_kbps=50,   # Up to 50 kbps
-        min_latency_ms=200,      # ~200ms typical
+        max_range_m=10000,  # 10 km line of sight
+        max_bandwidth_kbps=50,  # Up to 50 kbps
+        min_latency_ms=200,  # ~200ms typical
         power_consumption_mw=500,
-        cost_per_hop=1.0         # Low cost (long range)
+        cost_per_hop=1.0,  # Low cost (long range)
     ),
     RadioType.HALOW: RadioCapabilities(
         radio_type=RadioType.HALOW,
-        max_range_m=1000,        # 1 km
-        max_bandwidth_kbps=32000, # 32 Mbps
-        min_latency_ms=10,       # ~10ms typical
+        max_range_m=1000,  # 1 km
+        max_bandwidth_kbps=32000,  # 32 Mbps
+        min_latency_ms=10,  # ~10ms typical
         power_consumption_mw=2000,
-        cost_per_hop=2.0         # Medium cost
+        cost_per_hop=2.0,  # Medium cost
     ),
     RadioType.WIFI: RadioCapabilities(
         radio_type=RadioType.WIFI,
-        max_range_m=100,         # 100m practical
-        max_bandwidth_kbps=100000, # 100+ Mbps
-        min_latency_ms=1,        # <1ms typical
+        max_range_m=100,  # 100m practical
+        max_bandwidth_kbps=100000,  # 100+ Mbps
+        min_latency_ms=1,  # <1ms typical
         power_consumption_mw=1500,
-        cost_per_hop=3.0         # High cost (short range)
-    )
+        cost_per_hop=3.0,  # High cost (short range)
+    ),
 }
 
 
@@ -140,7 +145,7 @@ class AdaptiveRouter:
         self.active_radios: dict[RadioType, bool] = {
             RadioType.LORA: False,
             RadioType.HALOW: False,
-            RadioType.WIFI: False
+            RadioType.WIFI: False,
         }
 
         self._lock = threading.Lock()
@@ -153,8 +158,15 @@ class AdaptiveRouter:
             self.active_radios[radio_type] = True
             logger.info(f"Registered radio: {radio_type.value}")
 
-    def update_link_metrics(self, local: str, remote: str, radio: RadioType,
-                           rssi: float, snr: float, latency_ms: float):
+    def update_link_metrics(
+        self,
+        local: str,
+        remote: str,
+        radio: RadioType,
+        rssi: float,
+        snr: float,
+        latency_ms: float,
+    ):
         """Update link quality from probe or data packet"""
         with self._lock:
             key = (local, remote, radio)
@@ -171,8 +183,10 @@ class AdaptiveRouter:
             link.packet_loss = self._calculate_packet_loss(remote, radio)
             link.update_etx()
 
-            logger.debug(f"Link {local}->{remote} via {radio.value}: "
-                        f"RSSI={rssi:.1f} SNR={snr:.1f} ETX={link.etx:.2f}")
+            logger.debug(
+                f"Link {local}->{remote} via {radio.value}: "
+                f"RSSI={rssi:.1f} SNR={snr:.1f} ETX={link.etx:.2f}"
+            )
 
     def _calculate_packet_loss(self, dest: str, radio: RadioType) -> float:
         """Calculate packet loss rate from TX history"""
@@ -190,8 +204,9 @@ class AdaptiveRouter:
         key = f"{dest}:{radio.value}"
         self.tx_history[key].append(success)
 
-    def select_best_radio(self, dest: str, packet_size: int,
-                         latency_sensitive: bool = False) -> Optional[RadioType]:
+    def select_best_radio(
+        self, dest: str, packet_size: int, latency_sensitive: bool = False
+    ) -> Optional[RadioType]:
         """
         Intelligent radio selection based on:
         - Link quality (ETX)
@@ -251,7 +266,9 @@ class AdaptiveRouter:
 
             # Return radio with highest score
             best_radio, best_score = max(candidates, key=lambda x: x[1])
-            logger.debug(f"Selected {best_radio.value} for {dest} (score: {best_score:.1f})")
+            logger.debug(
+                f"Selected {best_radio.value} for {dest} (score: {best_score:.1f})"
+            )
             return best_radio
 
     def compute_routes(self):
@@ -283,7 +300,9 @@ class AdaptiveRouter:
 
         logger.info(f"Computed routes to {len(self.routes)} destinations")
 
-    def _dijkstra(self, graph: dict, start: str, end: str) -> list[tuple[str, RadioType, float]]:
+    def _dijkstra(
+        self, graph: dict, start: str, end: str
+    ) -> list[tuple[str, RadioType, float]]:
         """
         Dijkstra shortest path with ETX metric
         Returns list of (next_hop, radio, total_cost)
@@ -294,12 +313,12 @@ class AdaptiveRouter:
         unvisited = set(graph.keys())
 
         while unvisited:
-            current = min(unvisited, key=lambda n: distances.get(n, float('inf')))
+            current = min(unvisited, key=lambda n: distances.get(n, float("inf")))
 
             if current == end:
                 break
 
-            if distances.get(current, float('inf')) == float('inf'):
+            if distances.get(current, float("inf")) == float("inf"):
                 break
 
             unvisited.remove(current)
@@ -307,7 +326,7 @@ class AdaptiveRouter:
             for neighbor, radio, etx in graph[current]:
                 distance = distances[current] + etx
 
-                if distance < distances.get(neighbor, float('inf')):
+                if distance < distances.get(neighbor, float("inf")):
                     distances[neighbor] = distance
                     previous[neighbor] = current
                     radio_used[neighbor] = radio
@@ -401,10 +420,12 @@ if __name__ == "__main__":
     router.register_radio(RadioType.WIFI)
 
     # Simulate link metrics
-    router.update_link_metrics("SPORE-01", "SPORE-02", RadioType.LORA,
-                              rssi=-80, snr=10, latency_ms=250)
-    router.update_link_metrics("SPORE-01", "SPORE-02", RadioType.HALOW,
-                              rssi=-60, snr=15, latency_ms=15)
+    router.update_link_metrics(
+        "SPORE-01", "SPORE-02", RadioType.LORA, rssi=-80, snr=10, latency_ms=250
+    )
+    router.update_link_metrics(
+        "SPORE-01", "SPORE-02", RadioType.HALOW, rssi=-60, snr=15, latency_ms=15
+    )
 
     # Record some transmissions
     for i in range(20):
@@ -415,11 +436,17 @@ if __name__ == "__main__":
     router.compute_routes()
 
     # Select best radio
-    best = router.select_best_radio("SPORE-02", packet_size=1024, latency_sensitive=False)
+    best = router.select_best_radio(
+        "SPORE-02", packet_size=1024, latency_sensitive=False
+    )
     print(f"Best radio for 1KB packet: {best.value if best else 'None'}")
 
-    best_latency = router.select_best_radio("SPORE-02", packet_size=1024, latency_sensitive=True)
-    print(f"Best radio for latency-sensitive: {best_latency.value if best_latency else 'None'}")
+    best_latency = router.select_best_radio(
+        "SPORE-02", packet_size=1024, latency_sensitive=True
+    )
+    print(
+        f"Best radio for latency-sensitive: {best_latency.value if best_latency else 'None'}"
+    )
 
     # Check adaptive power
     power = router.get_tx_power_for_link("SPORE-02", RadioType.LORA)

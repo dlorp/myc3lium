@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MeshNode:
     """Mesh network node"""
+
     id: str
     mac: str
     last_seen: float  # seconds ago
@@ -34,6 +35,7 @@ class MeshNode:
 @dataclass
 class MeshLink:
     """Link between two nodes"""
+
     source: str
     target: str
     interface: str  # Which radio carries this link
@@ -58,27 +60,26 @@ class MeshGraphAnalyzer:
         """
         try:
             result = subprocess.run(
-                ['batctl', 'n'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["batctl", "n"], capture_output=True, text=True, timeout=5
             )
 
             neighbors = []
 
             # Parse: "aa:bb:cc:dd:ee:ff  0.123s (255) [wlan0]"
-            pattern = r'([0-9a-f:]+)\s+([0-9.]+)s\s+\((\d+)\)\s+\[(.+?)\]'
+            pattern = r"([0-9a-f:]+)\s+([0-9.]+)s\s+\((\d+)\)\s+\[(.+?)\]"
 
-            for line in result.stdout.split('\n'):
+            for line in result.stdout.split("\n"):
                 match = re.search(pattern, line)
                 if match:
                     mac, last_seen, quality, interface = match.groups()
-                    neighbors.append({
-                        'mac': mac,
-                        'last_seen': float(last_seen),
-                        'quality': int(quality),
-                        'interface': interface
-                    })
+                    neighbors.append(
+                        {
+                            "mac": mac,
+                            "last_seen": float(last_seen),
+                            "quality": int(quality),
+                            "interface": interface,
+                        }
+                    )
 
             return neighbors
 
@@ -92,25 +93,24 @@ class MeshGraphAnalyzer:
         """
         try:
             result = subprocess.run(
-                ['batctl', 'o'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["batctl", "o"], capture_output=True, text=True, timeout=5
             )
 
             originators = []
 
             # Parse originator table
-            for line in result.stdout.split('\n'):
-                if re.match(r'[0-9a-f:]+', line):
+            for line in result.stdout.split("\n"):
+                if re.match(r"[0-9a-f:]+", line):
                     parts = line.split()
                     if len(parts) >= 4:
-                        originators.append({
-                            'mac': parts[0],
-                            'last_seen': parts[1],
-                            'quality': int(parts[2].strip('()')),
-                            'next_hop': parts[3]
-                        })
+                        originators.append(
+                            {
+                                "mac": parts[0],
+                                "last_seen": parts[1],
+                                "quality": int(parts[2].strip("()")),
+                                "next_hop": parts[3],
+                            }
+                        )
 
             return originators
 
@@ -128,7 +128,7 @@ class MeshGraphAnalyzer:
 
         # Get local node MAC
         try:
-            local_mac = open('/sys/class/net/bat0/address').read().strip()
+            local_mac = open("/sys/class/net/bat0/address").read().strip()
         except Exception:
             local_mac = "00:00:00:00:00:00"
 
@@ -139,54 +139,58 @@ class MeshGraphAnalyzer:
             mac=local_mac,
             last_seen=0.0,
             link_quality=255,
-            interfaces=['bat0']
+            interfaces=["bat0"],
         )
 
         # Add neighbors
         neighbors = self.query_batman_neighbors()
 
         for neighbor in neighbors:
-            mac = neighbor['mac']
+            mac = neighbor["mac"]
 
             if mac not in self.graph:
                 self.graph.add_node(mac, label=mac[-8:])
                 self.nodes[mac] = MeshNode(
                     id=mac,
                     mac=mac,
-                    last_seen=neighbor['last_seen'],
-                    link_quality=neighbor['quality'],
-                    interfaces=[neighbor['interface']]
+                    last_seen=neighbor["last_seen"],
+                    link_quality=neighbor["quality"],
+                    interfaces=[neighbor["interface"]],
                 )
 
             # Add edge
             self.graph.add_edge(
                 local_mac,
                 mac,
-                weight=255 - neighbor['quality'],  # Lower quality = higher weight
-                interface=neighbor['interface'],
-                quality=neighbor['quality']
+                weight=255 - neighbor["quality"],  # Lower quality = higher weight
+                interface=neighbor["interface"],
+                quality=neighbor["quality"],
             )
 
-            self.links.append(MeshLink(
-                source=local_mac,
-                target=mac,
-                interface=neighbor['interface'],
-                quality=neighbor['quality'],
-                rssi=None,
-                bandwidth=None
-            ))
+            self.links.append(
+                MeshLink(
+                    source=local_mac,
+                    target=mac,
+                    interface=neighbor["interface"],
+                    quality=neighbor["quality"],
+                    rssi=None,
+                    bandwidth=None,
+                )
+            )
 
     def find_shortest_path(self, source: str, target: str) -> Optional[list[str]]:
         """
         Find shortest path between two nodes (like BloodHound's path queries)
         """
         try:
-            path = nx.shortest_path(self.graph, source, target, weight='weight')
+            path = nx.shortest_path(self.graph, source, target, weight="weight")
             return path
         except nx.NetworkXNoPath:
             return None
 
-    def find_all_paths(self, source: str, target: str, cutoff: int = 5) -> list[list[str]]:
+    def find_all_paths(
+        self, source: str, target: str, cutoff: int = 5
+    ) -> list[list[str]]:
         """
         Find all paths up to cutoff length
         """
@@ -231,12 +235,17 @@ class MeshGraphAnalyzer:
         undirected = self.graph.to_undirected()
 
         stats = {
-            'total_nodes': self.graph.number_of_nodes(),
-            'total_links': self.graph.number_of_edges(),
-            'network_diameter': nx.diameter(undirected) if nx.is_connected(undirected) else None,
-            'average_degree': sum(dict(self.graph.degree()).values()) / self.graph.number_of_nodes() if self.graph.number_of_nodes() > 0 else 0,
-            'connected': nx.is_connected(undirected),
-            'num_components': nx.number_connected_components(undirected)
+            "total_nodes": self.graph.number_of_nodes(),
+            "total_links": self.graph.number_of_edges(),
+            "network_diameter": nx.diameter(undirected)
+            if nx.is_connected(undirected)
+            else None,
+            "average_degree": sum(dict(self.graph.degree()).values())
+            / self.graph.number_of_nodes()
+            if self.graph.number_of_nodes() > 0
+            else 0,
+            "connected": nx.is_connected(undirected),
+            "num_components": nx.number_connected_components(undirected),
         }
 
         return stats
@@ -249,27 +258,31 @@ class MeshGraphAnalyzer:
 
         # Nodes
         for node_id, node in self.nodes.items():
-            elements.append({
-                'data': {
-                    'id': node_id,
-                    'label': node_id[-8:],
-                    'quality': node.link_quality,
-                    'interfaces': ','.join(node.interfaces)
+            elements.append(
+                {
+                    "data": {
+                        "id": node_id,
+                        "label": node_id[-8:],
+                        "quality": node.link_quality,
+                        "interfaces": ",".join(node.interfaces),
+                    }
                 }
-            })
+            )
 
         # Edges
         for link in self.links:
-            elements.append({
-                'data': {
-                    'source': link.source,
-                    'target': link.target,
-                    'interface': link.interface,
-                    'quality': link.quality
+            elements.append(
+                {
+                    "data": {
+                        "source": link.source,
+                        "target": link.target,
+                        "interface": link.interface,
+                        "quality": link.quality,
+                    }
                 }
-            })
+            )
 
-        return {'elements': elements}
+        return {"elements": elements}
 
     def run_prebuilt_queries(self) -> dict:
         """
@@ -290,21 +303,23 @@ class MeshGraphAnalyzer:
                     except nx.NetworkXNoPath:
                         pass
 
-                queries[f'nodes_{n}_hops_away'] = nodes_n_hops
+                queries[f"nodes_{n}_hops_away"] = nodes_n_hops
 
         # Query 2: Find critical relay nodes
-        queries['critical_nodes'] = self.find_critical_nodes()
+        queries["critical_nodes"] = self.find_critical_nodes()
 
         # Query 3: Find isolated clusters
-        queries['isolated_clusters'] = self.find_isolated_clusters()
+        queries["isolated_clusters"] = self.find_isolated_clusters()
 
         # Query 4: Node centrality rankings
         centrality = self.node_centrality()
         sorted_centrality = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
-        queries['top_relay_nodes'] = [{'node': k, 'centrality': v} for k, v in sorted_centrality[:5]]
+        queries["top_relay_nodes"] = [
+            {"node": k, "centrality": v} for k, v in sorted_centrality[:5]
+        ]
 
         # Query 5: Network statistics
-        queries['network_stats'] = self.get_network_stats()
+        queries["network_stats"] = self.get_network_stats()
 
         return queries
 
@@ -320,10 +335,7 @@ async def get_mesh_graph_analysis():
     queries = analyzer.run_prebuilt_queries()
     cytoscape_data = analyzer.export_cytoscape_json()
 
-    return {
-        'graph': cytoscape_data,
-        'analytics': queries
-    }
+    return {"graph": cytoscape_data, "analytics": queries}
 
 
 if __name__ == "__main__":
@@ -343,11 +355,11 @@ if __name__ == "__main__":
     print(f"Network Diameter: {queries['network_stats']['network_diameter']}")
 
     print("\nCritical Nodes (if removed, network partitions):")
-    for node in queries['critical_nodes']:
+    for node in queries["critical_nodes"]:
         print(f"  - {node}")
 
     print("\nTop Relay Nodes (by centrality):")
-    for item in queries['top_relay_nodes']:
+    for item in queries["top_relay_nodes"]:
         print(f"  - {item['node']}: {item['centrality']:.3f}")
 
     print("\nCytoscape JSON:")

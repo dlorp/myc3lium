@@ -50,15 +50,13 @@ class SecurityManager:
         """
         # Generate signature
         signature = hmac.new(
-            self.shared_key.encode(),
-            cot_xml.encode(),
-            hashlib.sha256
+            self.shared_key.encode(), cot_xml.encode(), hashlib.sha256
         ).hexdigest()
 
         # Inject signature before closing </detail>
-        if '</detail>' in cot_xml:
+        if "</detail>" in cot_xml:
             auth_block = f'    <auth method="HMAC-SHA256" sig="{signature}"/>\n'
-            signed_xml = cot_xml.replace('</detail>', auth_block + '</detail>')
+            signed_xml = cot_xml.replace("</detail>", auth_block + "</detail>")
             return signed_xml
         else:
             raise ValueError("Invalid CoT XML: missing </detail>")
@@ -72,7 +70,10 @@ class SecurityManager:
         """
         # Extract signature
         import re
-        sig_match = re.search(r'<auth method="HMAC-SHA256" sig="([0-9a-f]+)"/>', cot_xml)
+
+        sig_match = re.search(
+            r'<auth method="HMAC-SHA256" sig="([0-9a-f]+)"/>', cot_xml
+        )
 
         if not sig_match:
             return False  # No signature found
@@ -80,13 +81,13 @@ class SecurityManager:
         received_sig = sig_match.group(1)
 
         # Remove signature for verification
-        unsigned_xml = re.sub(r'    <auth method="HMAC-SHA256" sig="[0-9a-f]+"/>\n', '', cot_xml)
+        unsigned_xml = re.sub(
+            r'    <auth method="HMAC-SHA256" sig="[0-9a-f]+"/>\n', "", cot_xml
+        )
 
         # Compute expected signature
         expected_sig = hmac.new(
-            self.shared_key.encode(),
-            unsigned_xml.encode(),
-            hashlib.sha256
+            self.shared_key.encode(), unsigned_xml.encode(), hashlib.sha256
         ).hexdigest()
 
         # Constant-time comparison
@@ -121,18 +122,18 @@ class SecurityManager:
             True if authenticated, False otherwise
         """
         # Check Authorization header
-        token = websocket.headers.get('Authorization')
+        token = websocket.headers.get("Authorization")
 
         # Fallback to query parameter (less secure but convenient)
         if not token:
-            token = websocket.query_params.get('token')
+            token = websocket.query_params.get("token")
 
         if not token:
             await websocket.close(code=1008, reason="Missing authentication token")
             return False
 
         # Strip "Bearer " prefix if present
-        if token.startswith('Bearer '):
+        if token.startswith("Bearer "):
             token = token[7:]
 
         if not self.verify_api_token(token):
@@ -156,10 +157,19 @@ class SecurityManager:
         # Size limit: 1KB
         metadata_json = json.dumps(metadata)
         if len(metadata_json) > 1024:
-            raise ValueError(f"Metadata too large: {len(metadata_json)} bytes (max 1KB)")
+            raise ValueError(
+                f"Metadata too large: {len(metadata_json)} bytes (max 1KB)"
+            )
 
         # Schema validation (basic)
-        allowed_keys = {'value', 'intensity', 'description', 'category', 'confidence', 'timestamp'}
+        allowed_keys = {
+            "value",
+            "intensity",
+            "description",
+            "category",
+            "confidence",
+            "timestamp",
+        }
 
         sanitized = {}
         for key, value in metadata.items():
@@ -169,7 +179,7 @@ class SecurityManager:
             # Sanitize strings (prevent XSS)
             if isinstance(value, str):
                 value = value[:256]  # Max 256 chars per string
-                value = re.sub(r'[<>&"]', '', value)  # Strip HTML chars
+                value = re.sub(r'[<>&"]', "", value)  # Strip HTML chars
 
             sanitized[key] = value
 
@@ -190,7 +200,9 @@ class SecurityManager:
             distance = self._haversine_distance(lat, lon, fence_lat, fence_lon)
             if distance < radius_m:
                 # Inside blacklist zone - return quantized position outside zone
-                lat, lon = self._push_outside_geofence(lat, lon, fence_lat, fence_lon, radius_m)
+                lat, lon = self._push_outside_geofence(
+                    lat, lon, fence_lat, fence_lon, radius_m
+                )
 
         # Quantize to grid (±50m)
         if self.position_quantization > 0:
@@ -199,8 +211,12 @@ class SecurityManager:
             lon_m = lon * 111320
 
             # Snap to grid
-            lat_m = round(lat_m / self.position_quantization) * self.position_quantization
-            lon_m = round(lon_m / self.position_quantization) * self.position_quantization
+            lat_m = (
+                round(lat_m / self.position_quantization) * self.position_quantization
+            )
+            lon_m = (
+                round(lon_m / self.position_quantization) * self.position_quantization
+            )
 
             # Convert back
             lat = lat_m / 111320
@@ -219,9 +235,12 @@ class SecurityManager:
             return 1.0  # Default 1 second
 
         import random
+
         return random.uniform(*self.update_jitter_range)
 
-    def rate_limit(self, client_id: str, endpoint: str, max_per_minute: int = 60) -> bool:
+    def rate_limit(
+        self, client_id: str, endpoint: str, max_per_minute: int = 60
+    ) -> bool:
         """
         Rate limiting check
 
@@ -251,10 +270,12 @@ class SecurityManager:
             True if valid, False otherwise
         """
         # Allowlist: wlan0-9, eth0-9, lo, bat0
-        pattern = r'^(wlan[0-9]|eth[0-9]|lo|bat0)$'
+        pattern = r"^(wlan[0-9]|eth[0-9]|lo|bat0)$"
         return re.match(pattern, interface) is not None
 
-    def _haversine_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    def _haversine_distance(
+        self, lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
         """
         Calculate distance between two points in meters
         """
@@ -267,15 +288,22 @@ class SecurityManager:
         delta_phi = math.radians(lat2 - lat1)
         delta_lambda = math.radians(lon2 - lon1)
 
-        a = (math.sin(delta_phi/2)**2 +
-             math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2)
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        a = (
+            math.sin(delta_phi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
         return R * c
 
-    def _push_outside_geofence(self, lat: float, lon: float,
-                               fence_lat: float, fence_lon: float,
-                               radius_m: float) -> tuple[float, float]:
+    def _push_outside_geofence(
+        self,
+        lat: float,
+        lon: float,
+        fence_lat: float,
+        fence_lon: float,
+        radius_m: float,
+    ) -> tuple[float, float]:
         """
         Move position outside geofence zone
         """
@@ -284,9 +312,9 @@ class SecurityManager:
         # Calculate bearing from fence center to position
         delta_lon = lon - fence_lon
         y = math.sin(math.radians(delta_lon)) * math.cos(math.radians(lat))
-        x = (math.cos(math.radians(fence_lat)) * math.sin(math.radians(lat)) -
-             math.sin(math.radians(fence_lat)) * math.cos(math.radians(lat)) *
-             math.cos(math.radians(delta_lon)))
+        x = math.cos(math.radians(fence_lat)) * math.sin(math.radians(lat)) - math.sin(
+            math.radians(fence_lat)
+        ) * math.cos(math.radians(lat)) * math.cos(math.radians(delta_lon))
         bearing = math.atan2(y, x)
 
         # Move position to fence edge + buffer (10m)
@@ -295,7 +323,9 @@ class SecurityManager:
         # Convert to lat/lon offset
         R = 6371000
         lat_offset = (distance_m / R) * (180 / math.pi)
-        lon_offset = (distance_m / R) * (180 / math.pi) / math.cos(math.radians(fence_lat))
+        lon_offset = (
+            (distance_m / R) * (180 / math.pi) / math.cos(math.radians(fence_lat))
+        )
 
         new_lat = fence_lat + lat_offset * math.cos(bearing)
         new_lon = fence_lon + lon_offset * math.sin(bearing)
@@ -308,6 +338,7 @@ def require_auth(security_manager: SecurityManager):
     """
     Decorator to require authentication on WebSocket endpoints
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(websocket: WebSocket, *args, **kwargs):
@@ -326,14 +357,17 @@ def require_api_token(security_manager: SecurityManager):
     """
     Decorator to require API token on REST endpoints
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, authorization: Optional[str] = Header(None), **kwargs):
             if not authorization:
-                raise HTTPException(status_code=401, detail="Missing authorization header")
+                raise HTTPException(
+                    status_code=401, detail="Missing authorization header"
+                )
 
             token = authorization
-            if token.startswith('Bearer '):
+            if token.startswith("Bearer "):
                 token = token[7:]
 
             if not security_manager.verify_api_token(token):

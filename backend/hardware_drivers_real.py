@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # LoRa SX1262 SPI Driver
 try:
     import spidev
+
     SPI_AVAILABLE = True
 except ImportError:
     SPI_AVAILABLE = False
@@ -145,7 +146,9 @@ class GPS_NMEA_Driver:
     Real GPS NMEA driver with robust error handling
     """
 
-    def __init__(self, port: str = "/dev/ttyAMA0", baudrate: int = 9600, timeout: float = 2.0):
+    def __init__(
+        self, port: str = "/dev/ttyAMA0", baudrate: int = 9600, timeout: float = 2.0
+    ):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
@@ -159,11 +162,7 @@ class GPS_NMEA_Driver:
         Connect to GPS module with retry logic
         """
         try:
-            self.serial = serial.Serial(
-                self.port,
-                self.baudrate,
-                timeout=self.timeout
-            )
+            self.serial = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
             logger.info(f"GPS connected on {self.port}")
             self.error_count = 0
             return True
@@ -192,7 +191,7 @@ class GPS_NMEA_Driver:
         Parse GGA NMEA sentence
         """
         try:
-            parts = sentence.split(',')
+            parts = sentence.split(",")
 
             if len(parts) < 15:
                 return None
@@ -211,7 +210,7 @@ class GPS_NMEA_Driver:
             lat_deg = float(lat_raw[:2])
             lat_min = float(lat_raw[2:])
             lat = lat_deg + (lat_min / 60.0)
-            if lat_dir == 'S':
+            if lat_dir == "S":
                 lat = -lat
 
             # Parse longitude
@@ -223,7 +222,7 @@ class GPS_NMEA_Driver:
             lon_deg = float(lon_raw[:3])
             lon_min = float(lon_raw[3:])
             lon = lon_deg + (lon_min / 60.0)
-            if lon_dir == 'W':
+            if lon_dir == "W":
                 lon = -lon
 
             # Parse altitude
@@ -239,13 +238,13 @@ class GPS_NMEA_Driver:
             accuracy = hdop * 5.0
 
             return {
-                'lat': lat,
-                'lon': lon,
-                'alt': alt,
-                'accuracy': accuracy,
-                'quality': quality,
-                'satellites': num_sats,
-                'timestamp': time.time()
+                "lat": lat,
+                "lon": lon,
+                "alt": alt,
+                "accuracy": accuracy,
+                "quality": quality,
+                "satellites": num_sats,
+                "timestamp": time.time(),
             }
 
         except (ValueError, IndexError) as e:
@@ -261,9 +260,9 @@ class GPS_NMEA_Driver:
 
         for attempt in range(max_attempts):
             try:
-                line = self.serial.readline().decode('ascii', errors='ignore').strip()
+                line = self.serial.readline().decode("ascii", errors="ignore").strip()
 
-                if line.startswith('$GPGGA') or line.startswith('$GNGGA'):
+                if line.startswith("$GPGGA") or line.startswith("$GNGGA"):
                     pos = self.parse_gga(line)
                     if pos:
                         self.last_position = pos
@@ -292,6 +291,7 @@ class GPS_NMEA_Driver:
 # IMU driver (MPU6050 example)
 try:
     import smbus2
+
     I2C_AVAILABLE = True
 except ImportError:
     I2C_AVAILABLE = False
@@ -374,6 +374,7 @@ class MPU6050_IMU_Driver:
             # MPU6050 sensitivity: 131 LSB/(deg/s) (for ±250 deg/s range)
             # Convert to rad/s
             import math
+
             gx = (gyro_x_raw / 131.0) * (math.pi / 180.0)
             gy = (gyro_y_raw / 131.0) * (math.pi / 180.0)
             gz = (gyro_z_raw / 131.0) * (math.pi / 180.0)

@@ -13,6 +13,7 @@ class GPSInterface:
     GPS interface (NMEA via serial or gpsd)
     Uses real driver with robust error handling
     """
+
     def __init__(self, port: str = "/dev/ttyAMA0", baudrate: int = 9600):
         self.port = port
         self.baudrate = baudrate
@@ -22,6 +23,7 @@ class GPSInterface:
         # Try to use real driver
         try:
             from hardware_drivers_real import GPS_NMEA_Driver
+
             self.driver = GPS_NMEA_Driver(port, baudrate)
             self.driver.connect()
         except Exception as e:
@@ -45,11 +47,11 @@ class GPSInterface:
             return None
 
         try:
-            line = self.serial.readline().decode('ascii', errors='ignore').strip()
+            line = self.serial.readline().decode("ascii", errors="ignore").strip()
 
             # Parse GGA sentence (Global Positioning System Fix Data)
-            if line.startswith('$GPGGA') or line.startswith('$GNGGA'):
-                parts = line.split(',')
+            if line.startswith("$GPGGA") or line.startswith("$GNGGA"):
+                parts = line.split(",")
 
                 if len(parts) < 10:
                     return None
@@ -61,7 +63,7 @@ class GPSInterface:
                     lat_deg = float(lat_raw[:2])
                     lat_min = float(lat_raw[2:])
                     lat = lat_deg + (lat_min / 60.0)
-                    if lat_dir == 'S':
+                    if lat_dir == "S":
                         lat = -lat
                 else:
                     return None
@@ -73,7 +75,7 @@ class GPSInterface:
                     lon_deg = float(lon_raw[:3])
                     lon_min = float(lon_raw[3:])
                     lon = lon_deg + (lon_min / 60.0)
-                    if lon_dir == 'W':
+                    if lon_dir == "W":
                         lon = -lon
                 else:
                     return None
@@ -95,13 +97,13 @@ class GPSInterface:
                 accuracy = hdop * 5.0
 
                 position = {
-                    'lat': lat,
-                    'lon': lon,
-                    'alt': alt,
-                    'accuracy': accuracy,
-                    'quality': quality,
-                    'satellites': num_sats,
-                    'timestamp': time.time()
+                    "lat": lat,
+                    "lon": lon,
+                    "alt": alt,
+                    "accuracy": accuracy,
+                    "quality": quality,
+                    "satellites": num_sats,
+                    "timestamp": time.time(),
                 }
 
                 self.last_position = position
@@ -131,6 +133,7 @@ class LoRaInterface:
     LoRa HAT interface (SX1262 via SPI)
     Uses real driver when available, falls back to null
     """
+
     def __init__(self, spi_device: str = "/dev/spidev0.0"):
         self.spi_device = spi_device
         self.driver = None
@@ -138,6 +141,7 @@ class LoRaInterface:
         # Try to use real driver
         try:
             from hardware_drivers_real import SX1262LoRaDriver
+
             spi_bus, spi_dev = 0, 0  # Extract from spi_device path
             self.driver = SX1262LoRaDriver(spi_bus, spi_dev)
         except Exception as e:
@@ -168,6 +172,7 @@ class HaLowInterface:
     """
     HaLow (802.11ah) interface via USB adapter
     """
+
     def __init__(self, interface: str = "wlan1"):
         self.interface = interface
 
@@ -179,34 +184,34 @@ class HaLowInterface:
 
         try:
             result = subprocess.run(
-                ['iw', 'dev', self.interface, 'station', 'dump'],
+                ["iw", "dev", self.interface, "station", "dump"],
                 capture_output=True,
                 text=True,
-                timeout=2
+                timeout=2,
             )
 
             stations = []
             current_station = None
 
-            for line in result.stdout.split('\n'):
-                if line.startswith('Station'):
+            for line in result.stdout.split("\n"):
+                if line.startswith("Station"):
                     if current_station:
                         stations.append(current_station)
 
                     mac = line.split()[1]
-                    current_station = {'mac': mac, 'interface': self.interface}
+                    current_station = {"mac": mac, "interface": self.interface}
 
                 elif current_station:
-                    if 'signal:' in line:
-                        current_station['rssi'] = int(line.split()[1])
-                    elif 'rx bitrate:' in line:
+                    if "signal:" in line:
+                        current_station["rssi"] = int(line.split()[1])
+                    elif "rx bitrate:" in line:
                         parts = line.split()
                         if len(parts) > 2:
-                            current_station['rx_bitrate'] = float(parts[2])
-                    elif 'tx bitrate:' in line:
+                            current_station["rx_bitrate"] = float(parts[2])
+                    elif "tx bitrate:" in line:
                         parts = line.split()
                         if len(parts) > 2:
-                            current_station['tx_bitrate'] = float(parts[2])
+                            current_station["tx_bitrate"] = float(parts[2])
 
             if current_station:
                 stations.append(current_station)
@@ -222,6 +227,7 @@ class WiFiInterface:
     """
     WiFi (2.4/5 GHz) interface
     """
+
     def __init__(self, interface: str = "wlan0"):
         self.interface = interface
 
@@ -239,6 +245,7 @@ class IMUInterface:
     IMU (Inertial Measurement Unit) interface
     For dead reckoning when GPS unavailable
     """
+
     def __init__(self, i2c_bus: int = 1, address: int = 0x68):
         self.i2c_bus = i2c_bus
         self.address = address
@@ -247,6 +254,7 @@ class IMUInterface:
         # Try to use real driver
         try:
             from hardware_drivers_real import MPU6050_IMU_Driver
+
             self.driver = MPU6050_IMU_Driver(i2c_bus)
         except Exception as e:
             print(f"IMU real driver unavailable: {e}")
@@ -278,6 +286,7 @@ class HardwareManager:
     Unified hardware interface manager
     Automatically detects and initializes available sensors
     """
+
     def __init__(self):
         self.gps = None
         self.lora = None
@@ -295,18 +304,18 @@ class HardwareManager:
         import subprocess
 
         # Detect GPS
-        if os.path.exists('/dev/ttyAMA0'):
-            self.gps = GPSInterface('/dev/ttyAMA0')
+        if os.path.exists("/dev/ttyAMA0"):
+            self.gps = GPSInterface("/dev/ttyAMA0")
             print("✓ GPS detected on /dev/ttyAMA0")
-        elif os.path.exists('/dev/ttyUSB0'):
-            self.gps = GPSInterface('/dev/ttyUSB0')
+        elif os.path.exists("/dev/ttyUSB0"):
+            self.gps = GPSInterface("/dev/ttyUSB0")
             print("✓ GPS detected on /dev/ttyUSB0")
         else:
             print("✗ GPS not detected")
 
         # Detect LoRa (SPI)
-        if os.path.exists('/dev/spidev0.0'):
-            self.lora = LoRaInterface('/dev/spidev0.0')
+        if os.path.exists("/dev/spidev0.0"):
+            self.lora = LoRaInterface("/dev/spidev0.0")
             print("✓ LoRa HAT detected on SPI0")
         else:
             print("✗ LoRa HAT not detected")
@@ -314,12 +323,10 @@ class HardwareManager:
         # Detect HaLow (check for wlan1)
         try:
             result = subprocess.run(
-                ['iw', 'dev', 'wlan1', 'info'],
-                capture_output=True,
-                timeout=1
+                ["iw", "dev", "wlan1", "info"], capture_output=True, timeout=1
             )
             if result.returncode == 0:
-                self.halow = HaLowInterface('wlan1')
+                self.halow = HaLowInterface("wlan1")
                 print("✓ HaLow detected on wlan1")
         except Exception:
             print("✗ HaLow not detected")
@@ -327,18 +334,16 @@ class HardwareManager:
         # Detect WiFi (wlan0 always present on Pi)
         try:
             result = subprocess.run(
-                ['iw', 'dev', 'wlan0', 'info'],
-                capture_output=True,
-                timeout=1
+                ["iw", "dev", "wlan0", "info"], capture_output=True, timeout=1
             )
             if result.returncode == 0:
-                self.wifi = WiFiInterface('wlan0')
+                self.wifi = WiFiInterface("wlan0")
                 print("✓ WiFi detected on wlan0")
         except Exception:
             print("✗ WiFi not detected")
 
         # Detect IMU (I2C)
-        if os.path.exists('/dev/i2c-1'):
+        if os.path.exists("/dev/i2c-1"):
             self.imu = IMUInterface(i2c_bus=1)
             print("✓ IMU detected on I2C bus 1")
         else:
@@ -351,13 +356,15 @@ class HardwareManager:
         rssi_data = {}
 
         if self.lora:
-            rssi_data['lora'] = [{'rssi': self.lora.get_rssi(), 'snr': self.lora.get_snr()}]
+            rssi_data["lora"] = [
+                {"rssi": self.lora.get_rssi(), "snr": self.lora.get_snr()}
+            ]
 
         if self.halow:
-            rssi_data['halow'] = self.halow.get_station_info()
+            rssi_data["halow"] = self.halow.get_station_info()
 
         if self.wifi:
-            rssi_data['wifi'] = self.wifi.get_station_info()
+            rssi_data["wifi"] = self.wifi.get_station_info()
 
         return rssi_data
 
@@ -378,11 +385,11 @@ class HardwareManager:
             gyro = self.imu.read_gyro()
 
             return {
-                'accel': {'x': accel[0], 'y': accel[1], 'z': accel[2]},
-                'gyro': {'x': gyro[0], 'y': gyro[1], 'z': gyro[2]}
+                "accel": {"x": accel[0], "y": accel[1], "z": accel[2]},
+                "gyro": {"x": gyro[0], "y": gyro[1], "z": gyro[2]},
             }
 
-        return {'accel': None, 'gyro': None}
+        return {"accel": None, "gyro": None}
 
 
 # Async wrappers for FastAPI
@@ -422,7 +429,7 @@ if __name__ == "__main__":
 
     print("\nIMU data:")
     imu = hw.get_imu_data()
-    if imu['accel']:
+    if imu["accel"]:
         print(f"  Accel: {imu['accel']}")
         print(f"  Gyro: {imu['gyro']}")
     else:
