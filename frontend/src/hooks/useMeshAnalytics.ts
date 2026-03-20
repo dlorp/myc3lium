@@ -30,7 +30,7 @@ export const useMeshAnalytics = () => {
           const data = await response.json();
           return data.nodes.filter(
             (n: { neighbors?: string[] }) =>
-              n.neighbors && n.neighbors.includes("m3l_local")
+              n.neighbors && n.neighbors.includes("m3l_local"),
           );
         },
       },
@@ -79,7 +79,9 @@ export const useMeshAnalytics = () => {
           const target = prompt("Enter target node ID:");
           if (!target) return null;
 
-          const response = await fetch(`/api/mesh/analytics/path?target=${target}`);
+          const response = await fetch(
+            `/api/mesh/analytics/path?target=${target}`,
+          );
           return await response.json();
         },
       },
@@ -91,7 +93,9 @@ export const useMeshAnalytics = () => {
           const response = await fetch("/api/intelligence/topology");
           const data = await response.json();
 
-          return data.nodes.filter((n: { rssi?: number }) => n.rssi && n.rssi < -90);
+          return data.nodes.filter(
+            (n: { rssi?: number }) => n.rssi && n.rssi < -90,
+          );
         },
       },
       {
@@ -140,17 +144,23 @@ export const useMeshAnalytics = () => {
  */
 export const useEntityTransforms = () => {
   const expandNode = async (nodeId: string) => {
-    const response = await fetch(`/api/mesh/transforms/expand_node?id=${nodeId}`);
+    const response = await fetch(
+      `/api/mesh/transforms/expand_node?id=${nodeId}`,
+    );
     return await response.json();
   };
 
   const expandObservations = async (nodeId: string) => {
-    const response = await fetch(`/api/intelligence/observations?node=${nodeId}`);
+    const response = await fetch(
+      `/api/intelligence/observations?node=${nodeId}`,
+    );
     return await response.json();
   };
 
   const expandRFSources = async (nodeId: string) => {
-    const response = await fetch(`/api/intelligence/rf_sources?detector=${nodeId}`);
+    const response = await fetch(
+      `/api/intelligence/rf_sources?detector=${nodeId}`,
+    );
     return await response.json();
   };
 
