@@ -1,0 +1,37 @@
+**SESSION 5 COMPLETE** — 03:00-04:00 AM AKDT (PROTOTYPE/IDEATION)
+
+🔧 **EJ22-TRACKER: Interactive TUI Dashboard**
+
+Built a full textual-based TUI for Subaru EJ22 maintenance tracking. PSX-inspired aesthetic with live dashboard, color-coded urgency, and quick logging.
+
+**What's New**:
+• Live dashboard (vehicle info, next service, history)
+• Press `l` to log service (modal form)
+• Color-coded: 🟢 OK / 🟡 Soon / 🔴 Overdue
+• PSX blue/cyan palette
+• Keyboard-driven (no mouse)
+• Local JSON storage
+
+**Tech**: Python + textual>=0.47.0
+
+**Files**:
+• `ej22_tui.py` (11.5 KB) - Main TUI
+• `ej22` - Unified launcher
+• `DEMO.md` - Visual docs
+
+**Repo**: `~/repos/ej22-tracker`
+**Commit**: `178ff31`
+**Time**: 35 min prototype + 20 min docs
+
+**Deliverables**:
+• Working TUI prototype ✓
+• Full documentation ✓
+• Session summary ✓
+
+📄 **Full Summary**: `workspace/session-5-summary.md`
+
+**SessionID**: `a6fe0a45-885a-4900-a226-6a148afbc544`
+
+---
+
+**Next**: Session 6 (04:00 AM) — CREATIVE or wrap-up
