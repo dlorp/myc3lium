@@ -85,8 +85,9 @@ describe('P700 Utilities', () => {
     });
 
     it('should search by source', () => {
-      const result = searchLogEntries(mockEntries, 'NODE');
-      expect(result).toHaveLength(2);
+      const result = searchLogEntries(mockEntries, 'BATTERY');
+      expect(result).toHaveLength(1);
+      expect(result[0].source).toBe('BATTERY');
     });
 
     it('should be case insensitive', () => {
