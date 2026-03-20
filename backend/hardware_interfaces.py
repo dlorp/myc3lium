@@ -321,7 +321,7 @@ class HardwareManager:
             if result.returncode == 0:
                 self.halow = HaLowInterface('wlan1')
                 print("✓ HaLow detected on wlan1")
-        except:
+        except Exception:
             print("✗ HaLow not detected")
 
         # Detect WiFi (wlan0 always present on Pi)
