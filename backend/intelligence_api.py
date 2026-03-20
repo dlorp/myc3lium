@@ -17,23 +17,47 @@ from intelligence import (
     IntelligenceGathering
 )
 from hardware_interfaces import HardwareManager, async_get_position, async_get_all_rssi
+from security import SecurityManager, require_auth, require_api_token
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="MYC3LIUM Intelligence API")
 
 # Initialize hardware on startup
 hardware = HardwareManager()
 
-# CORS for local development
+# Initialize security
+SHARED_KEY = os.getenv('MYCELIUM_SHARED_KEY', None)
+security = SecurityManager(shared_key=SHARED_KEY)
+
+# Generate initial API token (save this for clients)
+INITIAL_TOKEN = security.generate_api_token()
+logger.info(f"Generated API token: {INITIAL_TOKEN[:8]}...")
+
+# Enable privacy mode if configured
+if os.getenv('PRIVACY_MODE', 'false').lower() == 'true':
+    security.privacy_mode = True
+    logger.info("Privacy mode enabled")
+
+# CORS - restricted to specific origins
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Specific methods only
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Global state
-atak = ATAKIntegration()
+# Global state (initialized after security)
+atak = None
 sensor_fusion = SensorFusion()
 intel = IntelligenceGathering(node_id="local")
 active_connections: List[WebSocket] = []
@@ -109,6 +133,11 @@ def query_node_rssi(interface: str = 'wlan0') -> List[Dict]:
     """
     Query RSSI from all wireless interfaces (hardware direct)
     """
+    # Validate interface name (prevent command injection)
+    if not security.validate_interface_name(interface):
+        logger.warning(f"Invalid interface name: {interface}")
+        return []
+    
     # Use hardware manager for all radios
     all_rssi = hardware.get_all_rssi()
     
@@ -210,24 +239,32 @@ def get_gps_position() -> Optional[Dict]:
         return get_mock_gps()
 
 
-def get_mock_gps() -> Dict:
+def get_mock_gps() -> Optional[Dict]:
     """
-    Mock GPS data for testing (Anchorage, AK area)
+    Mock GPS data - ONLY used in development/testing
+    Returns None in production to avoid leaking test location
     """
-    import random
+    if os.getenv('ENVIRONMENT') == 'development':
+        import random
+        return {
+            'lat': 61.2181 + random.uniform(-0.01, 0.01),
+            'lon': -149.9003 + random.uniform(-0.01, 0.01),
+            'alt': random.uniform(0, 100),
+            'accuracy': random.uniform(5, 15)
+        }
     
-    return {
-        'lat': 61.2181 + random.uniform(-0.01, 0.01),
-        'lon': -149.9003 + random.uniform(-0.01, 0.01),
-        'alt': random.uniform(0, 100),
-        'accuracy': random.uniform(5, 15)
-    }
+    logger.warning("GPS hardware unavailable and not in dev mode")
+    return None
 
 
 async def update_sensor_fusion():
     """
     Background task: Update sensor fusion with latest data
+    Self-healing with exponential backoff on errors
     """
+    error_count = 0
+    max_backoff = 60  # Max 60 seconds backoff
+    
     while True:
         try:
             # Get GPS position
@@ -239,27 +276,47 @@ async def update_sensor_fusion():
                     gps['alt'],
                     gps['accuracy']
                 )
+                logger.debug(f"GPS updated: {gps['lat']:.6f}, {gps['lon']:.6f}")
+            else:
+                logger.warning("GPS position unavailable")
             
             # Get RSSI measurements
             rssi_data = query_node_rssi()
             neighbors = query_batman_neighbors()
             
-            # Build anchor list for trilateration
-            # (Would need actual node positions from mesh state)
-            # For now, skip RSSI fusion until we have anchor positions
+            # TODO: Build anchor list from known node positions
+            # For now, log neighbor count
+            if neighbors:
+                logger.debug(f"BATMAN neighbors: {len(neighbors)}")
             
-            # Update ATAK with current position
+            # Get current position estimate
             position = sensor_fusion.get_position()
+            
+            # Apply privacy filter
+            filtered_lat, filtered_lon = security.apply_privacy_filter(
+                position.lat,
+                position.lon
+            )
+            
+            # Update ATAK with filtered position
             await atak.update_unit_position('m3l_local', {
-                'lat': position.lat,
-                'lon': position.lon,
+                'lat': filtered_lat,
+                'lon': filtered_lon,
                 'alt': position.alt
             })
             
+            # Reset error count on success
+            error_count = 0
+            
+            # Dynamic update interval (privacy jitter)
+            update_interval = security.get_update_jitter()
+            await asyncio.sleep(update_interval)
+            
         except Exception as e:
-            print(f"Sensor fusion update error: {e}")
-        
-        await asyncio.sleep(1)  # Update every second
+            error_count += 1
+            backoff = min(2 ** error_count, max_backoff)
+            logger.error(f"Sensor fusion error: {e} (retry in {backoff}s)")
+            await asyncio.sleep(backoff)
 
 
 async def broadcast_to_clients(message: Dict):
@@ -284,8 +341,19 @@ async def startup_event():
     """
     Start background tasks
     """
+    global atak
+    
+    # Initialize ATAK with security
+    atak = ATAKIntegration(security_manager=security)
+    logger.info("ATAK integration initialized with security")
+    
+    # Start background tasks
     asyncio.create_task(update_sensor_fusion())
     asyncio.create_task(periodic_topology_broadcast())
+    
+    logger.info("Intelligence API started")
+    logger.info(f"API Token: {INITIAL_TOKEN}")
+    logger.info(f"Privacy Mode: {security.privacy_mode}")
 
 
 async def periodic_topology_broadcast():
@@ -311,9 +379,15 @@ async def periodic_topology_broadcast():
 async def intelligence_websocket(websocket: WebSocket):
     """
     WebSocket endpoint for real-time intelligence updates
+    Requires authentication via token parameter or header
     """
+    # Authenticate before accepting
+    if not await security.authenticate_websocket(websocket):
+        return  # Connection closed
+    
     await websocket.accept()
     active_connections.append(websocket)
+    logger.info(f"WebSocket client connected: {websocket.client}")
     
     try:
         # Send initial state
@@ -329,6 +403,11 @@ async def intelligence_websocket(websocket: WebSocket):
             
     except WebSocketDisconnect:
         active_connections.remove(websocket)
+        logger.info(f"WebSocket client disconnected: {websocket.client}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        if websocket in active_connections:
+            active_connections.remove(websocket)
 
 
 @app.get("/api/intelligence/topology")
@@ -456,23 +535,51 @@ async def record_observation(
     obs_type: str,
     lat: float,
     lon: float,
-    metadata: Dict
+    metadata: Dict,
+    authorization: Optional[str] = Header(None)
 ):
     """
     Record an intelligence observation
+    Requires authentication and validates metadata
     """
+    # Authenticate
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    
+    token = authorization.replace('Bearer ', '')
+    if not security.verify_api_token(token):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Rate limit
+    client_id = "observation_api"  # Would use actual client ID
+    if not security.rate_limit(client_id, "observation", max_per_minute=60):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
+    # Validate metadata
+    try:
+        sanitized_metadata = security.validate_observation_metadata(metadata)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Validate coordinates
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise HTTPException(status_code=400, detail="Invalid coordinates")
+    
+    # Record observation
     await intel.record_observation(
         obs_type,
         {'lat': lat, 'lon': lon},
-        metadata
+        sanitized_metadata
     )
+    
+    logger.info(f"Observation recorded: {obs_type} at {lat:.6f}, {lon:.6f}")
     
     # Broadcast to connected clients
     await broadcast_to_clients({
         'type': 'observation_added',
         'obs_type': obs_type,
         'position': {'lat': lat, 'lon': lon},
-        'metadata': metadata
+        'metadata': sanitized_metadata
     })
     
     return {'status': 'recorded'}
