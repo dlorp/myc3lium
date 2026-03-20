@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from hardware_interfaces import HardwareManager

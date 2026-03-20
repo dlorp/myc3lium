@@ -75,7 +75,7 @@ const P900: React.FC = () => {
   }, []);
 
   // Update heatmap data
-  const updateHeatmap = (measurement: any) => {
+  const updateHeatmap = (measurement: { lat: number; lon: number; rssi: number }) => {
     setHeatmapData(prev => {
       const updated = [...prev];
       updated.push({
