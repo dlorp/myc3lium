@@ -246,8 +246,8 @@ describe('P400 - Sensor Grid Utilities', () => {
         return {} as HTMLElement;
       };
       // Mock body methods without replacing body itself
-      document.body.appendChild = (() => {}) as any;
-      document.body.removeChild = (() => {}) as any;
+      document.body.appendChild = (() => {}) as unknown as typeof document.body.appendChild;
+      document.body.removeChild = (() => {}) as unknown as typeof document.body.removeChild;
     });
 
     it('should export data without errors', () => {
