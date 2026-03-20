@@ -104,7 +104,9 @@ class MockMeshDataSource(MeshDataSource):
     def _generate_nodes(self):
         """Generate 8 nodes with Anchorage coordinates and MYC3LIUM callsigns"""
         self._nodes = []
-        for idx, (coord, node_type) in enumerate(zip(self.ANCHORAGE_COORDS, self.NODE_TYPES)):
+        for idx, (coord, node_type) in enumerate(
+            zip(self.ANCHORAGE_COORDS, self.NODE_TYPES)
+        ):
             # Determine status based on seed and index
             status_roll = self.rng.random()
             status: Literal["online", "offline", "degraded"]
@@ -118,7 +120,9 @@ class MockMeshDataSource(MeshDataSource):
             # Generate battery with some variance
             battery = None
             if node_type in ["SPORE", "FROND"]:  # Battery-powered nodes
-                battery = max(10, min(100, int(85 - (idx * 5) + self.rng.randint(-10, 10))))
+                battery = max(
+                    10, min(100, int(85 - (idx * 5) + self.rng.randint(-10, 10)))
+                )
 
             # RSSI varies by status
             rssi = None

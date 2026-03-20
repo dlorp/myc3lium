@@ -21,8 +21,7 @@ from security import SecurityManager
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ app = FastAPI(title="MYC3LIUM Intelligence API")
 hardware = HardwareManager()
 
 # Initialize security
-SHARED_KEY = os.getenv('MYCELIUM_SHARED_KEY', None)
+SHARED_KEY = os.getenv("MYCELIUM_SHARED_KEY", None)
 security = SecurityManager(shared_key=SHARED_KEY)
 
 # Generate initial API token (save this for clients)
@@ -40,12 +39,12 @@ INITIAL_TOKEN = security.generate_api_token()
 logger.info(f"Generated API token: {INITIAL_TOKEN[:8]}...")
 
 # Enable privacy mode if configured
-if os.getenv('PRIVACY_MODE', 'false').lower() == 'true':
+if os.getenv("PRIVACY_MODE", "false").lower() == "true":
     security.privacy_mode = True
     logger.info("Privacy mode enabled")
 
 # CORS - restricted to specific origins
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -69,27 +68,26 @@ def query_batman_neighbors() -> list[dict]:
     try:
         # batctl n - show neighbors
         result = subprocess.run(
-            ['batctl', 'n'],
-            capture_output=True,
-            text=True,
-            timeout=2
+            ["batctl", "n"], capture_output=True, text=True, timeout=2
         )
 
         neighbors = []
 
         # Parse output (format: "aa:bb:cc:dd:ee:ff  0.123s (255) [mesh_iface]")
-        for line in result.stdout.split('\n'):
-            if ':' in line and '(' in line:
+        for line in result.stdout.split("\n"):
+            if ":" in line and "(" in line:
                 parts = line.split()
                 mac = parts[0]
-                quality = int(re.search(r'\((\d+)\)', line).group(1))
+                quality = int(re.search(r"\((\d+)\)", line).group(1))
 
-                neighbors.append({
-                    'id': mac.replace(':', ''),
-                    'mac': mac,
-                    'quality': quality,
-                    'last_seen': parts[1] if len(parts) > 1 else '0s'
-                })
+                neighbors.append(
+                    {
+                        "id": mac.replace(":", ""),
+                        "mac": mac,
+                        "quality": quality,
+                        "last_seen": parts[1] if len(parts) > 1 else "0s",
+                    }
+                )
 
         return neighbors
 
@@ -107,27 +105,27 @@ def get_mock_neighbors() -> list[dict]:
 
     return [
         {
-            'id': 'm3l_spore_01',
-            'mac': 'aa:bb:cc:dd:ee:01',
-            'quality': random.randint(180, 255),
-            'last_seen': '0.5s'
+            "id": "m3l_spore_01",
+            "mac": "aa:bb:cc:dd:ee:01",
+            "quality": random.randint(180, 255),
+            "last_seen": "0.5s",
         },
         {
-            'id': 'm3l_spore_02',
-            'mac': 'aa:bb:cc:dd:ee:02',
-            'quality': random.randint(150, 200),
-            'last_seen': '1.2s'
+            "id": "m3l_spore_02",
+            "mac": "aa:bb:cc:dd:ee:02",
+            "quality": random.randint(150, 200),
+            "last_seen": "1.2s",
         },
         {
-            'id': 'm3l_spore_03',
-            'mac': 'aa:bb:cc:dd:ee:03',
-            'quality': random.randint(100, 180),
-            'last_seen': '2.1s'
-        }
+            "id": "m3l_spore_03",
+            "mac": "aa:bb:cc:dd:ee:03",
+            "quality": random.randint(100, 180),
+            "last_seen": "2.1s",
+        },
     ]
 
 
-def query_node_rssi(interface: str = 'wlan0') -> list[dict]:
+def query_node_rssi(interface: str = "wlan0") -> list[dict]:
     """
     Query RSSI from all wireless interfaces (hardware direct)
     """
@@ -144,32 +142,32 @@ def query_node_rssi(interface: str = 'wlan0') -> list[dict]:
 
     for radio, data in all_rssi.items():
         for entry in data:
-            entry['radio'] = radio
+            entry["radio"] = radio
             stations.append(entry)
 
     # Fallback to iw if no hardware
     if not stations:
         try:
             result = subprocess.run(
-                ['iw', 'dev', interface, 'station', 'dump'],
+                ["iw", "dev", interface, "station", "dump"],
                 capture_output=True,
                 text=True,
-                timeout=2
+                timeout=2,
             )
 
             current_station = None
 
-            for line in result.stdout.split('\n'):
-                if line.startswith('Station'):
+            for line in result.stdout.split("\n"):
+                if line.startswith("Station"):
                     if current_station:
                         stations.append(current_station)
 
                     mac = line.split()[1]
-                    current_station = {'mac': mac, 'radio': 'wifi'}
+                    current_station = {"mac": mac, "radio": "wifi"}
 
-                elif 'signal:' in line and current_station:
+                elif "signal:" in line and current_station:
                     rssi = int(line.split()[1])
-                    current_station['rssi'] = rssi
+                    current_station["rssi"] = rssi
 
             if current_station:
                 stations.append(current_station)
@@ -191,13 +189,7 @@ def get_mock_rssi() -> list[dict]:
 
     neighbors = get_mock_neighbors()
 
-    return [
-        {
-            'mac': n['mac'],
-            'rssi': random.randint(-90, -60)
-        }
-        for n in neighbors
-    ]
+    return [{"mac": n["mac"], "rssi": random.randint(-90, -60)} for n in neighbors]
 
 
 def get_gps_position() -> Optional[dict]:
@@ -213,21 +205,18 @@ def get_gps_position() -> Optional[dict]:
     # Fallback to gpsd
     try:
         result = subprocess.run(
-            ['gpspipe', '-w', '-n', '5'],
-            capture_output=True,
-            text=True,
-            timeout=3
+            ["gpspipe", "-w", "-n", "5"], capture_output=True, text=True, timeout=3
         )
 
-        for line in result.stdout.split('\n'):
+        for line in result.stdout.split("\n"):
             if '"class":"TPV"' in line:
                 data = json.loads(line)
-                if 'lat' in data and 'lon' in data:
+                if "lat" in data and "lon" in data:
                     return {
-                        'lat': data['lat'],
-                        'lon': data['lon'],
-                        'alt': data.get('alt', 0),
-                        'accuracy': data.get('eph', 15.0)
+                        "lat": data["lat"],
+                        "lon": data["lon"],
+                        "alt": data.get("alt", 0),
+                        "accuracy": data.get("eph", 15.0),
                     }
 
         return None
@@ -242,13 +231,14 @@ def get_mock_gps() -> Optional[dict]:
     Mock GPS data - ONLY used in development/testing
     Returns None in production to avoid leaking test location
     """
-    if os.getenv('ENVIRONMENT') == 'development':
+    if os.getenv("ENVIRONMENT") == "development":
         import random
+
         return {
-            'lat': 61.2181 + random.uniform(-0.01, 0.01),
-            'lon': -149.9003 + random.uniform(-0.01, 0.01),
-            'alt': random.uniform(0, 100),
-            'accuracy': random.uniform(5, 15)
+            "lat": 61.2181 + random.uniform(-0.01, 0.01),
+            "lon": -149.9003 + random.uniform(-0.01, 0.01),
+            "alt": random.uniform(0, 100),
+            "accuracy": random.uniform(5, 15),
         }
 
     logger.warning("GPS hardware unavailable and not in dev mode")
@@ -269,10 +259,7 @@ async def update_sensor_fusion():
             gps = get_gps_position()
             if gps:
                 sensor_fusion.update_gps(
-                    gps['lat'],
-                    gps['lon'],
-                    gps['alt'],
-                    gps['accuracy']
+                    gps["lat"], gps["lon"], gps["alt"], gps["accuracy"]
                 )
                 logger.debug(f"GPS updated: {gps['lat']:.6f}, {gps['lon']:.6f}")
             else:
@@ -292,16 +279,14 @@ async def update_sensor_fusion():
 
             # Apply privacy filter
             filtered_lat, filtered_lon = security.apply_privacy_filter(
-                position.lat,
-                position.lon
+                position.lat, position.lon
             )
 
             # Update ATAK with filtered position
-            await atak.update_unit_position('m3l_local', {
-                'lat': filtered_lat,
-                'lon': filtered_lon,
-                'alt': position.alt
-            })
+            await atak.update_unit_position(
+                "m3l_local",
+                {"lat": filtered_lat, "lon": filtered_lon, "alt": position.alt},
+            )
 
             # Reset error count on success
             error_count = 0
@@ -312,7 +297,7 @@ async def update_sensor_fusion():
 
         except Exception as e:
             error_count += 1
-            backoff = min(2 ** error_count, max_backoff)
+            backoff = min(2**error_count, max_backoff)
             logger.error(f"Sensor fusion error: {e} (retry in {backoff}s)")
             await asyncio.sleep(backoff)
 
@@ -361,12 +346,14 @@ async def periodic_topology_broadcast():
     while True:
         try:
             topology = await get_mesh_topology()
-            await broadcast_to_clients({
-                'type': 'topology_update',
-                'nodes': topology['nodes'],
-                'edges': topology['edges'],
-                'timestamp': datetime.utcnow().isoformat()
-            })
+            await broadcast_to_clients(
+                {
+                    "type": "topology_update",
+                    "nodes": topology["nodes"],
+                    "edges": topology["edges"],
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            )
         except Exception as e:
             print(f"Topology broadcast error: {e}")
 
@@ -389,10 +376,12 @@ async def intelligence_websocket(websocket: WebSocket):
 
     try:
         # Send initial state
-        await websocket.send_json({
-            'type': 'atak_status',
-            'connected': True  # Mock for now
-        })
+        await websocket.send_json(
+            {
+                "type": "atak_status",
+                "connected": True,  # Mock for now
+            }
+        )
 
         # Keep connection alive and handle incoming messages
         while True:
@@ -422,50 +411,51 @@ async def get_mesh_topology():
 
     # Add local node
     position = sensor_fusion.get_position()
-    nodes.append({
-        'id': 'm3l_local',
-        'position': {
-            'lat': position.lat,
-            'lon': position.lon,
-            'alt': position.alt
-        },
-        'radio': 'wifi',  # Would detect from active interface
-        'rssi': 0,
-        'neighbors': [n['id'] for n in neighbors]
-    })
+    nodes.append(
+        {
+            "id": "m3l_local",
+            "position": {"lat": position.lat, "lon": position.lon, "alt": position.alt},
+            "radio": "wifi",  # Would detect from active interface
+            "rssi": 0,
+            "neighbors": [n["id"] for n in neighbors],
+        }
+    )
 
     # Add neighbor nodes (would need their positions from mesh state)
     for neighbor in neighbors:
         # Find RSSI for this neighbor
-        rssi_entry = next((r for r in rssi_data if r['mac'] == neighbor['mac']), None)
-        rssi = rssi_entry['rssi'] if rssi_entry else -80
+        rssi_entry = next((r for r in rssi_data if r["mac"] == neighbor["mac"]), None)
+        rssi = rssi_entry["rssi"] if rssi_entry else -80
 
-        nodes.append({
-            'id': neighbor['id'],
-            'position': {
-                'lat': position.lat + 0.001,  # Mock offset
-                'lon': position.lon + 0.001,
-                'alt': position.alt
-            },
-            'radio': 'halow' if neighbor['quality'] > 200 else 'lora',
-            'rssi': rssi,
-            'neighbors': ['m3l_local']  # Simplified
-        })
+        nodes.append(
+            {
+                "id": neighbor["id"],
+                "position": {
+                    "lat": position.lat + 0.001,  # Mock offset
+                    "lon": position.lon + 0.001,
+                    "alt": position.alt,
+                },
+                "radio": "halow" if neighbor["quality"] > 200 else "lora",
+                "rssi": rssi,
+                "neighbors": ["m3l_local"],  # Simplified
+            }
+        )
 
     # Build edges
     edges = []
     for neighbor in neighbors:
-        edges.append({
-            'source': 'm3l_local',
-            'target': neighbor['id'],
-            'quality': neighbor['quality'],
-            'rssi': next((r['rssi'] for r in rssi_data if r['mac'] == neighbor['mac']), -80)
-        })
+        edges.append(
+            {
+                "source": "m3l_local",
+                "target": neighbor["id"],
+                "quality": neighbor["quality"],
+                "rssi": next(
+                    (r["rssi"] for r in rssi_data if r["mac"] == neighbor["mac"]), -80
+                ),
+            }
+        )
 
-    return {
-        'nodes': nodes,
-        'edges': edges
-    }
+    return {"nodes": nodes, "edges": edges}
 
 
 @app.get("/api/intelligence/position/{node_id}")
@@ -478,16 +468,16 @@ async def get_position_history(node_id: str, hours: int = 1):
     position = sensor_fusion.get_position()
 
     return {
-        'node_id': node_id,
-        'history': [
+        "node_id": node_id,
+        "history": [
             {
-                'lat': position.lat,
-                'lon': position.lon,
-                'alt': position.alt,
-                'timestamp': position.timestamp,
-                'accuracy': position.uncertainty
+                "lat": position.lat,
+                "lon": position.lon,
+                "alt": position.alt,
+                "timestamp": position.timestamp,
+                "accuracy": position.uncertainty,
             }
-        ]
+        ],
     }
 
 
@@ -496,13 +486,11 @@ async def get_rf_sources():
     """
     Get detected RF sources
     """
-    return {
-        'sources': intel.rf_sources
-    }
+    return {"sources": intel.rf_sources}
 
 
 @app.get("/api/intelligence/heatmap")
-async def get_heatmap(obs_type: str = 'signal_strength'):
+async def get_heatmap(obs_type: str = "signal_strength"):
     """
     Get heatmap data for visualization
     """
@@ -514,18 +502,17 @@ async def get_heatmap(obs_type: str = 'signal_strength'):
     heatmap = []
 
     for neighbor in neighbors:
-        rssi_entry = next((r for r in rssi_data if r['mac'] == neighbor['mac']), None)
+        rssi_entry = next((r for r in rssi_data if r["mac"] == neighbor["mac"]), None)
         if rssi_entry:
-            heatmap.append({
-                'lat': position.lat + 0.001,  # Mock position
-                'lon': position.lon + 0.001,
-                'value': rssi_entry['rssi']
-            })
+            heatmap.append(
+                {
+                    "lat": position.lat + 0.001,  # Mock position
+                    "lon": position.lon + 0.001,
+                    "value": rssi_entry["rssi"],
+                }
+            )
 
-    return {
-        'type': obs_type,
-        'points': heatmap
-    }
+    return {"type": obs_type, "points": heatmap}
 
 
 @app.post("/api/intelligence/observation")
@@ -534,7 +521,7 @@ async def record_observation(
     lat: float,
     lon: float,
     metadata: dict,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
 ):
     """
     Record an intelligence observation
@@ -544,7 +531,7 @@ async def record_observation(
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization")
 
-    token = authorization.replace('Bearer ', '')
+    token = authorization.replace("Bearer ", "")
     if not security.verify_api_token(token):
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -565,22 +552,22 @@ async def record_observation(
 
     # Record observation
     await intel.record_observation(
-        obs_type,
-        {'lat': lat, 'lon': lon},
-        sanitized_metadata
+        obs_type, {"lat": lat, "lon": lon}, sanitized_metadata
     )
 
     logger.info(f"Observation recorded: {obs_type} at {lat:.6f}, {lon:.6f}")
 
     # Broadcast to connected clients
-    await broadcast_to_clients({
-        'type': 'observation_added',
-        'obs_type': obs_type,
-        'position': {'lat': lat, 'lon': lon},
-        'metadata': sanitized_metadata
-    })
+    await broadcast_to_clients(
+        {
+            "type": "observation_added",
+            "obs_type": obs_type,
+            "position": {"lat": lat, "lon": lon},
+            "metadata": sanitized_metadata,
+        }
+    )
 
-    return {'status': 'recorded'}
+    return {"status": "recorded"}
 
 
 @app.get("/health")
@@ -589,14 +576,21 @@ async def health_check():
     Health check endpoint
     """
     return {
-        'status': 'healthy',
-        'batman_available': subprocess.run(['which', 'batctl'], capture_output=True).returncode == 0,
-        'gps_available': subprocess.run(['which', 'gpspipe'], capture_output=True).returncode == 0,
-        'sensor_fusion_active': True,
-        'atak_connected': True
+        "status": "healthy",
+        "batman_available": subprocess.run(
+            ["which", "batctl"], capture_output=True
+        ).returncode
+        == 0,
+        "gps_available": subprocess.run(
+            ["which", "gpspipe"], capture_output=True
+        ).returncode
+        == 0,
+        "sensor_fusion_active": True,
+        "atak_connected": True,
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

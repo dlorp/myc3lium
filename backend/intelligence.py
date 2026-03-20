@@ -18,14 +18,23 @@ class ATAKIntegration:
     ATAK integration for tactical mapping
     Supports video/images, position tracking, intel sharing
     """
-    def __init__(self, tak_server_url: str = "tcp://239.2.3.1:6969", security_manager=None):
+
+    def __init__(
+        self, tak_server_url: str = "tcp://239.2.3.1:6969", security_manager=None
+    ):
         self.tak_server = tak_server_url
         self.units = {}  # Track friendly units
         self.intel_items = []  # POIs, threats, etc.
         self.security = security_manager  # For message signing
 
-    def create_cot_message(self, node_id: str, lat: float, lon: float,
-                          alt: float, unit_type: str = "a-f-G-E-S") -> str:
+    def create_cot_message(
+        self,
+        node_id: str,
+        lat: float,
+        lon: float,
+        alt: float,
+        unit_type: str = "a-f-G-E-S",
+    ) -> str:
         """
         Create CoT (Cursor on Target) XML message for ATAK
 
@@ -53,8 +62,14 @@ class ATAKIntegration:
 
         return cot_xml
 
-    def create_video_feed_cot(self, node_id: str, lat: float, lon: float,
-                             rtmp_url: str, sensor_fov: float = 45.0) -> str:
+    def create_video_feed_cot(
+        self,
+        node_id: str,
+        lat: float,
+        lon: float,
+        rtmp_url: str,
+        sensor_fov: float = 45.0,
+    ) -> str:
         """
         Create CoT message for video feed
         ATAK can display RTMP streams from mesh cameras
@@ -68,7 +83,7 @@ class ATAKIntegration:
     <contact callsign="CAM-{node_id[-4:]}"/>
     <link uid="{node_id}_video" relation="p-p" type="video"/>
     <__video url="{rtmp_url}" alias="MYC3LIUM Cam {node_id}">
-      <ConnectionEntry networkTimeout="12000" uid="{node_id}_video" path="{rtmp_url}" protocol="rtmp" bufferTime="3000" address="{rtmp_url.split('//')[1].split(':')[0]}" port="{rtmp_url.split(':')[-1].split('/')[0]}" roverPort="-1" rtspReliable="0" ignoreEmbeddedKLV="false" alias="MYC3LIUM Cam {node_id}"/>
+      <ConnectionEntry networkTimeout="12000" uid="{node_id}_video" path="{rtmp_url}" protocol="rtmp" bufferTime="3000" address="{rtmp_url.split("//")[1].split(":")[0]}" port="{rtmp_url.split(":")[-1].split("/")[0]}" roverPort="-1" rtspReliable="0" ignoreEmbeddedKLV="false" alias="MYC3LIUM Cam {node_id}"/>
     </__video>
     <sensor fov="{sensor_fov}" model="OV3660" range="500"/>
   </detail>
@@ -76,8 +91,14 @@ class ATAKIntegration:
 
         return cot_xml
 
-    def create_image_cot(self, node_id: str, lat: float, lon: float,
-                        image_url: str, description: str = "") -> str:
+    def create_image_cot(
+        self,
+        node_id: str,
+        lat: float,
+        lon: float,
+        image_url: str,
+        description: str = "",
+    ) -> str:
         """
         Create CoT message for image attachment
         """
@@ -119,15 +140,12 @@ class ATAKIntegration:
             sock.settimeout(timeout)
 
             # ATAK default multicast group
-            multicast_group = ('239.2.3.1', 6969)
+            multicast_group = ("239.2.3.1", 6969)
 
             # Send in executor to avoid blocking
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
-                sock.sendto,
-                cot_message.encode('utf-8'),
-                multicast_group
+                None, sock.sendto, cot_message.encode("utf-8"), multicast_group
             )
 
             sock.close()
@@ -142,10 +160,7 @@ class ATAKIntegration:
         Push node position to ATAK
         """
         cot = self.create_cot_message(
-            node_id,
-            position['lat'],
-            position['lon'],
-            position.get('alt', 0)
+            node_id, position["lat"], position["lon"], position.get("alt", 0)
         )
 
         await self.send_cot(cot)
@@ -155,10 +170,7 @@ class ATAKIntegration:
         Share camera feed to ATAK
         """
         cot = self.create_video_feed_cot(
-            node_id,
-            position['lat'],
-            position['lon'],
-            rtmp_url
+            node_id, position["lat"], position["lon"], rtmp_url
         )
 
         await self.send_cot(cot)
@@ -167,6 +179,7 @@ class ATAKIntegration:
 @dataclass
 class SensorFusionState:
     """Position estimate from multiple sensors"""
+
     lat: float
     lon: float
     alt: float
@@ -181,6 +194,7 @@ class SensorFusion:
     """
     Fuse GPS, IMU, RSSI, TDOA for accurate positioning
     """
+
     def __init__(self):
         # State: [x, y, z, vx, vy, vz, heading]
         self.state = np.zeros(7)
@@ -203,7 +217,7 @@ class SensorFusion:
         z = alt
 
         measurement = np.array([x, y, z])
-        R = np.eye(3) * (accuracy ** 2)  # Measurement noise
+        R = np.eye(3) * (accuracy**2)  # Measurement noise
 
         # Kalman update
         innovation = measurement - (self.H_gps @ self.state)
@@ -256,7 +270,9 @@ class SensorFusion:
         self.state = self.state + K @ innovation
         self.covariance = (np.eye(7) - K @ self.H_gps) @ self.covariance
 
-    def _trilaterate(self, positions: list, distances: list) -> tuple[float, float, float]:
+    def _trilaterate(
+        self, positions: list, distances: list
+    ) -> tuple[float, float, float]:
         """
         Weighted least squares trilateration
         """
@@ -271,14 +287,14 @@ class SensorFusion:
         # Solve for intersection
         A = 2 * (p2[0] - p1[0])
         B = 2 * (p2[1] - p1[1])
-        C = r1**2 - r2**2 - p1[0]**2 + p2[0]**2 - p1[1]**2 + p2[1]**2
+        C = r1**2 - r2**2 - p1[0] ** 2 + p2[0] ** 2 - p1[1] ** 2 + p2[1] ** 2
 
         D = 2 * (p3[0] - p2[0])
         E = 2 * (p3[1] - p2[1])
-        F = r2**2 - r3**2 - p2[0]**2 + p3[0]**2 - p2[1]**2 + p3[1]**2
+        F = r2**2 - r3**2 - p2[0] ** 2 + p3[0] ** 2 - p2[1] ** 2 + p3[1] ** 2
 
-        x = (C*E - F*B) / (E*A - B*D) if (E*A - B*D) != 0 else 0
-        y = (C*D - A*F) / (B*D - A*E) if (B*D - A*E) != 0 else 0
+        x = (C * E - F * B) / (E * A - B * D) if (E * A - B * D) != 0 else 0
+        y = (C * D - A * F) / (B * D - A * E) if (B * D - A * E) != 0 else 0
         z = np.mean([p[2] for p in positions])
 
         return (x, y, z)
@@ -305,7 +321,7 @@ class SensorFusion:
             heading=heading,
             uncertainty=uncertainty,
             timestamp=self.last_update,
-            sources=['gps', 'rssi']  # Track which sensors contributed
+            sources=["gps", "rssi"],  # Track which sensors contributed
         )
 
 
@@ -313,25 +329,31 @@ class IntelligenceGathering:
     """
     Collaborative intelligence gathering and sharing
     """
+
     def __init__(self, node_id: str):
         self.node_id = node_id
         self.observations = []
         self.rf_sources = []
 
-    async def record_observation(self, obs_type: str, position: dict,
-                                metadata: dict, image_path: Optional[str] = None):
+    async def record_observation(
+        self,
+        obs_type: str,
+        position: dict,
+        metadata: dict,
+        image_path: Optional[str] = None,
+    ):
         """
         Record intelligence observation
 
         obs_type: 'poi', 'threat', 'obstacle', 'rf_source', etc.
         """
         observation = {
-            'id': f"{self.node_id}_{int(time.time())}",
-            'type': obs_type,
-            'position': position,
-            'metadata': metadata,
-            'timestamp': time.time(),
-            'image': image_path
+            "id": f"{self.node_id}_{int(time.time())}",
+            "type": obs_type,
+            "position": position,
+            "metadata": metadata,
+            "timestamp": time.time(),
+            "image": image_path,
         }
 
         self.observations.append(observation)
@@ -339,39 +361,42 @@ class IntelligenceGathering:
         # Share to mesh via IPFS
         # await ipfs_node.publish_content(observation, priority='normal')
 
-    async def detect_rf_source(self, frequency: float, rssi: float,
-                              estimated_position: Optional[dict] = None):
+    async def detect_rf_source(
+        self, frequency: float, rssi: float, estimated_position: Optional[dict] = None
+    ):
         """
         Passive RF source detection
         """
         source = {
-            'id': f"rf_{int(frequency)}_{int(time.time())}",
-            'frequency': frequency,
-            'rssi': rssi,
-            'position': estimated_position,
-            'detected_at': time.time(),
-            'detector_node': self.node_id
+            "id": f"rf_{int(frequency)}_{int(time.time())}",
+            "frequency": frequency,
+            "rssi": rssi,
+            "position": estimated_position,
+            "detected_at": time.time(),
+            "detector_node": self.node_id,
         }
 
         self.rf_sources.append(source)
 
-    def get_heatmap_data(self, obs_type: str = 'all') -> list[dict]:
+    def get_heatmap_data(self, obs_type: str = "all") -> list[dict]:
         """
         Generate heatmap data for WebUI
         """
-        if obs_type == 'all':
+        if obs_type == "all":
             data = self.observations
         else:
-            data = [obs for obs in self.observations if obs['type'] == obs_type]
+            data = [obs for obs in self.observations if obs["type"] == obs_type]
 
         heatmap = []
         for obs in data:
-            heatmap.append({
-                'lat': obs['position']['lat'],
-                'lon': obs['position']['lon'],
-                'value': obs['metadata'].get('intensity', 1.0),
-                'timestamp': obs['timestamp']
-            })
+            heatmap.append(
+                {
+                    "lat": obs["position"]["lat"],
+                    "lon": obs["position"]["lon"],
+                    "value": obs["metadata"].get("intensity", 1.0),
+                    "timestamp": obs["timestamp"],
+                }
+            )
 
         return heatmap
 
@@ -386,12 +411,14 @@ async def get_mesh_topology():
     # Return nodes + edges with link quality
     pass
 
+
 async def get_position_history(node_id: str, hours: int = 1):
     """
     API endpoint: GET /api/intelligence/position/{node_id}?hours=1
     Returns position history for tracking
     """
     pass
+
 
 async def get_intelligence_feed():
     """
@@ -406,21 +433,13 @@ if __name__ == "__main__":
     atak = ATAKIntegration()
 
     # Create position update
-    cot = atak.create_cot_message(
-        "m3l_spore_01",
-        47.6062,
-        -122.3321,
-        125.0
-    )
+    cot = atak.create_cot_message("m3l_spore_01", 47.6062, -122.3321, 125.0)
     print("Position CoT:")
     print(cot)
 
     # Create video feed
     video_cot = atak.create_video_feed_cot(
-        "m3l_spore_01",
-        47.6062,
-        -122.3321,
-        "rtmp://192.168.1.100:1935/live/cam1"
+        "m3l_spore_01", 47.6062, -122.3321, "rtmp://192.168.1.100:1935/live/cam1"
     )
     print("\nVideo Feed CoT:")
     print(video_cot)
