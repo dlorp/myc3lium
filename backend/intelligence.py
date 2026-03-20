@@ -18,10 +18,11 @@ class ATAKIntegration:
     ATAK integration for tactical mapping
     Supports video/images, position tracking, intel sharing
     """
-    def __init__(self, tak_server_url: str = "tcp://239.2.3.1:6969"):
+    def __init__(self, tak_server_url: str = "tcp://239.2.3.1:6969", security_manager=None):
         self.tak_server = tak_server_url
         self.units = {}  # Track friendly units
         self.intel_items = []  # POIs, threats, etc.
+        self.security = security_manager  # For message signing
     
     def create_cot_message(self, node_id: str, lat: float, lon: float, 
                           alt: float, unit_type: str = "a-f-G-E-S") -> str:
@@ -96,21 +97,46 @@ class ATAKIntegration:
         
         return cot_xml
     
-    async def send_cot(self, cot_message: str):
+    async def send_cot(self, cot_message: str, timeout: float = 3.0):
         """
         Send CoT message to ATAK server (multicast or TCP)
+        Signed with HMAC if security manager provided
         """
-        # Multicast implementation
         import socket
+        import asyncio
         
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        # Sign message if security enabled
+        if self.security:
+            try:
+                cot_message = self.security.sign_cot_message(cot_message)
+            except Exception as e:
+                print(f"CoT signing failed: {e}")
+                return  # Don't send unsigned
         
-        # ATAK default multicast group
-        multicast_group = ('239.2.3.1', 6969)
-        
-        sock.sendto(cot_message.encode('utf-8'), multicast_group)
-        sock.close()
+        # Multicast implementation with timeout
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+            sock.settimeout(timeout)
+            
+            # ATAK default multicast group
+            multicast_group = ('239.2.3.1', 6969)
+            
+            # Send in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                sock.sendto,
+                cot_message.encode('utf-8'),
+                multicast_group
+            )
+            
+            sock.close()
+            
+        except socket.timeout:
+            print(f"CoT send timeout to {multicast_group}")
+        except Exception as e:
+            print(f"CoT send error: {e}")
     
     async def update_unit_position(self, node_id: str, position: Dict):
         """
