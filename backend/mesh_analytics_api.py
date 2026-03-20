@@ -95,9 +95,7 @@ async def get_top_relays(limit: int = 5):
     analyzer = get_analyzer()
     centrality = analyzer.node_centrality()
 
-    sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[
-        :limit
-    ]
+    sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:limit]
 
     return [
         {
