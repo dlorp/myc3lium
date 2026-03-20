@@ -60,20 +60,20 @@ const P500: React.FC = () => {
     gpsLon: -149.9739,
   });
 
-  const qualityBitrates = {
+  const qualityBitrates = useMemo(() => ({
     HIGH: 3500,
     MEDIUM: 2000,
     LOW: 800,
-  };
+  }), []);
 
-  const qualityResolutions = {
+  const qualityResolutions = useMemo(() => ({
     HIGH: 1280,
     MEDIUM: 640,
     LOW: 320,
-  };
+  }), []);
 
   // Mock camera nodes
-  const cameras: CameraNode[] = [
+  const cameras: CameraNode[] = useMemo(() => [
     {
       id: 'FROND-01',
       callsign: 'Creek Watch',
@@ -111,7 +111,7 @@ const P500: React.FC = () => {
       status: 'OFFLINE',
       location: 'West Ridge',
     },
-  ];
+  ], []);
 
   // Auto-select first online camera
   useEffect(() => {
