@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-type ColorType = 'cyan' | 'magenta' | 'yellow' | 'green' | 'blue' | 'white' | 'red';
+type ColorType = 'cyan' | 'magenta' | 'yellow' | 'green' | 'blue' | 'white' | 'red' | 'orange';
 
 interface SparklineProps {
   data: number[];
@@ -17,6 +17,7 @@ const colorMap: Record<ColorType, string> = {
   blue: '#0080FF',
   white: '#FFFFFF',
   red: '#FF0000',
+  orange: '#FF8000',
 };
 
 export const Sparkline: React.FC<SparklineProps> = ({ 
