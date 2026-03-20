@@ -13,23 +13,30 @@ import asyncio
 class GPSInterface:
     """
     GPS interface (NMEA via serial or gpsd)
+    Uses real driver with robust error handling
     """
     def __init__(self, port: str = "/dev/ttyAMA0", baudrate: int = 9600):
         self.port = port
         self.baudrate = baudrate
-        self.serial = None
+        self.driver = None
         self.last_position = None
+        
+        # Try to use real driver
+        try:
+            from hardware_drivers_real import GPS_NMEA_Driver
+            self.driver = GPS_NMEA_Driver(port, baudrate)
+            self.driver.connect()
+        except Exception as e:
+            print(f"GPS real driver unavailable: {e}")
+            self.driver = None
     
     def connect(self):
         """
         Connect to GPS module
         """
-        try:
-            self.serial = serial.Serial(self.port, self.baudrate, timeout=1)
-            print(f"GPS connected on {self.port}")
-        except Exception as e:
-            print(f"GPS connection failed: {e}")
-            self.serial = None
+        if self.driver:
+            return self.driver.connect()
+        return False
     
     def read_nmea(self) -> Optional[Dict]:
         """
@@ -112,18 +119,11 @@ class GPSInterface:
         """
         Get current GPS position (blocking read with timeout)
         """
-        if not self.serial:
-            self.connect()
-        
-        if not self.serial:
-            return self.last_position  # Return last known if available
-        
-        # Try to read position for up to 2 seconds
-        start = time.time()
-        while time.time() - start < 2.0:
-            pos = self.read_nmea()
+        if self.driver:
+            pos = self.driver.get_position()
             if pos:
-                return pos
+                self.last_position = pos
+            return pos or self.last_position
         
         return self.last_position
 
@@ -131,36 +131,39 @@ class GPSInterface:
 class LoRaInterface:
     """
     LoRa HAT interface (SX1262 via SPI)
+    Uses real driver when available, falls back to null
     """
     def __init__(self, spi_device: str = "/dev/spidev0.0"):
         self.spi_device = spi_device
-        self.rssi_last = -120
+        self.driver = None
+        
+        # Try to use real driver
+        try:
+            from hardware_drivers_real import SX1262LoRaDriver
+            spi_bus, spi_dev = 0, 0  # Extract from spi_device path
+            self.driver = SX1262LoRaDriver(spi_bus, spi_dev)
+        except Exception as e:
+            print(f"LoRa real driver unavailable: {e}")
+            self.driver = None
     
     def get_rssi(self) -> float:
         """
         Get current RSSI from LoRa module
         """
-        try:
-            # Read RSSI register (would use actual SPI commands)
-            # For now, mock implementation
-            import random
-            self.rssi_last = random.uniform(-120, -60)
-            return self.rssi_last
-        except Exception as e:
-            print(f"LoRa RSSI read error: {e}")
-            return -120
+        if self.driver:
+            return self.driver.get_rssi()
+        
+        # No hardware available
+        return -120.0
     
     def get_snr(self) -> float:
         """
         Get Signal-to-Noise Ratio
         """
-        try:
-            # Read SNR register
-            import random
-            return random.uniform(-10, 10)
-        except Exception as e:
-            print(f"LoRa SNR read error: {e}")
-            return -10
+        if self.driver:
+            return self.driver.get_snr()
+        
+        return -10.0
 
 
 class HaLowInterface:
@@ -241,43 +244,35 @@ class IMUInterface:
     def __init__(self, i2c_bus: int = 1, address: int = 0x68):
         self.i2c_bus = i2c_bus
         self.address = address
-        self.accel_last = (0.0, 0.0, 0.0)
-        self.gyro_last = (0.0, 0.0, 0.0)
+        self.driver = None
+        
+        # Try to use real driver
+        try:
+            from hardware_drivers_real import MPU6050_IMU_Driver
+            self.driver = MPU6050_IMU_Driver(i2c_bus)
+        except Exception as e:
+            print(f"IMU real driver unavailable: {e}")
+            self.driver = None
     
     def read_accel(self) -> Tuple[float, float, float]:
         """
         Read accelerometer (m/s²)
         Returns (ax, ay, az)
         """
-        try:
-            # Would read from MPU6050 or similar via I2C
-            import random
-            self.accel_last = (
-                random.uniform(-1, 1),
-                random.uniform(-1, 1),
-                random.uniform(9.8 - 0.5, 9.8 + 0.5)  # Gravity + noise
-            )
-            return self.accel_last
-        except Exception as e:
-            print(f"IMU accel read error: {e}")
-            return (0.0, 0.0, 9.8)
+        if self.driver:
+            return self.driver.read_accel()
+        
+        return (0.0, 0.0, 9.8)
     
     def read_gyro(self) -> Tuple[float, float, float]:
         """
         Read gyroscope (rad/s)
         Returns (gx, gy, gz)
         """
-        try:
-            import random
-            self.gyro_last = (
-                random.uniform(-0.1, 0.1),
-                random.uniform(-0.1, 0.1),
-                random.uniform(-0.1, 0.1)
-            )
-            return self.gyro_last
-        except Exception as e:
-            print(f"IMU gyro read error: {e}")
-            return (0.0, 0.0, 0.0)
+        if self.driver:
+            return self.driver.read_gyro()
+        
+        return (0.0, 0.0, 0.0)
 
 
 class HardwareManager:
