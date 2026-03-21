@@ -82,51 +82,60 @@ describe('TeletextGrid', () => {
   })
 
   describe('Content Dimension Validation', () => {
-    it('should throw error if content is not an array', () => {
+    const expectValidationError = (
+      invalidContent: string[][],
+      expectedMessage: RegExp
+    ) => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      render(<TeletextGrid content={invalidContent} />)
+
+      expect(screen.getByTestId('teletext-grid')).toBeInTheDocument()
+      expect(screen.getByText('ERROR')).toBeInTheDocument()
+      expect(screen.getByText(expectedMessage)).toBeInTheDocument()
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Content validation error:',
+        expect.stringMatching(expectedMessage)
+      )
+
+      consoleErrorSpy.mockRestore()
+    }
+
+    it('should report an error if content is not an array', () => {
       const invalidContent = 'not an array' as unknown as string[][]
-      expect(() => {
-        render(<TeletextGrid content={invalidContent} />)
-      }).toThrow()
+      expectValidationError(invalidContent, /Content must be an array/i)
     })
 
-    it('should throw error if content has wrong number of rows', () => {
+    it('should report an error if content has wrong number of rows', () => {
       const invalidContent = Array.from({ length: 20 }, () =>
         Array.from({ length: COLUMNS }, () => 'a')
       )
-      expect(() => {
-        render(<TeletextGrid content={invalidContent} />)
-      }).toThrow(/must have exactly 25 rows/i)
+      expectValidationError(invalidContent, /must have exactly 25 rows/i)
     })
 
-    it('should throw error if a row is not an array', () => {
+    it('should report an error if a row is not an array', () => {
       const invalidContent = Array.from({ length: ROWS }, (_, i) =>
         i === 5 ? 'not an array' : Array.from({ length: COLUMNS }, () => 'a')
       ) as unknown as string[][]
-      expect(() => {
-        render(<TeletextGrid content={invalidContent} />)
-      }).toThrow(/Row 5 is not an array/i)
+      expectValidationError(invalidContent, /Row 5 is not an array/i)
     })
 
-    it('should throw error if a row has wrong number of columns', () => {
+    it('should report an error if a row has wrong number of columns', () => {
       const invalidContent = Array.from({ length: ROWS }, (_, i) =>
         i === 10
           ? Array.from({ length: COLUMNS - 5 }, () => 'a')
           : Array.from({ length: COLUMNS }, () => 'a')
       )
-      expect(() => {
-        render(<TeletextGrid content={invalidContent} />)
-      }).toThrow(/Row 10 has 75 columns/i)
+      expectValidationError(invalidContent, /Row 10 has 75 columns/i)
     })
 
-    it('should throw error if a cell is not a string', () => {
+    it('should report an error if a cell is not a string', () => {
       const invalidContent = Array.from({ length: ROWS }, (_, i) =>
         Array.from({ length: COLUMNS }, (_, j) =>
           i === 5 && j === 10 ? 123 : 'a'
         )
       ) as unknown as string[][]
-      expect(() => {
-        render(<TeletextGrid content={invalidContent} />)
-      }).toThrow(/Row 5, Column 10.*expected string/i)
+      expectValidationError(invalidContent, /Row 5, Column 10.*expected string/i)
     })
 
     it('should accept valid 25×80 content', () => {
