@@ -168,6 +168,48 @@ const FRAGMENT_SHADER = `
   }
 `
 
+/**
+ * Validate content dimensions
+ * @param {string[][]} content - Content array (should be 25 rows × 80 columns)
+ * @throws {Error} If content dimensions are incorrect
+ */
+const validateContentDimensions = (content) => {
+  if (!Array.isArray(content)) {
+    throw new Error(
+      `Content must be an array, got ${typeof content}. Expected: string[][] (25 rows × 80 columns)`
+    )
+  }
+
+  if (content.length !== ROWS) {
+    throw new Error(
+      `Content must have exactly ${ROWS} rows, got ${content.length}. Expected: 25 rows × 80 columns`
+    )
+  }
+
+  for (let i = 0; i < content.length; i++) {
+    const row = content[i]
+    if (!Array.isArray(row)) {
+      throw new Error(
+        `Row ${i} is not an array (got ${typeof row}). Expected: 25 rows × 80 columns`
+      )
+    }
+
+    if (row.length !== COLUMNS) {
+      throw new Error(
+        `Row ${i} has ${row.length} columns, expected ${COLUMNS}. Each row must have exactly 80 columns`
+      )
+    }
+
+    for (let j = 0; j < row.length; j++) {
+      if (typeof row[j] !== 'string') {
+        throw new Error(
+          `Row ${i}, Column ${j}: expected string, got ${typeof row[j]}. All cells must be strings`
+        )
+      }
+    }
+  }
+}
+
 const normalizeContent = (content) => {
   const safeContent = Array.isArray(content) ? content : []
   return Array.from({ length: ROWS }, (_, rowIndex) => {
@@ -181,13 +223,30 @@ const normalizeContent = (content) => {
   })
 }
 
-const TeletextPlane = ({ content, effectsConfig = {} }) => {
+const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) => {
   const { viewport } = useThree()
   const canvasRef = useRef(document.createElement('canvas'))
   const fontAtlasRef = useRef(null)
   const materialRef = useRef(null)
   const prevFrameTarget = useRef(null)
   const lastFrameTime = useRef(0)
+  const [textureLoadError, setTextureLoadError] = useState(null)
+  const [contentError, setContentError] = useState(null)
+
+  // Default effect configuration - MOVED HERE before useMemo/useFrame
+  const config = {
+    enableChromatic: true,
+    enableBloom: true,
+    enablePhosphor: true,
+    enableNoise: true,
+    enableFlicker: true,
+    chromaticAmount: 0.001,
+    bloomStrength: 0.45,
+    phosphorDecay: 0.88,
+    noiseAmount: 0.04,
+    flickerAmount: 0.012,
+    ...effectsConfig,
+  }
 
   const { texture, resolution, charWidth, charHeight } = useMemo(() => {
     const charWidthValue = ATLAS_GLYPH_WIDTH
@@ -238,13 +297,18 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
         atlasTexture.magFilter = THREE.NearestFilter
         atlasTexture.generateMipmaps = false
         fontAtlasRef.current = atlasTexture
+        setTextureLoadError(null) // Clear error on successful load
+        if (onTextureError) onTextureError(null)
       },
       undefined,
       (error) => {
-        console.error('Failed to load font atlas:', error)
+        const errorMsg = `Failed to load font atlas: ${error.message || 'Unknown error'}`
+        console.error(errorMsg)
+        setTextureLoadError(errorMsg)
+        if (onTextureError) onTextureError(errorMsg)
       }
     )
-  }, [])
+  }, [onTextureError])
 
   // Initialize render target for phosphor trails
   useEffect(() => {
@@ -261,8 +325,32 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
   }, [resolution])
 
+  // Validate content dimensions
   useEffect(() => {
-    if (!fontAtlasRef.current) return
+    try {
+      validateContentDimensions(content)
+      setContentError(null)
+    } catch (error) {
+      const errorMsg = error.message
+      console.error('Content validation error:', errorMsg)
+      setContentError(errorMsg)
+      if (onTextureError) onTextureError(errorMsg)
+    }
+  }, [content, onTextureError])
+
+  useEffect(() => {
+    if (!fontAtlasRef.current) {
+      if (textureLoadError) {
+        console.warn('Skipping render: font atlas not loaded due to error')
+      }
+      return
+    }
+
+    // Skip rendering if content has validation errors
+    if (contentError) {
+      console.warn('Skipping render: content validation error')
+      return
+    }
 
     const draw = () => {
       const grid = normalizeContent(content)
@@ -347,23 +435,68 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     }
 
     draw()
-  }, [content, charHeight, charWidth, resolution, texture])
+  }, [content, charHeight, charWidth, resolution, texture, contentError, textureLoadError])
+
+  // Track if content needs to be redrawn
+  const [needsRedraw, setNeedsRedraw] = useState(true)
+  const prevContentRef = useRef(null)
+
+  // Check if content has changed
+  useEffect(() => {
+    const contentStr = JSON.stringify(content)
+    if (prevContentRef.current !== contentStr) {
+      prevContentRef.current = contentStr
+      setNeedsRedraw(true)
+    }
+  }, [content])
+
+  // Only update uniforms and capture frames if there are active effects that need animation
+  const hasAnimatedEffects = useMemo(() => {
+    return (
+      config.enablePhosphor ||
+      config.enableFlicker ||
+      config.enableNoise ||
+      config.enableChromatic ||
+      config.enableBloom
+    )
+  }, [
+    config.enablePhosphor,
+    config.enableFlicker,
+    config.enableNoise,
+    config.enableChromatic,
+    config.enableBloom,
+  ])
 
   useFrame((state) => {
+    // If no animated effects and content hasn't changed, skip rendering
+    if (!hasAnimatedEffects && !needsRedraw) {
+      return
+    }
+
     if (!materialRef.current) return
 
     const now = state.clock.elapsedTime
     const deltaTime = lastFrameTime.current ? now - lastFrameTime.current : 0.016
     lastFrameTime.current = now
 
-    // Update uniforms
-    materialRef.current.uniforms.uTime.value = now
-    materialRef.current.uniforms.uDeltaTime.value = deltaTime
+    // Update uniforms for animated effects
+    if (hasAnimatedEffects) {
+      materialRef.current.uniforms.uTime.value = now
+      materialRef.current.uniforms.uDeltaTime.value = deltaTime
+    }
+
+    // Clear redraw flag after rendering
+    if (needsRedraw) {
+      setNeedsRedraw(false)
+    }
   }, 1) // Priority 1 - update uniforms first
 
   // Capture rendered frame for phosphor trails (runs after render)
   useFrame((state) => {
     if (!materialRef.current || !prevFrameTarget.current) return
+
+    // Only capture if phosphor effect is enabled
+    if (!config.enablePhosphor) return
     
     const gl = state.gl
     
@@ -378,21 +511,6 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
     // Update the uniform so next frame can use it
     materialRef.current.uniforms.uPrevFrame.value = prevFrameTarget.current.texture
   }, 2) // Priority 2 - capture after rendering
-
-  // Default effect configuration
-  const config = {
-    enableChromatic: true,
-    enableBloom: true,
-    enablePhosphor: true,
-    enableNoise: true,
-    enableFlicker: true,
-    chromaticAmount: 0.001,
-    bloomStrength: 0.45,
-    phosphorDecay: 0.88,
-    noiseAmount: 0.04,
-    flickerAmount: 0.012,
-    ...effectsConfig,
-  }
 
   return (
     <mesh scale={[viewport.width, viewport.height, 1]}>
@@ -476,14 +594,46 @@ TeletextPlane.propTypes = {
     noiseAmount: PropTypes.number,
     flickerAmount: PropTypes.number,
   }),
+  onTextureError: PropTypes.func,
 }
 
 FpsMonitor.propTypes = {
   onSample: PropTypes.func,
 }
 
-const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
+const TeletextGrid = ({ content, showFps = false, effectsConfig = {} }) => {
   const [fps, setFps] = useState(null)
+  const [displayError, setDisplayError] = useState(null)
+  const [hasAnimatedEffects, setHasAnimatedEffects] = useState(true)
+
+  const handleError = (error) => {
+    if (error) {
+      setDisplayError(error)
+    } else {
+      setDisplayError(null)
+    }
+  }
+
+  // Determine if we need continuous rendering based on active effects
+  useEffect(() => {
+    const config = {
+      enablePhosphor: true,
+      enableFlicker: true,
+      enableNoise: true,
+      enableChromatic: true,
+      enableBloom: true,
+      ...effectsConfig,
+    }
+
+    const hasAnimated = 
+      config.enablePhosphor ||
+      config.enableFlicker ||
+      config.enableNoise ||
+      config.enableChromatic ||
+      config.enableBloom
+
+    setHasAnimatedEffects(hasAnimated)
+  }, [effectsConfig])
 
   return (
     <div
@@ -497,18 +647,42 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         position: 'relative',
       }}
     >
+      {displayError ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#ff6b6b',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            whiteSpace: 'pre-wrap',
+            zIndex: 10,
+            maxWidth: '80%',
+          }}
+        >
+          <div>ERROR</div>
+          <div style={{ fontSize: '12px', marginTop: '8px' }}>{displayError}</div>
+        </div>
+      ) : null}
       {showFps && fps !== null ? (
         <div className="teletext-fps">FPS {fps}</div>
       ) : null}
       <Canvas
-        frameloop="always"
+        frameloop={hasAnimatedEffects ? 'always' : 'demand'}
         orthographic
         dpr={[1, 1.5]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         camera={{ position: [0, 0, 10], zoom: 1 }}
       >
         <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={1} />
-        <TeletextPlane content={content} effectsConfig={effectsConfig} />
+        <TeletextPlane 
+          content={content} 
+          effectsConfig={effectsConfig}
+          onTextureError={handleError}
+        />
         {showFps ? <FpsMonitor onSample={setFps} /> : null}
       </Canvas>
     </div>
@@ -530,6 +704,7 @@ TeletextGrid.propTypes = {
     noiseAmount: PropTypes.number,
     flickerAmount: PropTypes.number,
   }),
+  onTextureError: PropTypes.func,
 }
 
 export default TeletextGrid

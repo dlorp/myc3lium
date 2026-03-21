@@ -10,13 +10,13 @@ Features:
 - Predictive route maintenance
 """
 
-import logging
-import threading
 import time
-from collections import defaultdict, deque
+import threading
+from collections import deque, defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -132,17 +132,17 @@ class AdaptiveRouter:
 
         # Link state database
         # {(node_a, node_b, radio): LinkMetrics}
-        self.links: dict[tuple[str, str, RadioType], LinkMetrics] = {}
+        self.links: Dict[Tuple[str, str, RadioType], LinkMetrics] = {}
 
         # Routing table
         # {destination: [(next_hop, radio, cost), ...]}
-        self.routes: dict[str, list[tuple[str, RadioType, float]]] = defaultdict(list)
+        self.routes: Dict[str, List[Tuple[str, RadioType, float]]] = defaultdict(list)
 
         # Packet history for loss tracking
-        self.tx_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        self.tx_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
 
         # Active radio interfaces
-        self.active_radios: dict[RadioType, bool] = {
+        self.active_radios: Dict[RadioType, bool] = {
             RadioType.LORA: False,
             RadioType.HALOW: False,
             RadioType.WIFI: False,
@@ -301,8 +301,8 @@ class AdaptiveRouter:
         logger.info(f"Computed routes to {len(self.routes)} destinations")
 
     def _dijkstra(
-        self, graph: dict, start: str, end: str
-    ) -> list[tuple[str, RadioType, float]]:
+        self, graph: Dict, start: str, end: str
+    ) -> List[Tuple[str, RadioType, float]]:
         """
         Dijkstra shortest path with ETX metric
         Returns list of (next_hop, radio, total_cost)
