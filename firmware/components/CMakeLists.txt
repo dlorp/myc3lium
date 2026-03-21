@@ -1,0 +1,16 @@
+idf_component_register(
+    SRCS
+        "myc3_core/myc3_core.cpp"
+        "myc3_halow/halow_driver.cpp"
+        "myc3_lora/lora_driver.cpp"
+    INCLUDE_DIRS
+        "."
+        "myc3_core"
+        "myc3_halow"
+        "myc3_lora"
+    REQUIRES
+        "freertos"
+        "esp_system"
+        "nvs_flash"
+        "driver"
+)
