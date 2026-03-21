@@ -342,7 +342,9 @@ class MeshStore:
         Returns:
             Dictionary with node, thread, and message counts
         """
-        online_nodes = sum(1 for node in self._nodes.values() if node.status == "online")
+        online_nodes = sum(
+            1 for node in self._nodes.values() if node.status == "online"
+        )
         return {
             "node_count": len(self._nodes),
             "active_node_count": online_nodes,
@@ -351,7 +353,9 @@ class MeshStore:
             "last_update": datetime.now(timezone.utc),
         }
 
-    def load_from_source(self, nodes: list[Node], threads: list[Thread], messages: list[Message]):
+    def load_from_source(
+        self, nodes: list[Node], threads: list[Thread], messages: list[Message]
+    ):
         """
         Bulk load data from a source (useful for initialization)
 

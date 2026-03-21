@@ -193,7 +193,9 @@ class TestPatchNode:
         nodes = response.json()
         node_id = nodes[0]["id"]
 
-        response = client.patch(f"/api/nodes/{node_id}", json={"callsign": "new-callsign"})
+        response = client.patch(
+            f"/api/nodes/{node_id}", json={"callsign": "new-callsign"}
+        )
         assert response.status_code == 200
 
         updated_node = response.json()
@@ -242,7 +244,9 @@ class TestPatchNode:
         node_id = nodes[0]["id"]
 
         new_position = {"lat": 45.5231, "lon": -122.6765}
-        response = client.patch(f"/api/nodes/{node_id}", json={"position": new_position})
+        response = client.patch(
+            f"/api/nodes/{node_id}", json={"position": new_position}
+        )
         assert response.status_code == 200
 
         updated_node = response.json()
@@ -279,7 +283,9 @@ class TestPatchNode:
 
     def test_patch_nonexistent_node(self):
         """Test PATCH on a node that doesn't exist"""
-        response = client.patch("/api/nodes/nonexistent_node", json={"status": "online"})
+        response = client.patch(
+            "/api/nodes/nonexistent_node", json={"status": "online"}
+        )
         assert response.status_code == 404
 
     def test_patch_preserves_other_fields(self):
@@ -457,7 +463,9 @@ class TestEdgeCases:
         nodes = response.json()
         node_id = nodes[0]["id"]
 
-        response = client.patch(f"/api/nodes/{node_id}", json={"status": "invalid_status"})
+        response = client.patch(
+            f"/api/nodes/{node_id}", json={"status": "invalid_status"}
+        )
         assert response.status_code == 422  # Validation error
 
     def test_patch_with_invalid_battery(self):

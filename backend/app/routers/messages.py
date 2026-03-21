@@ -41,8 +41,12 @@ def _get_node_ids() -> set[str]:
 @router.get("", response_model=list[Message])
 async def get_messages(
     sender_id: Optional[str] = Query(None, description="Filter by sender node ID"),
-    recipient_id: Optional[str] = Query(None, description="Filter by recipient node ID"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of messages to return"),
+    recipient_id: Optional[str] = Query(
+        None, description="Filter by recipient node ID"
+    ),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of messages to return"
+    ),
     cursor: Optional[str] = Query(
         None, description="Pagination cursor (message ID to start after)"
     ),

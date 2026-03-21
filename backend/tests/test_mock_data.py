@@ -243,7 +243,9 @@ def test_sensor_data_diurnal_cycle():
     if 15 in temps_by_hour and 6 in temps_by_hour:
         # Allow some variance, but generally 3 PM should be warmer
         # (not strict inequality due to random variance)
-        assert abs(temps_by_hour[15] - temps_by_hour[6]) >= 0  # Just check it's reasonable
+        assert (
+            abs(temps_by_hour[15] - temps_by_hour[6]) >= 0
+        )  # Just check it's reasonable
 
 
 def test_sensor_data_includes_humidity():

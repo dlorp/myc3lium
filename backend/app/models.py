@@ -15,12 +15,17 @@ class Node(BaseModel):
     type: Literal["SPORE", "HYPHA", "FROND", "RHIZOME"] = Field(
         ..., description="Node type in mycelial network"
     )
-    callsign: str = Field(..., max_length=32, description="Human-readable node identifier")
-    status: Literal["online", "offline", "degraded"] = Field(..., description="Current node status")
+    callsign: str = Field(
+        ..., max_length=32, description="Human-readable node identifier"
+    )
+    status: Literal["online", "offline", "degraded"] = Field(
+        ..., description="Current node status"
+    )
     rssi: Optional[int] = Field(None, description="Signal strength (dBm)")
     battery: Optional[int] = Field(None, ge=0, le=100, description="Battery percentage")
     last_seen: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Last update timestamp",
     )
     position: Optional[dict[str, float]] = Field(
         None, description="Geographic coordinates (lat/lon)"
@@ -77,7 +82,8 @@ class SensorData(BaseModel):
     value: float = Field(..., description="Sensor reading value")
     unit: str = Field(..., max_length=16, description="Unit of measurement")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Reading timestamp"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Reading timestamp",
     )
 
     model_config = ConfigDict(
@@ -103,7 +109,8 @@ class Message(BaseModel):
     )
     content: str = Field(..., max_length=1024, description="Message content")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Message timestamp"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Message timestamp",
     )
     hops: int = Field(0, ge=0, description="Number of hops to destination")
 
@@ -124,12 +131,13 @@ class Message(BaseModel):
 class NodeUpdate(BaseModel):
     """WebSocket node update message"""
 
-    event: Literal["node_update", "node_added", "node_removed", "connection_update"] = Field(
-        ..., description="Event type"
+    event: Literal["node_update", "node_added", "node_removed", "connection_update"] = (
+        Field(..., description="Event type")
     )
     data: dict = Field(..., description="Event payload")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Event timestamp",
     )
 
     model_config = ConfigDict(
@@ -149,7 +157,9 @@ class Thread(BaseModel):
     id: str = Field(..., max_length=64, description="Unique thread identifier")
     source_id: str = Field(..., max_length=64, description="Source node ID")
     target_id: str = Field(..., max_length=64, description="Target node ID")
-    radio_type: Literal["LoRa", "HaLow", "WiFi"] = Field(..., description="Radio technology type")
+    radio_type: Literal["LoRa", "HaLow", "WiFi"] = Field(
+        ..., description="Radio technology type"
+    )
     rssi: Optional[int] = Field(None, description="Signal strength (dBm)")
     quality: float = Field(..., ge=0.0, le=1.0, description="Connection quality (0-1)")
     latency: Optional[int] = Field(None, description="Latency in milliseconds")
@@ -181,9 +191,15 @@ class SatellitePass(BaseModel):
     name: str = Field(..., max_length=64, description="Satellite name")
     aos: datetime = Field(..., description="Acquisition of Signal (rise time)")
     los: datetime = Field(..., description="Loss of Signal (set time)")
-    max_elevation: float = Field(..., ge=0.0, le=90.0, description="Maximum elevation in degrees")
-    azimuth_aos: Optional[float] = Field(None, ge=0.0, le=360.0, description="Azimuth at AOS")
-    azimuth_los: Optional[float] = Field(None, ge=0.0, le=360.0, description="Azimuth at LOS")
+    max_elevation: float = Field(
+        ..., ge=0.0, le=90.0, description="Maximum elevation in degrees"
+    )
+    azimuth_aos: Optional[float] = Field(
+        None, ge=0.0, le=360.0, description="Azimuth at AOS"
+    )
+    azimuth_los: Optional[float] = Field(
+        None, ge=0.0, le=360.0, description="Azimuth at LOS"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -207,12 +223,16 @@ class CameraStream(BaseModel):
     node_id: str = Field(..., max_length=64, description="Node hosting the camera")
     name: str = Field(..., max_length=128, description="Human-readable camera name")
     stream_url: str = Field(..., max_length=512, description="Camera stream URL")
-    status: Literal["active", "inactive", "error"] = Field(..., description="Stream status")
+    status: Literal["active", "inactive", "error"] = Field(
+        ..., description="Stream status"
+    )
     resolution: Optional[str] = Field(
         None, max_length=32, description="Stream resolution (e.g., 1920x1080)"
     )
     fps: Optional[int] = Field(None, ge=1, le=120, description="Frames per second")
-    last_frame: Optional[datetime] = Field(None, description="Timestamp of last received frame")
+    last_frame: Optional[datetime] = Field(
+        None, description="Timestamp of last received frame"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -236,10 +256,13 @@ class SystemStatus(BaseModel):
     uptime_seconds: int = Field(..., ge=0, description="System uptime in seconds")
     node_count: int = Field(..., ge=0, description="Total number of nodes")
     active_node_count: int = Field(..., ge=0, description="Number of online nodes")
-    thread_count: int = Field(..., ge=0, description="Total number of threads (connections)")
+    thread_count: int = Field(
+        ..., ge=0, description="Total number of threads (connections)"
+    )
     message_count: int = Field(..., ge=0, description="Total messages processed")
     last_update: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Last status update"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Last status update",
     )
     health: Literal["healthy", "degraded", "critical"] = Field(
         ..., description="Overall system health"

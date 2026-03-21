@@ -128,7 +128,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(data) > MAX_MESSAGE_SIZE:
                 await websocket.close(
-                    code=1009, reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)"
+                    code=1009,
+                    reason=f"Message too large (max {MAX_MESSAGE_SIZE} bytes)",
                 )
                 break
 
@@ -148,7 +149,10 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.broadcast(
             {
                 "event": "client_disconnected",
-                "data": {"client_id": client_id, "connections": manager.get_connection_count()},
+                "data": {
+                    "client_id": client_id,
+                    "connections": manager.get_connection_count(),
+                },
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )

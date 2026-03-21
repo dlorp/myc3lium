@@ -52,14 +52,17 @@ def _generate_mock_data():
             rssi=random.randint(-95, -30) if random.random() > 0.1 else None,
             quality=round(random.uniform(0.3, 0.99), 2),
             latency=random.randint(5, 150) if random.random() > 0.2 else None,
-            established=datetime.now(timezone.utc) - timedelta(seconds=random.randint(0, 86400)),
+            established=datetime.now(timezone.utc)
+            - timedelta(seconds=random.randint(0, 86400)),
         )
         _mock_threads.append(thread)
 
 
 @router.get("", response_model=list[Thread])
 async def get_threads(
-    node_id: Optional[str] = Query(None, description="Filter by node ID (source or target)"),
+    node_id: Optional[str] = Query(
+        None, description="Filter by node ID (source or target)"
+    ),
     radio_type: Optional[Literal["LoRa", "HaLow", "WiFi"]] = Query(
         None, description="Filter by radio technology type"
     ),
@@ -87,7 +90,9 @@ async def get_threads(
 
     if node_id:
         filtered_threads = [
-            t for t in filtered_threads if t.source_id == node_id or t.target_id == node_id
+            t
+            for t in filtered_threads
+            if t.source_id == node_id or t.target_id == node_id
         ]
 
     if radio_type:
