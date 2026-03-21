@@ -1,5 +1,5 @@
-#ifndef MYATTRIBUTE3_CORE_H
-#define MYATTRIBUTE3_CORE_H
+#ifndef MYC3_CORE_H
+#define MYC3_CORE_H
 
 #include <stdint.h>
 #include <stdbool.h>
