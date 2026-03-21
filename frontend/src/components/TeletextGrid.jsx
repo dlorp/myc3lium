@@ -168,6 +168,48 @@ const FRAGMENT_SHADER = `
   }
 `
 
+/**
+ * Validate content dimensions
+ * @param {string[][]} content - Content array (should be 25 rows × 80 columns)
+ * @throws {Error} If content dimensions are incorrect
+ */
+const validateContentDimensions = (content) => {
+  if (!Array.isArray(content)) {
+    throw new Error(
+      `Content must be an array, got ${typeof content}. Expected: string[][] (25 rows × 80 columns)`
+    )
+  }
+
+  if (content.length !== ROWS) {
+    throw new Error(
+      `Content must have exactly ${ROWS} rows, got ${content.length}. Expected: 25 rows × 80 columns`
+    )
+  }
+
+  for (let i = 0; i < content.length; i++) {
+    const row = content[i]
+    if (!Array.isArray(row)) {
+      throw new Error(
+        `Row ${i} is not an array (got ${typeof row}). Expected: 25 rows × 80 columns`
+      )
+    }
+
+    if (row.length !== COLUMNS) {
+      throw new Error(
+        `Row ${i} has ${row.length} columns, expected ${COLUMNS}. Each row must have exactly 80 columns`
+      )
+    }
+
+    for (let j = 0; j < row.length; j++) {
+      if (typeof row[j] !== 'string') {
+        throw new Error(
+          `Row ${i}, Column ${j}: expected string, got ${typeof row[j]}. All cells must be strings`
+        )
+      }
+    }
+  }
+}
+
 const normalizeContent = (content) => {
   const safeContent = Array.isArray(content) ? content : []
   return Array.from({ length: ROWS }, (_, rowIndex) => {
@@ -189,6 +231,7 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
   const prevFrameTarget = useRef(null)
   const lastFrameTime = useRef(0)
   const [textureLoadError, setTextureLoadError] = useState(null)
+  const [contentError, setContentError] = useState(null)
 
   const { texture, resolution, charWidth, charHeight } = useMemo(() => {
     const charWidthValue = ATLAS_GLYPH_WIDTH
@@ -267,11 +310,30 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
     }
   }, [resolution])
 
+  // Validate content dimensions
+  useEffect(() => {
+    try {
+      validateContentDimensions(content)
+      setContentError(null)
+    } catch (error) {
+      const errorMsg = error.message
+      console.error('Content validation error:', errorMsg)
+      setContentError(errorMsg)
+      if (onTextureError) onTextureError(errorMsg)
+    }
+  }, [content, onTextureError])
+
   useEffect(() => {
     if (!fontAtlasRef.current) {
       if (textureLoadError) {
         console.warn('Skipping render: font atlas not loaded due to error')
       }
+      return
+    }
+
+    // Skip rendering if content has validation errors
+    if (contentError) {
+      console.warn('Skipping render: content validation error')
       return
     }
 
@@ -496,7 +558,15 @@ FpsMonitor.propTypes = {
 
 const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
   const [fps, setFps] = useState(null)
-  const [textureError, setTextureError] = useState(null)
+  const [displayError, setDisplayError] = useState(null)
+
+  const handleError = (error) => {
+    if (error) {
+      setDisplayError(error)
+    } else {
+      setDisplayError(null)
+    }
+  }
 
   return (
     <div
@@ -510,7 +580,7 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         position: 'relative',
       }}
     >
-      {textureError ? (
+      {displayError ? (
         <div
           style={{
             position: 'absolute',
@@ -523,10 +593,11 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
             fontFamily: 'monospace',
             whiteSpace: 'pre-wrap',
             zIndex: 10,
+            maxWidth: '80%',
           }}
         >
           <div>ERROR</div>
-          <div style={{ fontSize: '12px', marginTop: '8px' }}>{textureError}</div>
+          <div style={{ fontSize: '12px', marginTop: '8px' }}>{displayError}</div>
         </div>
       ) : null}
       {showFps && fps !== null ? (
@@ -543,7 +614,7 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         <TeletextPlane 
           content={content} 
           effectsConfig={effectsConfig}
-          onTextureError={setTextureError}
+          onTextureError={handleError}
         />
         {showFps ? <FpsMonitor onSample={setFps} /> : null}
       </Canvas>
