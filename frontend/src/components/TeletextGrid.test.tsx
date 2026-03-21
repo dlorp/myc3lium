@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import React from 'react'
 import TeletextGrid, { COLUMNS, ROWS } from './TeletextGrid'
 
 // Mock Canvas and three-fiber components
 vi.mock('@react-three/fiber', () => ({
-  Canvas: ({ children }: any) => <div data-testid="canvas">{children}</div>,
+  Canvas: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas">{children}</div>,
   useFrame: vi.fn(),
   useThree: vi.fn(() => ({
     viewport: { width: 640, height: 400 },
@@ -25,7 +25,12 @@ vi.mock('three', () => ({
   BufferGeometry: class {},
   ShaderMaterial: class {},
   TextureLoader: class {
-    load = vi.fn((url, onLoad, onProgress, onError) => {
+    load = vi.fn((
+      _url: string,
+      onLoad: (texture: unknown) => void,
+      _onProgress?: (event: ProgressEvent) => void,
+      _onError?: (error: ErrorEvent) => void
+    ) => {
       onLoad({
         minFilter: null,
         magFilter: null,
@@ -78,7 +83,7 @@ describe('TeletextGrid', () => {
 
   describe('Content Dimension Validation', () => {
     it('should throw error if content is not an array', () => {
-      const invalidContent = 'not an array' as any
+      const invalidContent = 'not an array' as unknown as string[][]
       expect(() => {
         render(<TeletextGrid content={invalidContent} />)
       }).toThrow()
@@ -94,9 +99,9 @@ describe('TeletextGrid', () => {
     })
 
     it('should throw error if a row is not an array', () => {
-      const invalidContent: any = Array.from({ length: ROWS }, (_, i) =>
+      const invalidContent = Array.from({ length: ROWS }, (_, i) =>
         i === 5 ? 'not an array' : Array.from({ length: COLUMNS }, () => 'a')
-      )
+      ) as unknown as string[][]
       expect(() => {
         render(<TeletextGrid content={invalidContent} />)
       }).toThrow(/Row 5 is not an array/i)
@@ -114,11 +119,11 @@ describe('TeletextGrid', () => {
     })
 
     it('should throw error if a cell is not a string', () => {
-      const invalidContent: any = Array.from({ length: ROWS }, (_, i) =>
+      const invalidContent = Array.from({ length: ROWS }, (_, i) =>
         Array.from({ length: COLUMNS }, (_, j) =>
           i === 5 && j === 10 ? 123 : 'a'
         )
-      )
+      ) as unknown as string[][]
       expect(() => {
         render(<TeletextGrid content={invalidContent} />)
       }).toThrow(/Row 5, Column 10.*expected string/i)
