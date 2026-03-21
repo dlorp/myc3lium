@@ -11,7 +11,6 @@ Features:
 """
 
 import time
-import math
 import threading
 from collections import deque, defaultdict
 from dataclasses import dataclass, field
