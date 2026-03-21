@@ -422,21 +422,66 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
     draw()
   }, [content, charHeight, charWidth, resolution, texture])
 
+  // Track if content needs to be redrawn
+  const [needsRedraw, setNeedsRedraw] = useState(true)
+  const prevContentRef = useRef(null)
+
+  // Check if content has changed
+  useEffect(() => {
+    const contentStr = JSON.stringify(content)
+    if (prevContentRef.current !== contentStr) {
+      prevContentRef.current = contentStr
+      setNeedsRedraw(true)
+    }
+  }, [content])
+
+  // Only update uniforms and capture frames if there are active effects that need animation
+  const hasAnimatedEffects = useMemo(() => {
+    return (
+      config.enablePhosphor ||
+      config.enableFlicker ||
+      config.enableNoise ||
+      config.enableChromatic ||
+      config.enableBloom
+    )
+  }, [
+    config.enablePhosphor,
+    config.enableFlicker,
+    config.enableNoise,
+    config.enableChromatic,
+    config.enableBloom,
+  ])
+
   useFrame((state) => {
+    // If no animated effects and content hasn't changed, skip rendering
+    if (!hasAnimatedEffects && !needsRedraw) {
+      return
+    }
+
     if (!materialRef.current) return
 
     const now = state.clock.elapsedTime
     const deltaTime = lastFrameTime.current ? now - lastFrameTime.current : 0.016
     lastFrameTime.current = now
 
-    // Update uniforms
-    materialRef.current.uniforms.uTime.value = now
-    materialRef.current.uniforms.uDeltaTime.value = deltaTime
+    // Update uniforms for animated effects
+    if (hasAnimatedEffects) {
+      materialRef.current.uniforms.uTime.value = now
+      materialRef.current.uniforms.uDeltaTime.value = deltaTime
+    }
+
+    // Clear redraw flag after rendering
+    if (needsRedraw) {
+      setNeedsRedraw(false)
+    }
   }, 1) // Priority 1 - update uniforms first
 
   // Capture rendered frame for phosphor trails (runs after render)
   useFrame((state) => {
     if (!materialRef.current || !prevFrameTarget.current) return
+
+    // Only capture if phosphor effect is enabled
+    if (!config.enablePhosphor) return
     
     const gl = state.gl
     
@@ -556,9 +601,10 @@ FpsMonitor.propTypes = {
   onSample: PropTypes.func,
 }
 
-const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
+const TeletextGrid = ({ content, showFps = false, effectsConfig = {} }) => {
   const [fps, setFps] = useState(null)
   const [displayError, setDisplayError] = useState(null)
+  const [hasAnimatedEffects, setHasAnimatedEffects] = useState(true)
 
   const handleError = (error) => {
     if (error) {
@@ -567,6 +613,27 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
       setDisplayError(null)
     }
   }
+
+  // Determine if we need continuous rendering based on active effects
+  useEffect(() => {
+    const config = {
+      enablePhosphor: true,
+      enableFlicker: true,
+      enableNoise: true,
+      enableChromatic: true,
+      enableBloom: true,
+      ...effectsConfig,
+    }
+
+    const hasAnimated = 
+      config.enablePhosphor ||
+      config.enableFlicker ||
+      config.enableNoise ||
+      config.enableChromatic ||
+      config.enableBloom
+
+    setHasAnimatedEffects(hasAnimated)
+  }, [effectsConfig])
 
   return (
     <div
@@ -604,7 +671,7 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         <div className="teletext-fps">FPS {fps}</div>
       ) : null}
       <Canvas
-        frameloop="always"
+        frameloop={hasAnimatedEffects ? 'always' : 'demand'}
         orthographic
         dpr={[1, 1.5]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
