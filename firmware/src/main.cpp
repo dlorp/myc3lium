@@ -56,9 +56,33 @@ static void state_machine_task(void *pvParameters) {
                 
             case NODE_STATE_POL_DETECT:
                 ESP_LOGI(TAG, "STATE: POL_DETECT - Running antenna sweep");
-                ESP_LOGI(TAG, "Sweeping RHCP/LHCP for best signal");
+                ESP_LOGI(TAG, "Current polarization: %s (mode: %u)", 
+                    config.pol_current == POL_RHCP ? "RHCP" : 
+                    config.pol_current == POL_LHCP ? "LHCP" : "UNKNOWN",
+                    config.pol_mode);
+                ESP_LOGI(TAG, "Sweeping RHCP (current RSSI: %d dBm)", config.rssi_rhcp);
+                vTaskDelay(pdMS_TO_TICKS(200));
+                ESP_LOGI(TAG, "Sweeping LHCP (current RSSI: %d dBm)", config.rssi_lhcp);
+                vTaskDelay(pdMS_TO_TICKS(200));
+                
+                if (config.rssi_rhcp > config.rssi_lhcp) {
+                    ESP_LOGI(TAG, "Selected RHCP: %d dBm > LHCP: %d dBm (delta: %d dB)", 
+                        config.rssi_rhcp, config.rssi_lhcp, 
+                        config.rssi_rhcp - config.rssi_lhcp);
+                    config.pol_current = POL_RHCP;
+                } else {
+                    ESP_LOGI(TAG, "Selected LHCP: %d dBm > RHCP: %d dBm (delta: %d dB)", 
+                        config.rssi_lhcp, config.rssi_rhcp, 
+                        config.rssi_lhcp - config.rssi_rhcp);
+                    config.pol_current = POL_LHCP;
+                }
+                
+                ESP_LOGI(TAG, "Polarization detection complete. Active: %s", 
+                    config.pol_current == POL_RHCP ? "RHCP" : "LHCP");
+                ESP_LOGI(TAG, "Next recheck in %u minutes", config.pol_recheck_interval_min);
+                
                 myc3_core_set_state(NODE_STATE_OPERATIONAL);
-                vTaskDelay(pdMS_TO_TICKS(1000));
+                vTaskDelay(pdMS_TO_TICKS(600));
                 break;
                 
             case NODE_STATE_OPERATIONAL:
