@@ -181,13 +181,14 @@ const normalizeContent = (content) => {
   })
 }
 
-const TeletextPlane = ({ content, effectsConfig = {} }) => {
+const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) => {
   const { viewport } = useThree()
   const canvasRef = useRef(document.createElement('canvas'))
   const fontAtlasRef = useRef(null)
   const materialRef = useRef(null)
   const prevFrameTarget = useRef(null)
   const lastFrameTime = useRef(0)
+  const [textureLoadError, setTextureLoadError] = useState(null)
 
   const { texture, resolution, charWidth, charHeight } = useMemo(() => {
     const charWidthValue = ATLAS_GLYPH_WIDTH
@@ -238,13 +239,18 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
         atlasTexture.magFilter = THREE.NearestFilter
         atlasTexture.generateMipmaps = false
         fontAtlasRef.current = atlasTexture
+        setTextureLoadError(null) // Clear error on successful load
+        if (onTextureError) onTextureError(null)
       },
       undefined,
       (error) => {
-        console.error('Failed to load font atlas:', error)
+        const errorMsg = `Failed to load font atlas: ${error.message || 'Unknown error'}`
+        console.error(errorMsg)
+        setTextureLoadError(errorMsg)
+        if (onTextureError) onTextureError(errorMsg)
       }
     )
-  }, [])
+  }, [onTextureError])
 
   // Initialize render target for phosphor trails
   useEffect(() => {
@@ -262,7 +268,12 @@ const TeletextPlane = ({ content, effectsConfig = {} }) => {
   }, [resolution])
 
   useEffect(() => {
-    if (!fontAtlasRef.current) return
+    if (!fontAtlasRef.current) {
+      if (textureLoadError) {
+        console.warn('Skipping render: font atlas not loaded due to error')
+      }
+      return
+    }
 
     const draw = () => {
       const grid = normalizeContent(content)
@@ -476,6 +487,7 @@ TeletextPlane.propTypes = {
     noiseAmount: PropTypes.number,
     flickerAmount: PropTypes.number,
   }),
+  onTextureError: PropTypes.func,
 }
 
 FpsMonitor.propTypes = {
@@ -484,6 +496,7 @@ FpsMonitor.propTypes = {
 
 const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
   const [fps, setFps] = useState(null)
+  const [textureError, setTextureError] = useState(null)
 
   return (
     <div
@@ -497,6 +510,25 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         position: 'relative',
       }}
     >
+      {textureError ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#ff6b6b',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            whiteSpace: 'pre-wrap',
+            zIndex: 10,
+          }}
+        >
+          <div>ERROR</div>
+          <div style={{ fontSize: '12px', marginTop: '8px' }}>{textureError}</div>
+        </div>
+      ) : null}
       {showFps && fps !== null ? (
         <div className="teletext-fps">FPS {fps}</div>
       ) : null}
@@ -508,7 +540,11 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig }) => {
         camera={{ position: [0, 0, 10], zoom: 1 }}
       >
         <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={1} />
-        <TeletextPlane content={content} effectsConfig={effectsConfig} />
+        <TeletextPlane 
+          content={content} 
+          effectsConfig={effectsConfig}
+          onTextureError={setTextureError}
+        />
         {showFps ? <FpsMonitor onSample={setFps} /> : null}
       </Canvas>
     </div>
@@ -530,6 +566,7 @@ TeletextGrid.propTypes = {
     noiseAmount: PropTypes.number,
     flickerAmount: PropTypes.number,
   }),
+  onTextureError: PropTypes.func,
 }
 
 export default TeletextGrid
