@@ -69,4 +69,28 @@ menu "myc3lium Handheld Configuration"
         help
             Default wake interval for sensor nodes.
 
+    config MYC3_NVS_ENCRYPTION
+        bool "Require NVS encryption"
+        default y
+        help
+            Prevent builds that disable encrypted NVS storage.
+
+    config MYC3_SECURE_BOOT
+        bool "Require secure boot"
+        default y
+        help
+            Prevent builds that disable secure boot.
+
+    config MYC3_FLASH_ENCRYPTION
+        bool "Require flash encryption"
+        default y
+        help
+            Prevent builds that disable flash encryption.
+
+    config MYC3_APP_ANTI_ROLLBACK
+        bool "Require OTA anti-rollback"
+        default y
+        help
+            Prevent builds that disable application anti-rollback protection.
+
 endmenu

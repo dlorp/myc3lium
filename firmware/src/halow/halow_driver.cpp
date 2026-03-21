@@ -1,10 +1,26 @@
 #include "halow_driver.h"
 #include "esp_log.h"
 #include "driver/uart.h"
+#include <ctype.h>
 
 static const char *TAG = "halow_driver";
 
 static bool halow_initialized = false;
+
+static bool is_safe_ssid(const char *value) {
+    if (!value || value[0] == '\0') {
+        return false;
+    }
+
+    for (size_t i = 0; value[i] != '\0'; ++i) {
+        const unsigned char ch = (unsigned char)value[i];
+        if (!(isalnum(ch) || ch == '-' || ch == '_')) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 void halow_driver_init(void) {
     ESP_LOGI(TAG, "Initializing HT-HC01P HaLow driver");
@@ -58,6 +74,13 @@ bool halow_driver_transmit(const uint8_t *data, size_t len) {
         ESP_LOGE(TAG, "transmit: invalid data");
         return false;
     }
+
+    if (len > LORA_MAX_PACKET_SIZE) {
+        ESP_LOGE(TAG, "transmit: payload length %u exceeds max %u",
+                 (unsigned int)len,
+                 (unsigned int)LORA_MAX_PACKET_SIZE);
+        return false;
+    }
     
     ESP_LOGI(TAG, "Transmitting %u bytes via HaLow (stub)", (unsigned int)len);
     return true;
@@ -89,6 +112,11 @@ bool halow_driver_join_mesh(const char *ssid, const char *key) {
     
     if (!ssid || !key) {
         ESP_LOGE(TAG, "join_mesh: invalid credentials");
+        return false;
+    }
+
+    if (!is_safe_ssid(ssid) || !is_safe_ssid(key)) {
+        ESP_LOGE(TAG, "join_mesh: rejected unsafe AT command input");
         return false;
     }
     

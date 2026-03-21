@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define LORA_MAX_PACKET_SIZE 255
+
 typedef enum {
     HALOW_RX = 0,
     HALOW_TX = 1,

@@ -23,4 +23,20 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/components")
 
 project(myc3lium_handheld)
 
+if(NOT DEFINED CONFIG_MYC3_NVS_ENCRYPTION OR NOT CONFIG_MYC3_NVS_ENCRYPTION)
+    message(FATAL_ERROR "CONFIG_MYC3_NVS_ENCRYPTION must be enabled for secure builds")
+endif()
+
+if(NOT DEFINED CONFIG_MYC3_SECURE_BOOT OR NOT CONFIG_MYC3_SECURE_BOOT)
+    message(FATAL_ERROR "CONFIG_MYC3_SECURE_BOOT must be enabled for secure builds")
+endif()
+
+if(NOT DEFINED CONFIG_MYC3_FLASH_ENCRYPTION OR NOT CONFIG_MYC3_FLASH_ENCRYPTION)
+    message(FATAL_ERROR "CONFIG_MYC3_FLASH_ENCRYPTION must be enabled for secure builds")
+endif()
+
+if(NOT DEFINED CONFIG_MYC3_APP_ANTI_ROLLBACK OR NOT CONFIG_MYC3_APP_ANTI_ROLLBACK)
+    message(FATAL_ERROR "CONFIG_MYC3_APP_ANTI_ROLLBACK must be enabled for secure builds")
+endif()
+
 idf_build_executable(myc3lium_handheld.elf)
