@@ -1,0 +1,72 @@
+#ifndef MYATTRIBUTE3_CORE_H
+#define MYATTRIBUTE3_CORE_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    NODE_STATE_BOOT = 0,
+    NODE_STATE_CONFIG,
+    NODE_STATE_SETUP_MODE,
+    NODE_STATE_CONNECT,
+    NODE_STATE_POL_DETECT,
+    NODE_STATE_OPERATIONAL,
+    NODE_STATE_ERROR,
+} node_state_t;
+
+typedef enum {
+    POL_UNKNOWN = 0,
+    POL_RHCP = 1,
+    POL_LHCP = 2,
+} pol_state_t;
+
+typedef enum {
+    ROLE_SENSOR = 0,
+    ROLE_RELAY = 1,
+    ROLE_ENDPOINT = 2,
+    ROLE_GATEWAY = 3,
+} node_role_t;
+
+typedef struct {
+    char uuid[37];
+    char node_name[32];
+    node_role_t role;
+    uint8_t hw_variant;
+    
+    pol_state_t pol_current;
+    uint8_t pol_mode;
+    int8_t rssi_rhcp;
+    int8_t rssi_lhcp;
+    uint16_t pol_recheck_interval_min;
+    
+    char mesh_ssid[32];
+    char mesh_key[64];
+    uint32_t router_ip;
+    
+    uint8_t sleep_enabled;
+    uint16_t wake_interval_sec;
+    int8_t tx_power_dbm;
+    
+    uint32_t last_pol_check;
+    node_state_t current_state;
+} myc3_config_t;
+
+void myc3_core_init(void);
+void myc3_core_load_config(myc3_config_t *config);
+void myc3_core_save_config(const myc3_config_t *config);
+void myc3_core_reset_config(void);
+void myc3_core_set_state(node_state_t state);
+node_state_t myc3_core_get_state(void);
+void myc3_core_get_uuid(char *uuid_buf, size_t buf_len);
+void myc3_core_set_node_name(const char *name);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

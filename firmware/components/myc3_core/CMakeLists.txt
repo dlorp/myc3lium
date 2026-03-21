@@ -1,0 +1,9 @@
+idf_component_register(
+    SRCS
+        "myc3_core.cpp"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        "nvs_flash"
+        "esp_system"
+)

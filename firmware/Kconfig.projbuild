@@ -1,0 +1,72 @@
+menu "myc3lium Handheld Configuration"
+
+    choice MYC3_VARIANT_CHOICE
+        prompt "Hardware Variant"
+        default MYC3_VARIANT_HALOW
+        help
+            Select the target hardware variant.
+            
+            Variant A: HT-HC01P HaLow radio (ESP32-S3 CAM)
+            Variant B: SX1262 LoRa radio + OLED (Heltec V3)
+
+        config MYC3_VARIANT_HALOW
+            bool "Variant A: HT-HC01P HaLow"
+            
+        config MYC3_VARIANT_LORA
+            bool "Variant B: SX1262 LoRa + OLED"
+    endchoice
+
+    config MYC3_FIRMWARE_VERSION
+        string "Firmware Version"
+        default "0.1.0"
+        help
+            Semantic version string for the firmware.
+
+    config MYC3_POL_SAMPLES
+        int "Polarization Sweep Samples"
+        default 10
+        range 5 20
+        help
+            Number of RSSI samples to collect per polarization.
+
+    config MYC3_POL_MARGIN_DB
+        int "Polarization Decision Margin (dB)"
+        default 3
+        range 1 10
+        help
+            Minimum dB difference to declare a polarization winner.
+
+    config MYC3_POL_RECHECK_MIN
+        int "Polarization Re-check Interval (minutes)"
+        default 30
+        range 5 1440
+        help
+            How often to re-check polarization during operation.
+
+    config MYC3_MESH_SSID_DEFAULT
+        string "Default Mesh SSID"
+        default "myc3-mesh"
+        help
+            Default mesh network SSID.
+
+    config MYC3_TX_POWER_DBM
+        int "Default TX Power (dBm)"
+        default 14
+        range -9 22
+        help
+            Default transmit power in dBm.
+
+    config MYC3_SLEEP_ENABLED
+        bool "Enable Sleep Modes"
+        default y
+        help
+            Enable light/deep sleep modes for power savings.
+
+    config MYC3_WAKE_INTERVAL_SEC
+        int "Default Wake Interval (seconds)"
+        default 60
+        range 10 3600
+        help
+            Default wake interval for sensor nodes.
+
+endmenu
