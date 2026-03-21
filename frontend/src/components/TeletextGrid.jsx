@@ -420,7 +420,7 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
     }
 
     draw()
-  }, [content, charHeight, charWidth, resolution, texture])
+  }, [content, charHeight, charWidth, resolution, texture, contentError, textureLoadError])
 
   // Track if content needs to be redrawn
   const [needsRedraw, setNeedsRedraw] = useState(true)
