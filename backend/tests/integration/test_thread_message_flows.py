@@ -97,7 +97,9 @@ class TestThreadMessageLifecycle:
         all_messages = get_messages(client, limit=10)
 
         # Find our messages in the response
-        our_messages = [m for m in all_messages if m["id"] in [msg["id"] for msg in messages]]
+        our_messages = [
+            m for m in all_messages if m["id"] in [msg["id"] for msg in messages]
+        ]
         assert len(our_messages) == 3, "All 3 messages should be returned"
 
         # Verify they're in newest-first order (msg3, msg2, msg1)

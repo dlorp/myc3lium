@@ -140,10 +140,14 @@ def test_satellite_pass_elevation_range():
 
     # Invalid elevation (out of range)
     with pytest.raises(ValidationError):
-        SatellitePass(id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=95.0)
+        SatellitePass(
+            id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=95.0
+        )
 
     with pytest.raises(ValidationError):
-        SatellitePass(id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=-5.0)
+        SatellitePass(
+            id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=-5.0
+        )
 
 
 def test_satellite_pass_azimuth_range():
@@ -181,7 +185,9 @@ def test_satellite_pass_optional_azimuths():
     aos = datetime(2026, 3, 16, 14, 23, 0, tzinfo=timezone.utc)
     los = datetime(2026, 3, 16, 14, 35, 0, tzinfo=timezone.utc)
 
-    sat_pass = SatellitePass(id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=45.0)
+    sat_pass = SatellitePass(
+        id="pass_001", name="Test Sat", aos=aos, los=los, max_elevation=45.0
+    )
 
     assert sat_pass.azimuth_aos is None
     assert sat_pass.azimuth_los is None

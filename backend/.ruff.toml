@@ -1,0 +1,6 @@
+[lint]
+ignore = [
+    "N806",  # Variable names (R, S, K for math constants)
+    "N801",  # Class names (GPS_NMEA_Driver matches hardware)
+    "E501",  # Line length (long XML strings)
+]

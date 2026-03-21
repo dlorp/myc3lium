@@ -35,7 +35,9 @@ class TestGetThreads:
 
         threads = response.json()
         for thread in threads:
-            assert thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            assert (
+                thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            )
 
     def test_filter_by_node_id_target(self):
         """Test filtering threads by target node ID"""
@@ -44,7 +46,9 @@ class TestGetThreads:
 
         threads = response.json()
         for thread in threads:
-            assert thread["source_id"] == "node_002" or thread["target_id"] == "node_002"
+            assert (
+                thread["source_id"] == "node_002" or thread["target_id"] == "node_002"
+            )
 
     def test_filter_by_radio_type_lora(self):
         """Test filtering threads by LoRa radio type"""
@@ -106,7 +110,9 @@ class TestGetThreads:
 
         threads = response.json()
         for thread in threads:
-            assert thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            assert (
+                thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            )
             assert thread["radio_type"] == "LoRa"
 
     def test_filter_by_node_and_min_quality(self):
@@ -116,17 +122,23 @@ class TestGetThreads:
 
         threads = response.json()
         for thread in threads:
-            assert thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            assert (
+                thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            )
             assert thread["quality"] >= 0.7
 
     def test_filter_by_all_parameters(self):
         """Test combining all three filters"""
-        response = client.get("/api/threads?node_id=node_001&radio_type=LoRa&min_quality=0.5")
+        response = client.get(
+            "/api/threads?node_id=node_001&radio_type=LoRa&min_quality=0.5"
+        )
         assert response.status_code == 200
 
         threads = response.json()
         for thread in threads:
-            assert thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            assert (
+                thread["source_id"] == "node_001" or thread["target_id"] == "node_001"
+            )
             assert thread["radio_type"] == "LoRa"
             assert thread["quality"] >= 0.5
 
@@ -205,7 +217,9 @@ class TestPatchThread:
 
         # Update quality
         new_quality = 0.75
-        response = client.patch(f"/api/threads/{thread_id}", json={"quality": new_quality})
+        response = client.patch(
+            f"/api/threads/{thread_id}", json={"quality": new_quality}
+        )
         assert response.status_code == 200
 
         updated_thread = response.json()
@@ -291,7 +305,9 @@ class TestPatchThread:
 
     def test_patch_nonexistent_thread(self):
         """Test PATCH on a thread that doesn't exist"""
-        response = client.patch("/api/threads/nonexistent_thread", json={"quality": 0.9})
+        response = client.patch(
+            "/api/threads/nonexistent_thread", json={"quality": 0.9}
+        )
         assert response.status_code == 404
 
     def test_patch_preserves_other_fields(self):
@@ -319,7 +335,9 @@ class TestPatchThread:
         thread_id = threads[0]["id"]
 
         # Set optional fields to null
-        response = client.patch(f"/api/threads/{thread_id}", json={"rssi": None, "latency": None})
+        response = client.patch(
+            f"/api/threads/{thread_id}", json={"rssi": None, "latency": None}
+        )
         assert response.status_code == 200
 
         updated_thread = response.json()
@@ -448,7 +466,9 @@ class TestEdgeCases:
         original_source = threads[0]["source_id"]
 
         # Try to update source_id (not in ThreadPatch schema)
-        response = client.patch(f"/api/threads/{thread_id}", json={"source_id": "node_999"})
+        response = client.patch(
+            f"/api/threads/{thread_id}", json={"source_id": "node_999"}
+        )
         assert response.status_code == 200
 
         updated_thread = response.json()
