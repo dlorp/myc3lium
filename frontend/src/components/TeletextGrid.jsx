@@ -233,6 +233,21 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
   const [textureLoadError, setTextureLoadError] = useState(null)
   const [contentError, setContentError] = useState(null)
 
+  // Default effect configuration - MOVED HERE before useMemo/useFrame
+  const config = {
+    enableChromatic: true,
+    enableBloom: true,
+    enablePhosphor: true,
+    enableNoise: true,
+    enableFlicker: true,
+    chromaticAmount: 0.001,
+    bloomStrength: 0.45,
+    phosphorDecay: 0.88,
+    noiseAmount: 0.04,
+    flickerAmount: 0.012,
+    ...effectsConfig,
+  }
+
   const { texture, resolution, charWidth, charHeight } = useMemo(() => {
     const charWidthValue = ATLAS_GLYPH_WIDTH
     const charHeightValue = ATLAS_GLYPH_HEIGHT
@@ -496,21 +511,6 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
     // Update the uniform so next frame can use it
     materialRef.current.uniforms.uPrevFrame.value = prevFrameTarget.current.texture
   }, 2) // Priority 2 - capture after rendering
-
-  // Default effect configuration
-  const config = {
-    enableChromatic: true,
-    enableBloom: true,
-    enablePhosphor: true,
-    enableNoise: true,
-    enableFlicker: true,
-    chromaticAmount: 0.001,
-    bloomStrength: 0.45,
-    phosphorDecay: 0.88,
-    noiseAmount: 0.04,
-    flickerAmount: 0.012,
-    ...effectsConfig,
-  }
 
   return (
     <mesh scale={[viewport.width, viewport.height, 1]}>
