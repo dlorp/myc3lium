@@ -250,6 +250,8 @@ EOF
                 fi
             done
             echo "$USER:$USER" | chpasswd
+            log_warn "⚠️  DEFAULT PASSWORD SET: myc3lium"
+            log_warn "⚠️  CHANGE IMMEDIATELY: passwd myc3lium"
         fi
     else
         log_info "User $USER already exists"

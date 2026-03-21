@@ -2,6 +2,14 @@
 
 **Critical issues found in deployment scripts:**
 
+## Security Notice
+
+setup-pi4-fixed.sh creates user `myc3lium` with default password `myc3lium`.
+**Change this immediately after first login:**
+```bash
+passwd myc3lium
+```
+
 ## setup-pi4.sh
 
 **Problems:**
