@@ -9,6 +9,16 @@
 extern "C" {
 #endif
 
+#define UUID_MAX 37
+#define NODE_NAME_MAX 32
+#define SSID_MAX 32
+#define MESH_KEY_MAX 64
+#define WAKE_INTERVAL_MAX_SEC 3600
+#define TX_POWER_MIN_DBM (-4)
+#define TX_POWER_MAX_DBM 20
+#define RSSI_MIN_DBM (-120)
+#define RSSI_MAX_DBM 0
+
 typedef enum {
     NODE_STATE_BOOT = 0,
     NODE_STATE_CONFIG,
@@ -33,8 +43,8 @@ typedef enum {
 } node_role_t;
 
 typedef struct {
-    char uuid[37];
-    char node_name[32];
+    char uuid[UUID_MAX];
+    char node_name[NODE_NAME_MAX];
     node_role_t role;
     uint8_t hw_variant;
     
@@ -44,8 +54,8 @@ typedef struct {
     int8_t rssi_lhcp;
     uint16_t pol_recheck_interval_min;
     
-    char mesh_ssid[32];
-    char mesh_key[64];
+    char mesh_ssid[SSID_MAX];
+    char mesh_key[MESH_KEY_MAX];
     uint32_t router_ip;
     
     uint8_t sleep_enabled;

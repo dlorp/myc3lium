@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define LORA_MAX_PACKET_SIZE 255
+
 typedef enum {
     LORA_FREQ_915MHZ = 915000000,
     LORA_FREQ_868MHZ = 868000000,
