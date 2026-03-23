@@ -70,7 +70,7 @@ def set_mesh_store(mesh_store: MeshStore):
         # Create a task to broadcast (handlers must be sync, so we schedule the async broadcast)
         # Fix: Use get_running_loop() to ensure we have an active event loop (Bug #2)
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()  # Verify loop exists
             asyncio.create_task(manager.broadcast(message))
         except RuntimeError:
             # No event loop available (e.g., during testing without async context)
