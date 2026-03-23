@@ -6,6 +6,7 @@
 #define TAP_H
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #define TAP_DEVICE_NAME  "lora0"
 #define TAP_MTU          1500
