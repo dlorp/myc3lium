@@ -21,7 +21,8 @@ export type WebSocketEventType =
   | 'echo'
   | 'client_disconnected'
   | 'store_cleared'
-  | 'store_loaded';
+  | 'store_loaded'
+  | 'mesh_update';
 
 export interface WebSocketMessage {
   event: WebSocketEventType;
