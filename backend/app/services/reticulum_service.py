@@ -157,7 +157,9 @@ class ReticulumBridge:
             if os.path.exists(self._identity_path):
                 try:
                     self._identity = _RNS.Identity.from_file(self._identity_path)
-                    logger.info("Loaded Reticulum identity from %s", self._identity_path)
+                    logger.info(
+                        "Loaded Reticulum identity from %s", self._identity_path
+                    )
                 except Exception as e:
                     logger.warning("Failed to load identity, creating new: %s", e)
                     self._identity = _RNS.Identity()

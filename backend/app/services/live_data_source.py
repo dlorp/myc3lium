@@ -153,7 +153,9 @@ class LiveDataSource(MeshDataSource):
         neighbors = batctl_service.get_neighbors()
 
         if neighbors is None:
-            logger.warning("batctl neighbors unavailable — falling back to mock threads")
+            logger.warning(
+                "batctl neighbors unavailable — falling back to mock threads"
+            )
             return self._mock_source.get_threads()
 
         # Convert batctl neighbors to Thread objects
@@ -204,7 +206,9 @@ class LiveDataSource(MeshDataSource):
             List of Message objects
         """
         if not self._use_live or not self._reticulum_bridge:
-            logger.debug("Using mock messages (live mode disabled or Reticulum unavailable)")
+            logger.debug(
+                "Using mock messages (live mode disabled or Reticulum unavailable)"
+            )
             return self._mock_source.get_messages()
 
         # Fetch LXMF inbox
@@ -219,7 +223,9 @@ class LiveDataSource(MeshDataSource):
                     sender_id=lxmf_msg.source_hash,
                     recipient_id=None,  # Broadcast (we're the recipient)
                     content=lxmf_msg.content,
-                    timestamp=datetime.fromtimestamp(lxmf_msg.timestamp, tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(
+                        lxmf_msg.timestamp, tz=timezone.utc
+                    ),
                     hops=0,  # LXMF doesn't expose hop count in inbox
                 )
                 messages.append(msg)
