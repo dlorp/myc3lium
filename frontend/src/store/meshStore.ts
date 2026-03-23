@@ -375,9 +375,3 @@ const useMeshStore = create<MeshStore>((set, get) => ({
 }));
 
 export default useMeshStore;
-= messageId),
-    }));
-  },
-}));
-
-export default useMeshStore;
