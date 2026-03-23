@@ -99,7 +99,11 @@ async def radio_status():
         stats = batctl_service.get_interface_stats(iface)
         # Fix: get_neighbors() takes no arguments, filter by interface instead (H-3)
         all_neighbors = batctl_service.get_neighbors() if stats else None
-        neighbors = [n for n in (all_neighbors or []) if n.interface == iface] if all_neighbors else None
+        neighbors = (
+            [n for n in (all_neighbors or []) if n.interface == iface]
+            if all_neighbors
+            else None
+        )
 
         radios[iface] = {
             "name": iface,

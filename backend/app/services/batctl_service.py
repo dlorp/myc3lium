@@ -32,7 +32,7 @@ MESHIF = "bat0"
 BATCTL_TIMEOUT_SECONDS = 10
 
 # Security: Interface name validation pattern to prevent path traversal
-VALID_IFACE_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+VALID_IFACE_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 @dataclass
@@ -188,7 +188,8 @@ def get_neighbors() -> Optional[list[Neighbor]]:
             # wlan0  aa:bb:cc:dd:ee:01    0.160s ( 255)
             # Security: Use bounded quantifiers to prevent catastrophic backtracking (H-2)
             match = re.match(
-                r"^(\S{1,20})\s{1,10}([\da-f:]{17})\s{1,10}([\d.]{1,10})s\s{1,10}\(\s{0,5}(\d{1,3})\)", line
+                r"^(\S{1,20})\s{1,10}([\da-f:]{17})\s{1,10}([\d.]{1,10})s\s{1,10}\(\s{0,5}(\d{1,3})\)",
+                line,
             )
             if match:
                 neighbors.append(
