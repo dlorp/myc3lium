@@ -1,0 +1,28 @@
+[Unit]
+Description=myc3lium LoRa TAP Bridge
+Documentation=https://github.com/yourusername/myc3lium
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/lora-tap-bridge
+ExecStartPost=/bin/sh -c 'sleep 2; ip addr add 10.0.0.1/24 dev lora0; ip link set lora0 up'
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/dev
+
+# Resource limits
+LimitNOFILE=65536
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target
