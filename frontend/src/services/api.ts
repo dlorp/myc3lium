@@ -203,6 +203,71 @@ export async function deleteMessage(messageId: string): Promise<void> {
 }
 
 // ============================================================================
+// Mesh Status API
+// ============================================================================
+
+export interface MeshStatus {
+  batman: {
+    available: boolean;
+    originators: number;
+    neighbors: number;
+  };
+  reticulum: {
+    available: boolean;
+    status: string;
+    interfaces: string[];
+  } | null;
+}
+
+export interface RadioStatus {
+  radios: Array<{
+    name: string;
+    type: string;
+    status: string;
+    throughput: number | null;
+    neighbors: number;
+  }>;
+}
+
+export interface MeshTopology {
+  nodes: Node[];
+  edges: Thread[];
+}
+
+export interface MeshStatistics {
+  available: boolean;
+  data: Record<string, number | string>;
+}
+
+/**
+ * Get overall mesh status (BATMAN + Reticulum)
+ */
+export async function fetchMeshStatus(): Promise<MeshStatus> {
+  return apiFetch<MeshStatus>('/api/mesh/status');
+}
+
+/**
+ * Get per-radio interface status
+ */
+export async function fetchRadioStatus(): Promise<RadioStatus> {
+  return apiFetch<RadioStatus>('/api/mesh/radios');
+}
+
+/**
+ * Get full mesh topology (nodes + edges)
+ */
+export async function fetchMeshTopology(): Promise<MeshTopology> {
+  return apiFetch<MeshTopology>('/api/mesh/topology');
+}
+
+/**
+ * Get BATMAN network statistics
+ */
+export async function fetchMeshStatistics(): Promise<MeshStatistics> {
+  return apiFetch<MeshStatistics>('/api/mesh/statistics');
+}
+
+// ============================================================================
 // Health Check
 // ============================================================================
 

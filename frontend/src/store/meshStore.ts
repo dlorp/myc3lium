@@ -10,9 +10,11 @@ import {
   fetchNodes,
   fetchThreads,
   fetchMessages,
+  fetchMeshStatus,
   type Node,
   type Thread,
   type Message,
+  type MeshStatus,
 } from '../services/api';
 import {
   connectWebSocket,
@@ -26,16 +28,19 @@ interface MeshStore {
   nodes: Node[];
   threads: Thread[];
   messages: Message[];
+  meshStatus: MeshStatus | null;
 
   // Loading states
   nodesLoading: boolean;
   threadsLoading: boolean;
   messagesLoading: boolean;
+  meshStatusLoading: boolean;
 
   // Error states
   nodesError: string | null;
   threadsError: string | null;
   messagesError: string | null;
+  meshStatusError: string | null;
 
   // WebSocket connection
   wsConnected: boolean;
@@ -44,6 +49,7 @@ interface MeshStore {
   loadNodes: () => Promise<void>;
   loadThreads: () => Promise<void>;
   loadMessages: () => Promise<void>;
+  loadMeshStatus: () => Promise<void>;
   loadAll: () => Promise<void>;
   
   connectWS: () => void;
@@ -67,14 +73,17 @@ const useMeshStore = create<MeshStore>((set, get) => ({
   nodes: [],
   threads: [],
   messages: [],
+  meshStatus: null,
 
   nodesLoading: false,
   threadsLoading: false,
   messagesLoading: false,
+  meshStatusLoading: false,
 
   nodesError: null,
   threadsError: null,
   messagesError: null,
+  meshStatusError: null,
 
   wsConnected: false,
 
@@ -128,13 +137,29 @@ const useMeshStore = create<MeshStore>((set, get) => ({
   },
 
   /**
-   * Load all data (nodes, threads, messages)
+   * Load mesh status (BATMAN + Reticulum availability)
+   */
+  loadMeshStatus: async () => {
+    set({ meshStatusLoading: true, meshStatusError: null });
+    try {
+      const status = await fetchMeshStatus();
+      set({ meshStatus: status, meshStatusLoading: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load mesh status';
+      set({ meshStatusError: errorMessage, meshStatusLoading: false });
+      console.error('[MeshStore] Failed to load mesh status:', error);
+    }
+  },
+
+  /**
+   * Load all data (nodes, threads, messages, mesh status)
    */
   loadAll: async () => {
     await Promise.all([
       get().loadNodes(),
       get().loadThreads(),
       get().loadMessages(),
+      get().loadMeshStatus(),
     ]);
   },
 
@@ -214,6 +239,15 @@ const useMeshStore = create<MeshStore>((set, get) => ({
     client.on('store_cleared', () => {
       console.log('[MeshStore] Store cleared on backend');
       set({ nodes: [], threads: [], messages: [] });
+    });
+
+    // Subscribe to mesh_update events (Phase 3: real-time mesh monitoring)
+    client.on('mesh_update', (msg: WebSocketMessage) => {
+      if (msg.data) {
+        console.log('[MeshStore] Mesh topology changed, refreshing data');
+        // Refresh all data from REST API to get the updated state
+        get().loadAll();
+      }
     });
 
     // Track disconnection
