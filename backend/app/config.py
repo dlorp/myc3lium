@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "MYC3LIUM"
     debug: bool = False
     api_prefix: str = "/api"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["*"]
 
     # Auto-detect: use live data on Linux (Pi), mock on Mac
     use_live_data: bool = platform.system() == "Linux"
