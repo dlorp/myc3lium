@@ -131,7 +131,7 @@ int fragment_decode(const uint8_t *data, size_t len, lora_fragment_t *frag)
         return -1;
     }
 
-    if (len < FRAG_HEADER_SIZE + frag->payload_len) {
+    if (len < (size_t)(FRAG_HEADER_SIZE + frag->payload_len)) {
         fprintf(stderr, "Truncated fragment: %zu < %d\n", 
                 len, FRAG_HEADER_SIZE + frag->payload_len);
         return -1;
