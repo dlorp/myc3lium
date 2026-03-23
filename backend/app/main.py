@@ -21,10 +21,11 @@ app = FastAPI(
 )
 
 # CORS middleware for frontend communication
+# Allow all origins for mesh network - nodes may access from different IPs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False with allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
