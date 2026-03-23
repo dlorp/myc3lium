@@ -103,6 +103,9 @@ class LiveDataSource(MeshDataSource):
         nodes = []
         for idx, orig in enumerate(originators):
             # Determine node type based on TQ and interface
+            from typing import Literal
+
+            node_type: Literal["SPORE", "HYPHA", "FROND", "RHIZOME"]
             if orig.tq > 240:
                 node_type = "HYPHA"  # High-quality relay
             elif orig.tq > 200:
@@ -113,6 +116,7 @@ class LiveDataSource(MeshDataSource):
                 node_type = "RHIZOME"  # Very weak/intermittent
 
             # Determine status from last_seen
+            status: Literal["online", "offline", "degraded"]
             if orig.last_seen < 1.0:
                 status = "online"
             elif orig.last_seen < 5.0:
@@ -162,6 +166,9 @@ class LiveDataSource(MeshDataSource):
         threads = []
         for idx, neighbor in enumerate(neighbors):
             # Determine radio type from interface name
+            from typing import Literal
+
+            radio_type: Literal["LoRa", "HaLow", "WiFi"]
             if "wlan" in neighbor.interface.lower():
                 radio_type = "WiFi"
             elif "lora" in neighbor.interface.lower():

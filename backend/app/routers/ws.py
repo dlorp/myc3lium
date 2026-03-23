@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.services import batctl_service
-from app.services.live_data_source import LiveDataSource
+from app.services.mock_data import MeshDataSource
 from app.services.mesh_store import MeshStore
 from app.websocket import manager
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _mesh_store: Optional[MeshStore] = None
 
 # Global data source for mesh monitoring
-_data_source: Optional[LiveDataSource] = None
+_data_source: Optional[MeshDataSource] = None
 _monitor_running = False
 
 
@@ -79,12 +79,12 @@ def set_mesh_store(mesh_store: MeshStore):
     mesh_store.on_event(broadcast_mesh_event)
 
 
-def set_data_source(data_source: LiveDataSource):
+def set_data_source(data_source: MeshDataSource):
     """
     Initialize the data source for mesh monitoring
 
     Args:
-        data_source: LiveDataSource instance to poll for mesh updates
+        data_source: MeshDataSource instance to poll for mesh updates
     """
     global _data_source
     _data_source = data_source

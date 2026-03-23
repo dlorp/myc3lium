@@ -14,13 +14,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services import batctl_service
-from app.services.live_data_source import LiveDataSource
+from app.services.mock_data import MeshDataSource
 from app.services.reticulum_service import ReticulumBridge
 
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
 
 # Global service instances - will be set by main.py
-_data_source: Optional[LiveDataSource] = None
+_data_source: Optional[MeshDataSource] = None
 _reticulum: Optional[ReticulumBridge] = None
 
 
@@ -41,7 +41,7 @@ class RadioStatus(BaseModel):
     neighbors: int
 
 
-def set_services(data_source: LiveDataSource, reticulum: ReticulumBridge):
+def set_services(data_source: MeshDataSource, reticulum: ReticulumBridge):
     """
     Inject service dependencies (called by main.py)
 

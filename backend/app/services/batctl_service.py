@@ -23,7 +23,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +267,7 @@ def get_interface_stats(interface: str) -> Optional[InterfaceStats]:
         return None
 
 
-def get_statistics() -> Optional[dict]:
+def get_statistics() -> Optional[dict[str, Union[int, str]]]:
     """
     Parse `batctl meshif bat0 statistics` output.
 
@@ -292,7 +292,7 @@ def get_statistics() -> Optional[dict]:
             )
             return None
 
-        stats = {}
+        stats: dict[str, Union[int, str]] = {}
         for line in result.stdout.splitlines():
             # Parse lines like "mgmt_tx: 1234" or "mgmt_tx_bytes: 567890"
             parts = line.strip().split(":")
