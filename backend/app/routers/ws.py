@@ -15,7 +15,10 @@ from app.websocket import manager
 
 router = APIRouter(tags=["websocket"])
 
+# Constants (Fix: Magic numbers H-5)
 MAX_MESSAGE_SIZE = 4096
+MESH_MONITOR_INTERVAL_SECONDS = 5
+BATCTL_TIMEOUT_SECONDS = 10
 
 logger = logging.getLogger(__name__)
 
@@ -65,16 +68,13 @@ def set_mesh_store(mesh_store: MeshStore):
         }
 
         # Create a task to broadcast (handlers must be sync, so we schedule the async broadcast)
+        # Fix: Use get_running_loop() to ensure we have an active event loop (Bug #2)
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(manager.broadcast(message))
-            else:
-                # If no loop is running, we can't broadcast (shouldn't happen in production)
-                pass
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(manager.broadcast(message))
         except RuntimeError:
             # No event loop available (e.g., during testing without async context)
-            pass
+            logger.warning("Cannot broadcast: no event loop running")
 
     mesh_store.on_event(broadcast_mesh_event)
 
@@ -104,77 +104,83 @@ async def mesh_monitor_loop():
 
     logger.info("Mesh monitor loop started")
 
-    while _monitor_running:
-        try:
-            # Check if batctl is available (gracefully skip on Mac)
-            if not batctl_service.is_available():
-                logger.debug("batctl not available, sleeping...")
-                await asyncio.sleep(10)
-                continue
+    # Fix: Proper cancellation handling (H-6)
+    try:
+        while _monitor_running:
+            try:
+                # Check if batctl is available (gracefully skip on Mac)
+                if not batctl_service.is_available():
+                    logger.debug("batctl not available, sleeping...")
+                    await asyncio.sleep(10)
+                    continue
 
-            # Poll batctl for current mesh state
-            originators = batctl_service.get_originators()
-            neighbors = batctl_service.get_neighbors()
+                # Poll batctl for current mesh state
+                originators = batctl_service.get_originators()
+                neighbors = batctl_service.get_neighbors()
 
-            # Serialize state for comparison
-            current_state = {
-                "originators": [
-                    {
-                        "mac": o.mac,
-                        "last_seen": o.last_seen,
-                        "tq": o.tq,
-                        "next_hop": o.next_hop,
-                        "interface": o.interface,
-                    }
-                    for o in (originators or [])
-                ],
-                "neighbors": [
-                    {
-                        "mac": n.mac,
-                        "last_seen": n.last_seen,
-                        "tq": n.tq,
-                        "interface": n.interface,
-                    }
-                    for n in (neighbors or [])
-                ],
-            }
+                # Serialize state for comparison
+                current_state = {
+                    "originators": [
+                        {
+                            "mac": o.mac,
+                            "last_seen": o.last_seen,
+                            "tq": o.tq,
+                            "next_hop": o.next_hop,
+                            "interface": o.interface,
+                        }
+                        for o in (originators or [])
+                    ],
+                    "neighbors": [
+                        {
+                            "mac": n.mac,
+                            "last_seen": n.last_seen,
+                            "tq": n.tq,
+                            "interface": n.interface,
+                        }
+                        for n in (neighbors or [])
+                    ],
+                }
 
-            # Only broadcast if state changed (or first run)
-            if current_state != last_state:
-                logger.info(
-                    "Mesh state changed: %d originators, %d neighbors",
-                    len(current_state["originators"]),
-                    len(current_state["neighbors"]),
-                )
+                # Only broadcast if state changed (or first run)
+                if current_state != last_state:
+                    logger.info(
+                        "Mesh state changed: %d originators, %d neighbors",
+                        len(current_state["originators"]),
+                        len(current_state["neighbors"]),
+                    )
 
-                await manager.broadcast(
-                    {
-                        "event": "mesh_update",
-                        "data": {
-                            "originators": current_state["originators"],
-                            "neighbors": current_state["neighbors"],
-                            "timestamp": time.time(),
-                        },
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
+                    await manager.broadcast(
+                        {
+                            "event": "mesh_update",
+                            "data": {
+                                "originators": current_state["originators"],
+                                "neighbors": current_state["neighbors"],
+                                "timestamp": time.time(),
+                            },
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
 
-                # Update MeshStore to keep REST API endpoints fresh
-                if _mesh_store and _data_source:
-                    nodes = _data_source.get_nodes()
-                    threads = _data_source.get_threads()
-                    msgs = _data_source.get_messages()
-                    _mesh_store.load_from_source(nodes, threads, msgs)
+                    # Update MeshStore to keep REST API endpoints fresh
+                    if _mesh_store and _data_source:
+                        nodes = _data_source.get_nodes()
+                        threads = _data_source.get_threads()
+                        msgs = _data_source.get_messages()
+                        _mesh_store.load_from_source(nodes, threads, msgs)
 
-                last_state = current_state
+                    last_state = current_state
 
-        except Exception as e:
-            logger.error("Mesh monitor error: %s", e, exc_info=True)
+            except Exception as e:
+                logger.error("Mesh monitor error: %s", e, exc_info=True)
 
-        # Poll every 5 seconds
-        await asyncio.sleep(5)
+            # Poll every 5 seconds (Fix: Use constant instead of magic number H-5)
+            await asyncio.sleep(MESH_MONITOR_INTERVAL_SECONDS)
 
-    logger.info("Mesh monitor loop stopped")
+    except asyncio.CancelledError:
+        logger.info("Mesh monitor cancelled")
+        raise
+    finally:
+        logger.info("Mesh monitor loop stopped")
 
 
 @router.websocket("/ws")
