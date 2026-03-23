@@ -9,7 +9,7 @@ from app.config import settings
 from app.routers import messages, mesh, nodes, threads, ws
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
-from app.services.mock_data import MockMeshDataSource
+from app.services.mock_data import MeshDataSource, MockMeshDataSource
 from app.services.reticulum_service import ReticulumBridge
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ reticulum = ReticulumBridge()
 reticulum.start()
 
 # Choose data source based on environment
+data_source: MeshDataSource
 if settings.use_live_data:
     logger.info("Using LiveDataSource (BATMAN + Reticulum)")
     data_source = LiveDataSource(use_live=True)

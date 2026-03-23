@@ -220,7 +220,7 @@ async def send_message(payload: MessageSend):
     try:
         # Send via Reticulum
         success = reticulum.send_message(
-            destination_hash=payload.destination_hash, content=payload.content
+            dest_hash=payload.destination_hash, content=payload.content
         )
 
         if not success:

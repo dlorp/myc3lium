@@ -149,45 +149,57 @@ class ReticulumBridge:
             logger.warning("Cannot start Reticulum — RNS/LXMF not installed")
             return False
 
+        # Type guard: ensure imports succeeded
+        if _RNS is None or _LXMF is None:
+            logger.error("Cannot start — RNS/LXMF imports failed")
+            return False
+
         try:
             # Initialize Reticulum instance
             self._reticulum = _RNS.Reticulum()
 
             # Load or create identity
+            identity = None
             if os.path.exists(self._identity_path):
                 try:
-                    self._identity = _RNS.Identity.from_file(self._identity_path)
+                    identity = _RNS.Identity.from_file(self._identity_path)
                     logger.info(
                         "Loaded Reticulum identity from %s", self._identity_path
                     )
                 except Exception as e:
                     logger.warning("Failed to load identity, creating new: %s", e)
-                    self._identity = _RNS.Identity()
+                    identity = _RNS.Identity()
                     # Create parent directory if needed
                     os.makedirs(os.path.dirname(self._identity_path), exist_ok=True)
-                    self._identity.to_file(self._identity_path)
+                    identity.to_file(self._identity_path)
             else:
-                self._identity = _RNS.Identity()
+                identity = _RNS.Identity()
                 os.makedirs(os.path.dirname(self._identity_path), exist_ok=True)
-                self._identity.to_file(self._identity_path)
+                identity.to_file(self._identity_path)
                 logger.info("Created new Reticulum identity at %s", self._identity_path)
+
+            self._identity = identity
 
             # Create LXMF router
             os.makedirs(self._storage_path, exist_ok=True)
-            self._lxmf_router = _LXMF.LXMRouter(storagepath=self._storage_path)
+            lxmf_router = _LXMF.LXMRouter(storagepath=self._storage_path)
 
             # Register delivery identity for receiving messages
-            self._delivery_identity = self._lxmf_router.register_delivery_identity(
-                self._identity, display_name="myc3lium"
+            delivery_identity = lxmf_router.register_delivery_identity(
+                identity, display_name="myc3lium"
             )
 
             # Register callback for incoming messages
-            self._lxmf_router.register_delivery_callback(self._on_message)
+            lxmf_router.register_delivery_callback(self._on_message)
+
+            # Store references
+            self._lxmf_router = lxmf_router
+            self._delivery_identity = delivery_identity
 
             self._available = True
             logger.info(
                 "Reticulum bridge started — Identity: %s",
-                _RNS.hexrep(self._identity.hash, delimit=False),
+                _RNS.hexrep(identity.hash, delimit=False),
             )
             return True
 
@@ -208,6 +220,10 @@ class ReticulumBridge:
         Args:
             message: LXMF.LXMessage object
         """
+        # Type guard
+        if _RNS is None:
+            return
+
         try:
             msg = LXMFMessage(
                 source_hash=_RNS.hexrep(message.source_hash, delimit=False),
@@ -262,6 +278,10 @@ class ReticulumBridge:
         if not self._available:
             raise RuntimeError("Reticulum bridge not available")
 
+        # Type guard
+        if _RNS is None or _LXMF is None:
+            raise RuntimeError("RNS/LXMF not available")
+
         try:
             dest_hash_bytes = bytes.fromhex(dest_hash)
         except ValueError as e:
@@ -295,6 +315,9 @@ class ReticulumBridge:
             content.encode("utf-8"),
             title=title.encode("utf-8") if title else b"",
         )
+
+        if self._lxmf_router is None:
+            raise RuntimeError("LXMF router not initialized")
 
         self._lxmf_router.handle_outbound(lxmf_msg)
         logger.info("Sent LXMF message to %s: %s", dest_hash[:8], content[:50])
@@ -336,8 +359,12 @@ class ReticulumBridge:
         if not self._available:
             return ReticulumStatus(available=False)
 
+        # Type guard
+        if _RNS is None:
+            return ReticulumStatus(available=False)
+
         # Parse interfaces (simplified — full implementation would query RNS.Transport)
-        interfaces = []
+        interfaces: list[ReticulumInterface] = []
         # Note: Reticulum doesn't expose a clean interface list API
         # This would require parsing internal state or rnstatus output
         # For Phase 1, we return empty list; Phase 2 can expand this
