@@ -64,6 +64,9 @@ Thumbs.db
 # Testing
 coverage/
 
+# Plans (local working docs)
+plans/
+
 # Firmware (ESP32)
 firmware/.pio/
 firmware/.vscode/
