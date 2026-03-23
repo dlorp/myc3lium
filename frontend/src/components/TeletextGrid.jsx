@@ -232,6 +232,7 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
   const lastFrameTime = useRef(0)
   const [textureLoadError, setTextureLoadError] = useState(null)
   const [contentError, setContentError] = useState(null)
+  const [atlasLoaded, setAtlasLoaded] = useState(false)
 
   // Default effect configuration - MOVED HERE before useMemo/useFrame
   const config = {
@@ -297,6 +298,7 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
         atlasTexture.magFilter = THREE.NearestFilter
         atlasTexture.generateMipmaps = false
         fontAtlasRef.current = atlasTexture
+        setAtlasLoaded(true) // Trigger re-draw when atlas loads
         setTextureLoadError(null) // Clear error on successful load
         if (onTextureError) onTextureError(null)
       },
@@ -435,7 +437,7 @@ const TeletextPlane = ({ content, effectsConfig = {}, onTextureError = null }) =
     }
 
     draw()
-  }, [content, charHeight, charWidth, resolution, texture, contentError, textureLoadError])
+  }, [content, charHeight, charWidth, resolution, texture, contentError, textureLoadError, atlasLoaded])
 
   // Track if content needs to be redrawn
   const [needsRedraw, setNeedsRedraw] = useState(true)
