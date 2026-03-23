@@ -1,5 +1,6 @@
 """Message management endpoints"""
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -9,11 +10,17 @@ from pydantic import BaseModel, Field
 
 from app.models import Message
 from app.services.mesh_store import MeshStore
+from app.services.reticulum_service import ReticulumBridge
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
 # Global mesh store instance - will be set by main.py
 mesh_store: Optional[MeshStore] = None
+
+# Global reticulum bridge - will be set by main.py
+reticulum: Optional[ReticulumBridge] = None
 
 # Export for testing and internal use
 __all__ = ["router"]
@@ -28,6 +35,15 @@ class MessageCreate(BaseModel):
     )
     content: str = Field(..., max_length=1024, description="Message content")
     hops: int = Field(0, ge=0, description="Number of hops to destination")
+
+
+class MessageSend(BaseModel):
+    """Reticulum message send payload"""
+
+    destination_hash: str = Field(
+        ..., max_length=32, description="Destination identity hash (hex)"
+    )
+    content: str = Field(..., max_length=1024, description="Message content")
 
 
 def _get_node_ids() -> set[str]:
@@ -176,3 +192,56 @@ async def delete_message(message_id: str):
     removed = mesh_store.remove_message(message_id)
     if not removed:
         raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+
+
+@router.post("/send", status_code=202)
+async def send_message(payload: MessageSend):
+    """
+    Send a message via Reticulum LXMF.
+
+    This endpoint queues a message for delivery over the mesh network using
+    Reticulum's LXMF protocol. Messages are delivered asynchronously.
+
+    Args:
+        payload: Message send data (destination hash, content)
+
+    Returns:
+        Acknowledgment with message ID
+
+    Raises:
+        HTTPException: 503 if Reticulum unavailable, 400 if send fails
+    """
+    if not reticulum or not reticulum.available:
+        raise HTTPException(
+            status_code=503,
+            detail="Reticulum not available. Message sending requires RNS/LXMF.",
+        )
+
+    try:
+        # Send via Reticulum
+        success = reticulum.send_message(
+            destination_hash=payload.destination_hash, content=payload.content
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=400, detail="Failed to send message via Reticulum"
+            )
+
+        # Generate message ID for tracking
+        message_id = f"lxmf_{uuid.uuid4().hex[:12]}"
+
+        logger.info(
+            f"Message {message_id} queued for delivery to {payload.destination_hash}"
+        )
+
+        return {
+            "status": "accepted",
+            "message_id": message_id,
+            "destination": payload.destination_hash,
+            "note": "Message queued for delivery via LXMF",
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to send message: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
