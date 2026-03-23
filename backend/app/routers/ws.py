@@ -1,10 +1,15 @@
 """WebSocket endpoint for real-time mesh network updates"""
 
+import asyncio
+import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.services import batctl_service
+from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
 from app.websocket import manager
 
@@ -12,8 +17,14 @@ router = APIRouter(tags=["websocket"])
 
 MAX_MESSAGE_SIZE = 4096
 
+logger = logging.getLogger(__name__)
+
 # Global mesh store instance - will be initialized in main.py
 _mesh_store: Optional[MeshStore] = None
+
+# Global data source for mesh monitoring
+_data_source: Optional[LiveDataSource] = None
+_monitor_running = False
 
 
 def set_mesh_store(mesh_store: MeshStore):
@@ -66,6 +77,104 @@ def set_mesh_store(mesh_store: MeshStore):
             pass
 
     mesh_store.on_event(broadcast_mesh_event)
+
+
+def set_data_source(data_source: LiveDataSource):
+    """
+    Initialize the data source for mesh monitoring
+
+    Args:
+        data_source: LiveDataSource instance to poll for mesh updates
+    """
+    global _data_source
+    _data_source = data_source
+
+
+async def mesh_monitor_loop():
+    """
+    Background task: poll batctl every 5s and broadcast changes.
+
+    Only broadcasts mesh_update events when the mesh state has changed,
+    reducing WebSocket spam. Handles batctl unavailability gracefully
+    (e.g., on Mac development environments).
+    """
+    global _monitor_running
+    _monitor_running = True
+    last_state = None
+
+    logger.info("Mesh monitor loop started")
+
+    while _monitor_running:
+        try:
+            # Check if batctl is available (gracefully skip on Mac)
+            if not batctl_service.is_available():
+                logger.debug("batctl not available, sleeping...")
+                await asyncio.sleep(10)
+                continue
+
+            # Poll batctl for current mesh state
+            originators = batctl_service.get_originators()
+            neighbors = batctl_service.get_neighbors()
+
+            # Serialize state for comparison
+            current_state = {
+                "originators": [
+                    {
+                        "mac": o.mac,
+                        "last_seen": o.last_seen,
+                        "tq": o.tq,
+                        "next_hop": o.next_hop,
+                        "interface": o.interface,
+                    }
+                    for o in (originators or [])
+                ],
+                "neighbors": [
+                    {
+                        "mac": n.mac,
+                        "last_seen": n.last_seen,
+                        "tq": n.tq,
+                        "interface": n.interface,
+                    }
+                    for n in (neighbors or [])
+                ],
+            }
+
+            # Only broadcast if state changed (or first run)
+            if current_state != last_state:
+                logger.info(
+                    "Mesh state changed: %d originators, %d neighbors",
+                    len(current_state["originators"]),
+                    len(current_state["neighbors"]),
+                )
+
+                await manager.broadcast(
+                    {
+                        "event": "mesh_update",
+                        "data": {
+                            "originators": current_state["originators"],
+                            "neighbors": current_state["neighbors"],
+                            "timestamp": time.time(),
+                        },
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+
+                # Update MeshStore to keep REST API endpoints fresh
+                if _mesh_store and _data_source:
+                    nodes = _data_source.get_nodes()
+                    threads = _data_source.get_threads()
+                    msgs = _data_source.get_messages()
+                    _mesh_store.load_from_source(nodes, threads, msgs)
+
+                last_state = current_state
+
+        except Exception as e:
+            logger.error("Mesh monitor error: %s", e, exc_info=True)
+
+        # Poll every 5 seconds
+        await asyncio.sleep(5)
+
+    logger.info("Mesh monitor loop stopped")
 
 
 @router.websocket("/ws")
