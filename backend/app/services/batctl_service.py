@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 BATCTL = shutil.which("batctl")
 MESHIF = "bat0"
+BATCTL_TIMEOUT_SECONDS = 10
+
+# Security: Interface name validation pattern to prevent path traversal
+VALID_IFACE_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
 
 
 @dataclass
@@ -80,7 +84,7 @@ def is_available() -> bool:
             [BATCTL, "meshif", MESHIF, "interface"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=BATCTL_TIMEOUT_SECONDS,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
@@ -103,7 +107,7 @@ def get_originators() -> Optional[list[Originator]]:
             [BATCTL, "meshif", MESHIF, "originators"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=BATCTL_TIMEOUT_SECONDS,
         )
         if result.returncode != 0:
             logger.warning(
@@ -115,11 +119,16 @@ def get_originators() -> Optional[list[Originator]]:
 
         nodes = []
         for line in result.stdout.splitlines():
+            # Security: Skip overly long lines to prevent ReDoS (H-2)
+            if len(line) > 512:
+                continue
+
             # Match lines like:
             #   *    aa:bb:cc:dd:ee:03    1.240s   (198) aa:bb:cc:dd:ee:01         wlan0
             #        aa:bb:cc:dd:ee:01    0.150s   (255) aa:bb:cc:dd:ee:01         wlan0
+            # Security: Use bounded quantifiers to prevent catastrophic backtracking (H-2)
             match = re.match(
-                r"\s*\*?\s*([\da-f:]+)\s+([\d.]+)s\s+\(\s*(\d+)\)\s+([\da-f:]+)\s+(\S+)",
+                r"^\s{0,10}\*?\s{0,10}([\da-f:]{17})\s{1,10}([\d.]{1,10})s\s{1,10}\(\s{0,5}(\d{1,3})\)\s{1,10}([\da-f:]{17})\s{1,10}(\S+)",
                 line,
             )
             if match:
@@ -137,7 +146,7 @@ def get_originators() -> Optional[list[Originator]]:
         return nodes
 
     except subprocess.TimeoutExpired:
-        logger.error("batctl originators timed out after 10s")
+        logger.error("batctl originators timed out after %ds", BATCTL_TIMEOUT_SECONDS)
         return None
     except (FileNotFoundError, ValueError, IndexError) as e:
         logger.error("batctl originators parse error: %s", e)
@@ -159,7 +168,7 @@ def get_neighbors() -> Optional[list[Neighbor]]:
             [BATCTL, "meshif", MESHIF, "neighbors"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=BATCTL_TIMEOUT_SECONDS,
         )
         if result.returncode != 0:
             logger.warning(
@@ -171,10 +180,15 @@ def get_neighbors() -> Optional[list[Neighbor]]:
 
         neighbors = []
         for line in result.stdout.splitlines():
+            # Security: Skip overly long lines to prevent ReDoS (H-2)
+            if len(line) > 512:
+                continue
+
             # Match lines like:
             # wlan0  aa:bb:cc:dd:ee:01    0.160s ( 255)
+            # Security: Use bounded quantifiers to prevent catastrophic backtracking (H-2)
             match = re.match(
-                r"(\S+)\s+([\da-f:]+)\s+([\d.]+)s\s+\(\s*(\d+)\)", line
+                r"^(\S{1,20})\s{1,10}([\da-f:]{17})\s{1,10}([\d.]{1,10})s\s{1,10}\(\s{0,5}(\d{1,3})\)", line
             )
             if match:
                 neighbors.append(
@@ -190,7 +204,7 @@ def get_neighbors() -> Optional[list[Neighbor]]:
         return neighbors
 
     except subprocess.TimeoutExpired:
-        logger.error("batctl neighbors timed out after 10s")
+        logger.error("batctl neighbors timed out after %ds", BATCTL_TIMEOUT_SECONDS)
         return None
     except (FileNotFoundError, ValueError, IndexError) as e:
         logger.error("batctl neighbors parse error: %s", e)
@@ -208,6 +222,11 @@ def get_interface_stats(interface: str) -> Optional[InterfaceStats]:
         InterfaceStats object, or None if interface doesn't exist or read fails
     """
     import os
+
+    # Security: Validate interface name to prevent path traversal (H-1)
+    if not VALID_IFACE_PATTERN.match(interface):
+        logger.warning("Invalid interface name: %s", interface)
+        return None
 
     sys_path = f"/sys/class/net/{interface}"
     if not os.path.exists(sys_path):
@@ -262,7 +281,7 @@ def get_statistics() -> Optional[dict]:
             [BATCTL, "meshif", MESHIF, "statistics"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=BATCTL_TIMEOUT_SECONDS,
         )
         if result.returncode != 0:
             logger.warning(
@@ -288,7 +307,7 @@ def get_statistics() -> Optional[dict]:
         return stats
 
     except subprocess.TimeoutExpired:
-        logger.error("batctl statistics timed out after 10s")
+        logger.error("batctl statistics timed out after %ds", BATCTL_TIMEOUT_SECONDS)
         return None
     except (FileNotFoundError, ValueError) as e:
         logger.error("batctl statistics parse error: %s", e)
