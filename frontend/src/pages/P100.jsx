@@ -92,12 +92,12 @@ const P100 = () => {
     }
 
     if (radioStatus) {
-      // Map HaLow radio
+      // Map HaLow radio (case-sensitive check for "up")
       if (radioStatus.halow0) {
         const halow = radioStatus.halow0
         radioData.halow = {
           enabled: true,
-          status: halow.status === 'up' ? 'ASSOC' : 'DOWN',
+          status: halow.status === 'up' ? 'UP' : 'DOWN',
           strength: halow.status === 'up' && halow.throughput 
             ? Math.min(100, Math.round((halow.throughput / 20000000) * 100)) // Scale to 0-100%
             : 0,
@@ -115,26 +115,23 @@ const P100 = () => {
             : 0,
         }
       }
+    }
 
-      // WiFi status from BATMAN mesh
-      if (meshStatus?.batman) {
-        radioData.wifi = {
-          enabled: meshStatus.batman.available,
-          status: meshStatus.batman.available ? 'BATMAN' : 'OFFLINE',
-          strength: meshStatus.batman.available && meshStatus.batman.neighbor_count > 0
-            ? Math.min(100, 50 + (meshStatus.batman.neighbor_count * 10)) // Scale based on neighbors
-            : meshStatus.batman.available ? 50 : 0,
-        }
+    // WiFi status from BATMAN mesh (check outside radioStatus block)
+    if (meshStatus?.batman?.available) {
+      radioData.wifi = {
+        enabled: true,
+        status: 'BATMAN',
+        strength: meshStatus.batman.neighbor_count > 0
+          ? Math.min(100, 50 + (meshStatus.batman.neighbor_count * 10)) // Scale based on neighbors
+          : 50,
       }
     }
 
-    // Calculate uptime from statistics (if available)
+    // Calculate uptime from statistics (mgmt_tx packets at ~50/sec)
     let uptime = '00:00:00'
-    if (statistics?.available && statistics.data) {
-      // Try to derive uptime from packet counts (rough estimate)
-      // Assuming ~1 packet per second average, this is a placeholder
-      const totalPackets = (statistics.data.tx || 0) + (statistics.data.rx || 0)
-      const uptimeSeconds = Math.floor(totalPackets / 10) // Very rough estimate
+    if (statistics?.available && statistics.data?.mgmt_tx) {
+      const uptimeSeconds = Math.floor(statistics.data.mgmt_tx / 50)
       const hours = Math.floor(uptimeSeconds / 3600)
       const minutes = Math.floor((uptimeSeconds % 3600) / 60)
       const seconds = uptimeSeconds % 60
