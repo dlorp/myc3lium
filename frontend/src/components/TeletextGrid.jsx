@@ -246,6 +246,23 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
       // Fallback: CSS-based CRT effects
       outCanvas.style.filter = 'contrast(1.1) brightness(0.95)'
       console.info('TeletextGrid: WebGL unavailable, using CSS fallback')
+      if (onTextureError) {
+        onTextureError(new Error('WebGL not available, using CSS fallback'))
+      }
+    }
+
+    // Handle container resize
+    const resizeObserver = new ResizeObserver(() => {
+      const newSize = getSize()
+      if (newSize.w !== w || newSize.h !== h) {
+        // Trigger re-initialization by changing a state or re-mounting
+        // For now, we'll just log - full implementation would need state management
+        console.info('TeletextGrid: container resized, consider re-initializing')
+      }
+    })
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
     }
 
     // Animation loop
@@ -287,8 +304,9 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      resizeObserver.disconnect()
     }
-  }, [getSize, drawContent, showFps])
+  }, [getSize, drawContent, showFps, onTextureError])
 
   return (
     <div
@@ -313,7 +331,23 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
         }}
       />
       {showFps && fps !== null && (
-        <div className="teletext-fps">FPS {fps}</div>
+        <div
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            background: 'rgba(6, 4, 0, 0.85)',
+            color: COLORS.secondary,
+            fontFamily: "'Courier New', monospace",
+            fontSize: '11px',
+            padding: '4px 8px',
+            border: `1px solid ${COLORS.tertiary}`,
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }}
+        >
+          FPS {fps}
+        </div>
       )}
     </div>
   )
