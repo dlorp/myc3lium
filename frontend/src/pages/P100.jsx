@@ -101,17 +101,7 @@ const P100 = () => {
   return (
     <div className="teletext-demo">
       <div className="teletext-overlay">P100 - DASHBOARD</div>
-      <TeletextGrid 
-        content={content} 
-        showFps 
-        effectsConfig={{
-          enablePhosphor: false,
-          enableFlicker: false,
-          enableNoise: false,
-          enableChromatic: false,
-          enableBloom: false,
-        }}
-      />
+      <TeletextGrid content={content} showFps />
     </div>
   )
 }
