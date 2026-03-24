@@ -18,6 +18,7 @@ const COLORS = {
 }
 
 // ─── CRT post-process shader (matches mockup) ───────────────────────────────
+// Security: Shaders are static - never interpolate user input
 const CRT_VERT = `
   attribute vec2 aPos;
   varying vec2 vUv;
@@ -27,6 +28,7 @@ const CRT_VERT = `
   }
 `
 
+// Security: Shaders are static - never interpolate user input
 const CRT_FRAG = `
   precision mediump float;
   uniform sampler2D tD;
@@ -42,7 +44,7 @@ const CRT_FRAG = `
     vec2 uv = vUv;
     vec2 d = uv - 0.5;
 
-    // Subtle barrel distortion (CRT curvature)
+    // Subtle barrel distortion (CRT curvature) - 0.045 controls curvature strength
     d *= 1.0 + dot(d, d) * 0.045;
     uv = d + 0.5;
 
@@ -60,7 +62,7 @@ const CRT_FRAG = `
     c.b = texture2D(tD, uv - vec2(ca, 0.0)).b;
     c.a = 1.0;
 
-    // Scanline
+    // Scanline - 0.98/0.02 controls scanline intensity (98% base + 2% oscillation)
     c.rgb *= 0.98 + 0.02 * sin(uv.y * uR.y * 1.4 + uT * 0.35);
 
     // Horizontal sweep
@@ -81,13 +83,41 @@ const CRT_FRAG = `
 
 /**
  * Normalize content to ROWS × COLUMNS grid of single characters.
+ * Security: validates depth, filters control chars, limits string conversion.
  */
 const normalizeContent = (content) => {
+  const MAX_DEPTH = 3
+  const MAX_STRING_LENGTH = 200
+  
+  // Validate max depth to prevent DoS
+  const checkDepth = (obj, depth = 0) => {
+    if (depth > MAX_DEPTH) return false
+    if (Array.isArray(obj)) {
+      return obj.every(item => checkDepth(item, depth + 1))
+    }
+    return true
+  }
+  
+  if (!checkDepth(content)) {
+    console.warn('TeletextGrid: content exceeds max depth, rejecting')
+    return Array.from({ length: ROWS }, () => Array(COLUMNS).fill(' '))
+  }
+  
   const safeContent = Array.isArray(content) ? content : []
   return Array.from({ length: ROWS }, (_, rowIndex) => {
     const row = safeContent[rowIndex] ?? []
-    const chars = Array.isArray(row) ? row : String(row).split('')
-    const normalized = chars.slice(0, COLUMNS)
+    const chars = Array.isArray(row) 
+      ? row 
+      : String(row).slice(0, MAX_STRING_LENGTH).split('')
+    
+    const normalized = chars.slice(0, COLUMNS).map(char => {
+      const str = String(char).slice(0, 1)
+      const code = str.charCodeAt(0)
+      // Filter control characters (codes < 32 except space)
+      if (code < 32 && code !== 32) return ' '
+      return str
+    })
+    
     while (normalized.length < COLUMNS) normalized.push(' ')
     return normalized
   })
@@ -166,7 +196,7 @@ const initCRT = (outputCanvas, width, height) => {
  *   2. WebGL shader applies CRT effects (curvature, scanlines, chromatic aberration)
  *   3. Falls back to CSS filter if WebGL unavailable (Pi safety net)
  */
-const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureError }) => {
+const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
   const containerRef = useRef(null)
   const outputCanvasRef = useRef(null)
   const bufferCanvasRef = useRef(null)
@@ -175,7 +205,10 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
   const fpsRef = useRef({ frames: 0, lastTime: 0, value: 0 })
   const [fps, setFps] = useState(null)
   const [crtActive, setCrtActive] = useState(false)
+  const [resizeKey, setResizeKey] = useState(0)
   const contentRef = useRef(content)
+  const lastContentRef = useRef(null)
+  const needsRedrawRef = useRef(true)
   contentRef.current = content
 
   // Determine canvas dimensions
@@ -255,9 +288,8 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
     const resizeObserver = new ResizeObserver(() => {
       const newSize = getSize()
       if (newSize.w !== w || newSize.h !== h) {
-        // Trigger re-initialization by changing a state or re-mounting
-        // For now, we'll just log - full implementation would need state management
-        console.info('TeletextGrid: container resized, consider re-initializing')
+        // Force re-initialization by incrementing resizeKey
+        setResizeKey(k => k + 1)
       }
     })
 
@@ -269,11 +301,21 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
     const loop = (t) => {
       rafRef.current = requestAnimationFrame(loop)
 
-      // Draw content to buffer
-      drawContent(bufCtx, w, h)
+      // Check if content has changed
+      const contentStr = JSON.stringify(contentRef.current)
+      if (contentStr !== lastContentRef.current) {
+        lastContentRef.current = contentStr
+        needsRedrawRef.current = true
+      }
+
+      // Only redraw content when it changes
+      if (needsRedrawRef.current) {
+        drawContent(bufCtx, w, h)
+        needsRedrawRef.current = false
+      }
 
       if (crt) {
-        // Upload buffer to WebGL texture and render with CRT shader
+        // Upload buffer to WebGL texture and render with CRT shader (runs every frame for animations)
         const { gl, tex, uT } = crt
         gl.bindTexture(gl.TEXTURE_2D, tex)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bufCanvas)
@@ -305,11 +347,22 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       resizeObserver.disconnect()
+      
+      // Clean up WebGL resources
+      if (crt) {
+        const { gl, tex, program } = crt
+        if (tex) gl.deleteTexture(tex)
+        if (program) gl.deleteProgram(program)
+        // Optional: force context loss for complete cleanup
+        const loseCtx = gl.getExtension('WEBGL_lose_context')
+        if (loseCtx) loseCtx.loseContext()
+      }
     }
-  }, [getSize, drawContent, showFps, onTextureError])
+  }, [getSize, drawContent, showFps, onTextureError, resizeKey])
 
   return (
     <div
+      key={resizeKey}
       ref={containerRef}
       data-testid="teletext-grid"
       data-cols={COLUMNS}
@@ -356,13 +409,6 @@ const TeletextGrid = ({ content, showFps = false, effectsConfig = {}, onTextureE
 TeletextGrid.propTypes = {
   content: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
   showFps: PropTypes.bool,
-  effectsConfig: PropTypes.shape({
-    enableChromatic: PropTypes.bool,
-    enableBloom: PropTypes.bool,
-    enablePhosphor: PropTypes.bool,
-    enableNoise: PropTypes.bool,
-    enableFlicker: PropTypes.bool,
-  }),
   onTextureError: PropTypes.func,
 }
 
