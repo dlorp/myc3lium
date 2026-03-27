@@ -1,0 +1,44 @@
+{
+  "active": {},
+  "completed": {
+    "agent:security-specialist:subagent:9861eeb2-e389-40cc-872f-2dcea41c5850": {
+      "task": "Security review for openclaw-dash PR #143",
+      "spawned": 1743314400,
+      "completed": 1743314520,
+      "duration": 120,
+      "result": "pass",
+      "pr": "openclaw-dash#143",
+      "validation": "security_review",
+      "artifact": "reviews/PR-143-security.md"
+    },
+    "agent:code-reviewer:subagent:3d0f81aa-ee51-42f2-8312-d6be9a61a502": {
+      "task": "Code review for openclaw-dash PR #143",
+      "spawned": 1743314580,
+      "completed": 1743314809,
+      "duration": 229,
+      "result": "approve",
+      "pr": "openclaw-dash#143",
+      "validation": "code_review",
+      "artifact": "reviews/PR-143-code.md",
+      "issues": {
+        "blocker": 0,
+        "major": 2,
+        "minor": 5
+      }
+    }
+  },
+  "lastCleanup": null,
+  "heartbeatProtocol": {
+    "enabled": true,
+    "intervalSeconds": 10,
+    "hungThresholdSeconds": 60,
+    "notes": "Agents send heartbeat every 10s. If lastHeartbeat >60s old, consider hung (not just waiting for 30min timeout)"
+  },
+  "priorityQueue": {
+    "enabled": true,
+    "rules": "User-interactive tasks (sessions_send responses, direct requests) jump the queue when at maxConcurrent. Background work (research, cleanup) waits.",
+    "maxConcurrent": 8,
+    "reservedSlotsForUser": 2
+  },
+  "notes": "Track spawned agents here. Active = currently running. Completed = finished in last 24h. Clean up completed entries >24h old during heartbeats. Each active agent should include 'lastHeartbeat' timestamp and 'priority' field (user|background)."
+}

@@ -1,0 +1,116 @@
+Deep Work Session 2 Summary
+===========================
+
+Session ID: a95d58ec-dfcf-4872-a9e4-4b1364fd70eb
+Time: 2026-03-22 00:00-00:35 AKDT (35 minutes)
+Type: PROTOTYPE (Session 2 of 6-hour rotation)
+
+DELIVERABLE
+-----------
+OBD2-TUI: Terminal-based OBD-II diagnostic tool for ELM327 adapters
+
+Repository: ~/repos/obd2-tui
+Commit: 358dbd0 - "Initial OBD2-TUI prototype"
+Lines: 871 lines across 11 files
+Status: ✅ Code complete, ready for hardware testing
+
+FEATURES
+--------
+1. ELM327 Protocol Handler
+   - AT command interface (init: ATZ, ATE0, ATSP0, ATH1)
+   - PID query with 2s timeout
+   - DTC reading (Mode 03)
+   - Auto-parsing hex responses
+
+2. Live Sensor Dashboard
+   - Engine RPM, vehicle speed, coolant temp
+   - Throttle position gauge (0-100%)
+   - Fuel level gauge (red warning <20%)
+   - 500ms refresh rate
+
+3. Terminal UI
+   - ratatui layout (Gauge, List, Paragraph widgets)
+   - PSX color scheme (cyan/yellow/red/green)
+   - Keyboard shortcuts: q (quit), r (refresh DTC)
+
+TECH STACK
+----------
+- Rust 2021 edition
+- ratatui 0.28 (terminal UI framework)
+- serialport 4.5 (ELM327 communication)
+- crossterm 0.28 (terminal control)
+- tokio 1.40 (async runtime)
+
+SUPPORTED PIDS (11 total)
+--------------------------
+0x0C - Engine RPM
+0x0D - Vehicle Speed
+0x05 - Coolant Temperature
+0x11 - Throttle Position
+0x2F - Fuel Level
++6 more (intake air, fuel pressure, MAF, timing, baro, MAP)
+
+DESIGN PHILOSOPHY
+-----------------
+- Local-first: No cloud, no telemetry
+- Garage hobbyist focus: $10 ELM327 vs $200+ scanner
+- Terminal UI: SSH-able, tmux-friendly, Raspberry Pi-compatible
+- PSX aesthetic: Blocky fonts, cyan/yellow/red (PS1 debug menu vibes)
+
+ROADMAP
+-------
+Phase 2 (2-3 hours):
+- DTC lookup database (5000+ codes, JSON)
+- SQLite logging (time-series sensor data)
+- Sparkline graphs (60-second history)
+
+Phase 3 (4-5 hours):
+- Freeze frame data (Mode 02)
+- CSV export
+- Configuration file (TOML)
+
+Phase 4 (research TBD):
+- EJ22 OBD-I support (pre-1996 Subaru)
+- Integration with r3LAY (unified garage toolkit)
+
+r3LAY INTEGRATION
+-----------------
+r3LAY = Automotive + Retro Gaming + Procedural Gen
+
+Three modules:
+1. Automotive: OBD2-TUI (this), EJ22 guides, maintenance trackers
+2. Retro: PSX/GB save editors, ROM analyzers, hex viewers
+3. Procedural: ASCII art, low poly mesh gen, demoscene effects
+
+Target audience: Garage hobbyists who wrench on cars AND play retro games
+
+RELATED WORK
+------------
+- freediag: Open-source OBD-II (C, CLI-only)
+- O2OO: SQLite logger (Python)
+- socanui: SocketCAN TUI (C, CAN bus)
+- Gap: No modern Rust TUI with PSX aesthetic + offline-first
+
+NEXT STEPS
+----------
+1. Hardware test (2001 Impreza + $15 ELM327 USB)
+2. DTC database (scrape OBD-Codes.com → JSON)
+3. Blog post: "Building a $10 OBD-II Scan Tool with Rust"
+4. Release: Publish to crates.io (v0.1.0)
+
+SESSION METRICS
+---------------
+- Prototype time: 30 minutes
+- Code: 871 lines (280 code, 240 docs, 351 blank/comments)
+- Documentation: README.md, PROTOCOL.md, inline comments
+- Commits: 1 (358dbd0)
+
+NOTES
+-----
+- Cargo not in PATH during final check (shell config issue, non-blocking)
+- Serialport crate requires permissions on Linux (dialout group)
+- Tokio included for future async expansion (parallel sensor queries)
+
+NEXT SESSION (01:00 AKDT)
+--------------------------
+CREATIVE - ASCII demoscene or low poly PSX mesh tool

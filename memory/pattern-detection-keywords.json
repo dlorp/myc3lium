@@ -1,0 +1,49 @@
+{
+  "keywords": {
+    "learnings": [
+      "learned:",
+      "learning:",
+      "lesson:",
+      "takeaway:",
+      "insight:"
+    ],
+    "patterns": [
+      "pattern:",
+      "recurring:",
+      "always:",
+      "never:",
+      "observed:"
+    ],
+    "mistakes": [
+      "mistake:",
+      "error:",
+      "wrong:",
+      "failed:",
+      "bug:",
+      "issue:"
+    ],
+    "decisions": [
+      "decided:",
+      "chose:",
+      "picked:",
+      "went with:",
+      "settled on:"
+    ],
+    "axiomCandidates": [
+      "rule:",
+      "principle:",
+      "guideline:",
+      "should always:",
+      "should never:"
+    ]
+  },
+  "sources": [
+    "#patterns",
+    "#session-notes",
+    "#learnings",
+    "#axioms",
+    "memory/YYYY-MM-DD.md"
+  ],
+  "minimumOccurrences": 3,
+  "notes": "Simple keyword matching for pattern detection. Scan Discord channels and daily memory files for these keywords. When a pattern appears 3+ times, flag as axiom candidate."
+}

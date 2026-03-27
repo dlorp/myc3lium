@@ -1,0 +1,63 @@
+{
+  "activeProjects": {
+    "t3rra1n": {
+      "description": "Terrain observation ARG engine - OpenClaw vision integration",
+      "branch": "docs/openclaw-integration",
+      "status": "documentation_phase",
+      "lastUpdated": "2026-03-21T07:00:00Z",
+      "blockers": [],
+      "nextSteps": [
+        "Test chronicle generation for atmospheric tone verification",
+        "Consider asset import feature for user story direction"
+      ],
+      "notes": "Dogfood analysis complete. Observation engine production-ready (718 components). Chronicle tone needs verification."
+    },
+    "openclaw-conn": {
+      "description": "Python library for OpenClaw Gateway integration",
+      "branch": "fix/python38-compat",
+      "status": "ready_for_pr",
+      "lastUpdated": "2026-03-21T07:00:00Z",
+      "blockers": [],
+      "nextSteps": [
+        "Open PR for Python 3.8 compatibility fix"
+      ],
+      "notes": "Type annotation fixes (dict→Dict, list→List) in 3 files. Documentation complete."
+    },
+    "r3LAY": {
+      "description": "Personal garage companion - automotive diagnostics & electronics projects",
+      "branch": "main",
+      "status": "roadmap_defined",
+      "lastUpdated": "2026-03-21T10:00:00Z",
+      "blockers": [
+        "SSM hardware testing requires Tactrix OpenPort 2.0 (~$170)",
+        "python-j2534 library availability unknown (needs research)"
+      ],
+      "nextSteps": [
+        "Phase 1: Vehicle profile manager + DTC lookup UI integration",
+        "Phase 1: Adapter detection (ELM327 vs OBDKey vs Tactrix)",
+        "Phase 2: SSM protocol router for Subaru MY1999-2006",
+        "Phase 2: Manufacturer code database (P1XXX Subaru codes)",
+        "Phase 3: DTC event logging → maintenance timeline",
+        "Review docs/automotive-module branch (9 commits ahead) - merge or discard?"
+      ],
+      "notes": "Comprehensive project review complete. SSM research from Session 3 provides clear path for Subaru-specific features beyond generic OBD2. Data-driven schema approach validated. See memory/r3LAY-project-review-2026-03-21.md for full roadmap.",
+      "prototypes": [
+        "obd2-tui: Live OBD2 data display (merge candidate)",
+        "ej22-tracker: Maintenance logger (validate overlap with r3lay/maintenance.py)",
+        "subaru-diag: SSM wrapper (skeleton - scaffold as standalone package)"
+      ]
+    },
+    "synapse-engine": {
+      "description": "Distributed LLM orchestration platform",
+      "branch": "feature/parallel-cgrag-retrieval",
+      "status": "stable",
+      "lastUpdated": "2026-03-21T07:00:00Z",
+      "blockers": [],
+      "nextSteps": [],
+      "notes": "Parallel CGRAG optimization stable. Recent security fixes complete."
+    }
+  },
+  "multiStepPlans": {},
+  "blockedTasks": [],
+  "notes": "Track multi-day projects and complex plans here. activeProjects = currently in progress. multiStepPlans = complex work broken into phases. blockedTasks = waiting on external dependencies."
+}

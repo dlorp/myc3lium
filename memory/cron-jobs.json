@@ -1,0 +1,10 @@
+{
+  "nightly-memory-review": {
+    "id": "1909ac3c-2a37-4187-a3f4-da72edf81c59",
+    "name": "nightly-memory-review",
+    "description": "Scans daily logs and generates suggested-updates.md for heartbeat review",
+    "schedule": "0 2 * * * (America/Anchorage)",
+    "createdAt": "2026-03-20T21:18:58.815Z",
+    "nextRun": "2026-03-21T10:00:00.000Z"
+  }
+}

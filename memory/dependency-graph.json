@@ -1,0 +1,50 @@
+{
+  "nodes": {
+    "agent-A": {
+      "addedAt": "2026-03-20T21:28:58.374190",
+      "metadata": {},
+      "status": "active"
+    },
+    "agent-B": {
+      "addedAt": "2026-03-20T21:28:58.374960",
+      "metadata": {},
+      "status": "active"
+    },
+    "agent-C": {
+      "addedAt": "2026-03-20T21:28:58.375295",
+      "metadata": {},
+      "status": "active"
+    }
+  },
+  "edges": {
+    "agent-A": [
+      "agent-B"
+    ],
+    "agent-B": [
+      "agent-C"
+    ],
+    "agent-C": [
+      "agent-A"
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-03-20T21:28:58.375655",
+      "type": "dependency_added",
+      "agent": "agent-A",
+      "blockedBy": "agent-B"
+    },
+    {
+      "timestamp": "2026-03-20T21:28:58.375981",
+      "type": "dependency_added",
+      "agent": "agent-B",
+      "blockedBy": "agent-C"
+    },
+    {
+      "timestamp": "2026-03-20T21:28:58.376308",
+      "type": "dependency_added",
+      "agent": "agent-C",
+      "blockedBy": "agent-A"
+    }
+  ]
+}

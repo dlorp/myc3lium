@@ -1,0 +1,25 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+sessions/
+
+# Config (user-specific)
+.obd2viewrc
+
+# OS
+.DS_Store
+Thumbs.db

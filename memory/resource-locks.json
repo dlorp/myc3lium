@@ -1,0 +1,123 @@
+{
+  "locks": {
+    "MEMORY.md:main:1774070556": {
+      "resource": "MEMORY.md",
+      "sessionId": "main",
+      "agentId": "orchestrator",
+      "acquiredAt": "2026-03-20T21:22:36.448567",
+      "expiresAt": "2026-03-20T21:27:36.448567",
+      "purpose": "updating axioms"
+    }
+  },
+  "queue": [],
+  "config": {
+    "enabled": true,
+    "autoReleaseSeconds": 300,
+    "maxQueueSize": 20,
+    "notes": "Resource lock coordinator prevents file/API conflicts. Agents request locks before writing to shared resources."
+  },
+  "resources": {
+    "MEMORY.md": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": {
+        "resource": "MEMORY.md",
+        "sessionId": "main",
+        "agentId": "orchestrator",
+        "acquiredAt": "2026-03-20T21:22:36.448567",
+        "expiresAt": "2026-03-20T21:27:36.448567",
+        "purpose": "updating axioms"
+      }
+    },
+    "AGENTS.md": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "SOUL.md": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "USER.md": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "TOOLS.md": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "memory/agents.json": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "memory/heartbeat-state.json": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "memory/orchestrator-state.json": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "memory/agent-health.json": {
+      "type": "file",
+      "exclusiveWrite": true,
+      "allowedSessions": [
+        "main"
+      ],
+      "currentLock": null
+    },
+    "discord-api": {
+      "type": "api",
+      "exclusiveWrite": false,
+      "rateLimitPerMinute": 50,
+      "currentLock": null
+    },
+    "github-api": {
+      "type": "api",
+      "exclusiveWrite": false,
+      "rateLimitPerMinute": 60,
+      "currentLock": null
+    }
+  },
+  "lockSchema": {
+    "notes": "Lock object structure when acquired",
+    "example": {
+      "resource": "MEMORY.md",
+      "sessionId": "main-session-uuid",
+      "agentId": "orchestrator",
+      "acquiredAt": "2026-03-20T21:20:00Z",
+      "expiresAt": "2026-03-20T21:25:00Z",
+      "purpose": "Update axioms section"
+    }
+  }
+}

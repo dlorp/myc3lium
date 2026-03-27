@@ -1,0 +1,175 @@
+{
+  "$schema": "pr-workflow-state-v1",
+  "version": "1.1.0",
+  "description": "PR workflow state machine - tracks progress through mandatory review steps",
+  "states": {
+    "CREATED": "PR created, posted to #pull-requests",
+    "SECURITY_REVIEW": "Security review in progress (static + LLM)",
+    "CODE_REVIEW": "Code review in progress (@code-reviewer)",
+    "FIXES_APPLIED": "All review fixes committed and pushed",
+    "CI_RUNNING": "CI checks running (waiting for pass)",
+    "READY": "All gates passed - PR ready for merge"
+  },
+  "transitions": {
+    "CREATED": ["SECURITY_REVIEW"],
+    "SECURITY_REVIEW": ["CODE_REVIEW", "FIXES_APPLIED"],
+    "CODE_REVIEW": ["FIXES_APPLIED"],
+    "FIXES_APPLIED": ["CI_RUNNING"],
+    "CI_RUNNING": ["READY", "FIXES_APPLIED"],
+    "READY": []
+  },
+  "active_prs": {
+    "openclaw-dash#143": {
+      "state": "CODE_REVIEW",
+      "pr_url": "https://github.com/dlorp/openclaw-dash/pull/143",
+      "pr_number": 143,
+      "repo": "dlorp/openclaw-dash",
+      "repo_short": "openclaw-dash",
+      "base_branch": "main",
+      "head_branch": "feature/llm-agent-workflow",
+      "local_branch": "feature/llm-agent-workflow",
+      "title": "feat: Add LLM agent workflow integration",
+      "description": "Integrates OpenClaw LLM agents (@security-specialist, @code-reviewer) into openclaw-dash PR automation pipeline",
+      "created": 1711501800,
+      "created_commit": "998de51",
+      "latest_commit": "998de51",
+      "transitions": [
+        {
+          "from": "CREATED",
+          "to": "SECURITY_REVIEW",
+          "timestamp": 1743314520,
+          "artifact": "reviews/PR-143-security.md"
+        },
+        {
+          "from": "SECURITY_REVIEW",
+          "to": "CODE_REVIEW",
+          "timestamp": 1743314809,
+          "artifact": "reviews/PR-143-code.md"
+        }
+      ],
+      "validations": {
+        "security_review": {
+          "status": "completed",
+          "static_analysis": null,
+          "agent_spawned": true,
+          "agent_session": "agent:security-specialist:subagent:9861eeb2-e389-40cc-872f-2dcea41c5850",
+          "spawned_at": 1743314400,
+          "completed_at": 1743314520,
+          "file": "reviews/PR-143-security.md",
+          "file_exists": true,
+          "result": "pass",
+          "issues_found": 0
+        },
+        "code_review": {
+          "status": "completed",
+          "agent_spawned": true,
+          "agent_session": "agent:code-reviewer:subagent:3d0f81aa-ee51-42f2-8312-d6be9a61a502",
+          "spawned_at": 1743314580,
+          "completed_at": 1743314809,
+          "file": "reviews/PR-143-code.md",
+          "file_exists": true,
+          "result": "approve",
+          "issues_found": 7
+        },
+        "ci": {
+          "status": "not_started",
+          "url": null,
+          "checks": []
+        }
+      }
+    }
+  },
+  "completed_prs": {},
+  "schema_example": {
+    "PR-123": {
+      "state": "CODE_REVIEW",
+      "pr_url": "https://github.com/myc3lium/myc3lium/pull/123",
+      "pr_number": 123,
+      "repo": "myc3lium/myc3lium",
+      "repo_short": "myc3lium",
+      "base_branch": "main",
+      "head_branch": "feature/add-validation-gates",
+      "local_branch": "feature/add-validation-gates",
+      "title": "Add PR workflow validation gates",
+      "description": "Implements state machine for PR workflow compliance...",
+      "created": 1774526789,
+      "created_commit": "abc1234",
+      "latest_commit": "def5678",
+      "transitions": [
+        {
+          "from": "CREATED",
+          "to": "SECURITY_REVIEW",
+          "timestamp": 1774526850,
+          "artifact": "reviews/PR-123-security.md"
+        },
+        {
+          "from": "SECURITY_REVIEW",
+          "to": "CODE_REVIEW",
+          "timestamp": 1774526920,
+          "artifact": "reviews/PR-123-code.md"
+        }
+      ],
+      "validations": {
+        "security_review": {
+          "status": "completed",
+          "static_analysis": {
+            "tool": "openclaw-dash audit",
+            "run_at": 1774526750,
+            "critical_issues": 0,
+            "high_issues": 0,
+            "medium_issues": 2,
+            "low_issues": 0,
+            "passed": true,
+            "report_file": ".audit/PR-123-audit.json"
+          },
+          "agent_spawned": true,
+          "agent_session": "agent:security-specialist:subagent:abc123",
+          "spawned_at": 1774526800,
+          "completed_at": 1774526850,
+          "file": "reviews/PR-123-security.md",
+          "file_exists": true,
+          "result": "pass",
+          "issues_found": 0
+        },
+        "code_review": {
+          "status": "running",
+          "agent_spawned": true,
+          "agent_session": "agent:code-reviewer:subagent:def456",
+          "spawned_at": 1774526920,
+          "completed_at": null,
+          "file": null,
+          "file_exists": false,
+          "result": null,
+          "issues_found": 0
+        },
+        "ci": {
+          "status": "not_started",
+          "url": null,
+          "checks": []
+        }
+      }
+    }
+  },
+  "notes": [
+    "This file enforces AXIOM-001 (wait for CI) and AXIOM-002 (security review mandatory)",
+    "State can only transition via valid paths defined in transitions object",
+    "READY state is terminal - PR must pass all prior gates",
+    "CI_RUNNING can loop back to FIXES_APPLIED if CI fails",
+    "Never announce PR ready unless state === READY"
+  ],
+  "validation_status_values": [
+    "not_started - validation not started",
+    "running - agent spawned, waiting for completion",
+    "completed - agent finished, file exists",
+    "validated - file reviewed, result recorded (pass/fail)"
+  ],
+  "integration_notes": [
+    "Security review uses TWO-LAYER validation:",
+    "  1. Static analysis (openclaw-dash audit): deps, secrets, patterns",
+    "  2. LLM agent (@security-specialist): context-aware code review",
+    "Static analysis runs FIRST (blocks if critical_issues > 0)",
+    "LLM agent only spawns if static analysis passes",
+    "Both must pass for security_review.result === 'pass'",
+    "openclaw-dash integration: audit (static), pr-auto (checks workflow state before merge)"
+  ]
+}

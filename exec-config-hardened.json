@@ -1,0 +1,51 @@
+{
+  "tools": {
+    "exec": {
+      "host": "gateway",
+      "security": "allowlist",
+      "ask": "on-miss",
+      "safeBins": [
+        "jq",
+        "cut",
+        "uniq",
+        "head",
+        "tail",
+        "tr",
+        "wc",
+        "grep",
+        "sort",
+        "awk",
+        "sed",
+        "base64"
+      ],
+      "safeBinTrustedDirs": [
+        "/bin",
+        "/usr/bin"
+      ],
+      "safeBinProfiles": {
+        "grep": {
+          "minPositional": 0,
+          "maxPositional": 0,
+          "allowedValueFlags": ["-e", "--regexp", "-i", "--ignore-case", "-v", "--invert-match", "-n", "--line-number", "-w", "--word-regexp"],
+          "deniedFlags": ["-f", "--file", "-r", "-R", "--recursive", "--dereference-recursive", "-d", "--directories"]
+        },
+        "sort": {
+          "minPositional": 0,
+          "maxPositional": 0,
+          "allowedValueFlags": ["-n", "--numeric-sort", "-r", "--reverse", "-u", "--unique", "-k", "--key"],
+          "deniedFlags": ["-o", "--output", "--compress-program", "--files0-from", "-T", "--temporary-directory", "--debug", "--random-source"]
+        },
+        "awk": {
+          "minPositional": 1,
+          "maxPositional": 1,
+          "deniedFlags": ["-f", "--file"]
+        },
+        "sed": {
+          "minPositional": 1,
+          "maxPositional": 1,
+          "deniedFlags": ["-i", "--in-place", "-f", "--file"]
+        }
+      }
+    }
+  }
+}

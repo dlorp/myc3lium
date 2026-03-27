@@ -1,0 +1,62 @@
+POST TO #sessions:
+
+**SESSION 5/6 COMPLETE** • 2026-03-25 09:00-09:45 UTC (01:00-01:45 AKDT)
+**Mode:** PROTOTYPE
+
+**Deliverable:** `nes-pattern-tui` v0.1 — Interactive NES CHR-ROM viewer with live palette switching
+
+**What it does:**
+• Dual pattern table view (16×16 grids, 512 tiles total)
+• 8 NES palette presets (grayscale, mario, luigi, sky, fire, ice, gold, purple)
+• Live switching (press 1-8 → instant color change)
+• Half-block rendering (Unicode ▀ for 2:1 vertical resolution)
+• Vim navigation (j/k/h/l/g/G) + help toggle (?)
+• PSX aesthetic (dark blue, cyan/magenta)
+
+**Technical:**
+• iNES format parser (PRG-ROM + CHR-ROM extraction)
+• 2-bitplane tile decoder (16 bytes → 8×8 pixels)
+• NES NTSC palette (64 colors RGB)
+• Textual TUI framework
+
+**Files:** 6 files, ~33 KB, 1000 lines
+• `nes_decoder.py` (241 lines) — iNES parser, tile decoder, palettes
+• `nes_pattern_tui.py` (331 lines) — TUI app, widgets, keybinds
+• `README.md` + `DESIGN.md` (428 lines) — docs, philosophy, roadmap
+
+**Commit:** `727e144`
+
+**Research → Prototype pipeline:**
+• Session 1: Research NES CHR format (key insight: tiles store SHAPE, palette gives COLOR)
+• Session 5: Implement interactive viewer (live palette switching demonstrates the constraint)
+
+**Retro gaming toolchain complete:**
+• ROM analysis: nes-rom-analyzer, rom-inspector
+• Graphics: nes-chr-viewer (static), nes-pattern-tui (interactive)
+• Saves: gba-save-viewer, gba-save-parser
+• Procedural gen: psx-terra, gba-terra
+
+**Next:** Session 6/6 (02:00 AKDT) — CREATIVE or full wrap-up + /SN handoff
+
+**Session ID:** main
+
+---
+
+POST TO #lorp-activity:
+
+🎮 **NES Pattern Table Viewer** — Interactive TUI prototype complete
+
+**New project:** `~/repos/nes-pattern-tui`
+• Live palette switching (8 NES presets)
+• Dual pattern tables (512 tiles, side-by-side)
+• Half-block rendering (2:1 vertical resolution)
+• PSX aesthetic (cyan/magenta on dark blue)
+• Vim keybinds + help toggle
+
+**Stats:** 6 files, 1000 lines, 33 KB
+**Commit:** 727e144
+**Time:** 01:00-01:45 AKDT (45 min)
+
+Implements Session 1 research (NES CHR format). Completes retro gaming toolchain (ROM + graphics + saves + procedural gen).
+
+**Session:** 5/6 (PROTOTYPE mode)

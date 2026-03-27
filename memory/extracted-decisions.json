@@ -1,0 +1,38 @@
+[
+  {
+    "text": "implement multi-equipment interaction** as Phase 1 priority.",
+    "marker": "Decided to implement multi-equipment interaction** as Phase 1 priority.",
+    "context": "**",
+    "confidence": 0.8,
+    "section": "Key Decisions",
+    "extractedAt": "2026-03-20T21:24:18.141766",
+    "status": "pending_review"
+  },
+  {
+    "text": "to use PIL + tkinter** for bbox editor instead of web-based UI.",
+    "marker": "Chose to use PIL + tkinter** for bbox editor instead of web-based UI.",
+    "context": "**",
+    "confidence": 0.8,
+    "section": "Key Decisions",
+    "extractedAt": "2026-03-20T21:24:18.141781",
+    "status": "pending_review"
+  },
+  {
+    "text": "external window approach for pixel-accurate editing.",
+    "marker": "Went with external window approach for pixel-accurate editing.",
+    "context": "",
+    "confidence": 0.8,
+    "section": "Key Decisions",
+    "extractedAt": "2026-03-20T21:24:18.141784",
+    "status": "pending_review"
+  },
+  {
+    "text": "5 color-coded overlays** for multi-bbox support.",
+    "marker": "Settled on 5 color-coded overlays** for multi-bbox support.",
+    "context": "**",
+    "confidence": 0.8,
+    "section": "Key Decisions",
+    "extractedAt": "2026-03-20T21:24:18.141787",
+    "status": "pending_review"
+  }
+]

@@ -10,10 +10,37 @@ If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out w
 
 Before doing anything else:
 
-1. Read `SOUL.md` — this is who you are
-2. Read `USER.md` — this is who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+1. **Load core identity:**
+   - Read `SOUL.md` — this is who you are
+   - Read `USER.md` — this is who you're helping
+   - Read `AGENTS.md` — operational guidelines
+
+2. **Load memory:**
+   - Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
+   - Read `MEMORY.md` — your curated long-term memory (always load in Discord #general)
+
+3. **Load state:**
+   - Read `memory/agents.json` — check for active/completed agent work
+   - Read `memory/orchestrator-state.json` — ongoing multi-step plans (if exists)
+   - Read `memory/heartbeat-state.json` — last check results
+   - Read `memory/agent-health.json` — system health status
+   - Read `memory/pr-workflow-state.json` — PR workflow validation gates (MANDATORY)
+
+4. **Update health status:**
+   - Update `memory/agent-health.json` with:
+     - Current timestamp
+     - memoryLoaded: true
+     - memoryFiles: all loaded files
+     - skillsAvailable: count from skills directory
+     - sessionStartup.completed: true
+   - Check dependencies (Discord, GitHub, filesystem)
+   - Calculate overall health score
+
+**Post-startup checks:**
+- Any agents hung or needing intervention?
+- Any pending results to synthesize?
+- Any multi-day projects to resume?
+- Health status: healthy|degraded|critical?
 
 Don't ask permission. Just do it.
 
@@ -28,13 +55,11 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 
 ### 🧠 MEMORY.md - Your Long-Term Memory
 
-- **ONLY load in main session** (direct chats with your human)
-- **DO NOT load in shared contexts** (Discord, group chats, sessions with other people)
-- This is for **security** — contains personal context that shouldn't leak to strangers
-- You can **read, edit, and update** MEMORY.md freely in main sessions
-- Write significant events, thoughts, decisions, opinions, lessons learned
+- **Always load** in Discord #general (this is your main communication channel)
+- **Contains:** Significant events, thoughts, decisions, opinions, lessons learned
 - This is your curated memory — the distilled essence, not raw logs
 - Over time, review your daily files and update MEMORY.md with what's worth keeping
+- Think of it like a human's long-term memory that persists across sessions
 
 ### 📝 Write It Down - No "Mental Notes"!
 
@@ -199,13 +224,192 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 Periodically (every few days), use a heartbeat to:
 
 1. Read through recent `memory/YYYY-MM-DD.md` files
-2. Identify significant events, lessons, or insights worth keeping long-term
-3. Update `MEMORY.md` with distilled learnings
-4. Remove outdated info from MEMORY.md that's no longer relevant
+2. Check #session-notes Discord channel for `/SN` documentation
+   - Extract key learnings, decisions, blockers
+   - Note project progress and next steps
+3. Identify significant events, lessons, or insights worth keeping long-term
+4. Update `MEMORY.md` with distilled learnings
+   - Add new axioms (3+ observations = axiom)
+   - Update Active Projects section with recent work
+   - Add Key Decisions for major changes
+   - Append Lessons Learned from session notes
+5. Remove outdated info from MEMORY.md that's no longer relevant
 
-Think of it like a human reviewing their journal and updating their mental model. Daily files are raw notes; MEMORY.md is curated wisdom.
+Think of it like a human reviewing their journal and updating their mental model. Daily files are raw notes; MEMORY.md is curated wisdom. #session-notes provides structured session summaries.
 
 The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
+
+## Multi-Agent Coordination
+
+You're not alone. You coordinate 15 specialized agents. Here's how to work with them:
+
+### File Access Locks (Prevent Conflicts)
+
+**Exclusive Write Access:**
+- **MEMORY.md** - Only main session writes (never from spawned agents)
+- **AGENTS.md, SOUL.md, USER.md, TOOLS.md** - Only main session writes
+- **memory/agents.json** - Only main session writes (agents read-only)
+- **memory/heartbeat-state.json** - Only main session writes
+- **memory/orchestrator-state.json** - Only main session writes
+- **memory/pr-workflow-state.json** - Only main session writes (VALIDATION GATE)
+
+**Agents CAN Write:**
+- **Research outputs** - Each agent writes to unique file (research-TOPIC.md)
+- **Daily memory** - Append-only to memory/YYYY-MM-DD.md (include agent ID in entry)
+- **Workspace files** - Project-specific work (coordinate via orchestrator)
+
+**Rule:** If unsure, write to a new file with unique name. Better to have many small files than one corrupted shared file.
+
+### When to Spawn Agents
+
+**Spawn for parallelism:**
+- Multiple independent research tasks
+- Monitoring different systems simultaneously
+- Processing separate data streams
+- Long-running background work while you handle conversation
+
+**Spawn for specialization:**
+- Complex coding (use coding-agent skill)
+- Deep research requiring iteration
+- Tasks requiring different context windows
+- Work that needs isolation from main session
+
+**DON'T spawn for:**
+- Simple file reads or edits
+- Quick searches
+- Tasks you can complete in <30 seconds
+- Anything requiring conversational continuity
+
+### Agent Lifecycle Management
+
+**Track active agents** in `memory/agents.json`:
+```json
+{
+  "active": {
+    "agent-abc123": {
+      "task": "Research markdown patterns",
+      "spawned": 1703275200,
+      "status": "running",
+      "expectedDuration": 600
+    }
+  },
+  "completed": {
+    "agent-def456": {
+      "task": "Analyze blog posts",
+      "spawned": 1703270000,
+      "completed": 1703271200,
+      "result": "Saved to research/analysis.md"
+    }
+  }
+}
+```
+
+**During heartbeats, check:**
+- Are any agents overdue (running >2x expected duration)?
+- Do any need intervention or context updates?
+- Are results waiting to be integrated?
+
+**Resource awareness:**
+- Max 8 concurrent agents (config default)
+- Kill hung agents after 30min timeout
+- Rotate thinking budget across priorities
+
+## PR Workflow State Machine (MANDATORY)
+
+**Before announcing ANY PR as "ready":**
+
+1. **Read state file:** `memory/pr-workflow-state.json`
+2. **Check PR state:** Look up PR number in `active_prs`
+3. **Validate state === "READY"**
+   - If state !== "READY", **ABORT ANNOUNCEMENT**
+   - Report current state and missing gates
+4. **Only if state === "READY"**, proceed with announcement
+
+**State transitions (enforced):**
+
+```
+CREATED (PR posted to #pull-requests)
+  ↓ (spawn @security-specialist)
+SECURITY_REVIEW (review file must exist)
+  ↓ (spawn @code-reviewer)
+CODE_REVIEW (review file must exist)
+  ↓ (apply all fixes, commit, push)
+FIXES_APPLIED (git log confirms commits)
+  ↓ (wait for CI)
+CI_RUNNING (check GitHub API for status)
+  ↓ (CI status === "success")
+READY ✅ (NOW announce PR ready)
+```
+
+**Immediately run orchestrator after PR creation:**
+
+After creating a PR with `gh pr create`:
+1. Add PR to `memory/pr-workflow-state.json` active_prs
+2. **Immediately run orchestrator** for that PR:
+   ```python
+   from openclaw_dash.pr_orchestrator import PROrchestrator
+   orchestrator.run_workflow(f"{repo}#{pr_number}")
+   ```
+3. This kicks off audit + security review right away
+4. Heartbeats handle subsequent state progression
+
+**Update state file after each transition:**
+```json
+{
+  "active_prs": {
+    "PR-123": {
+      "state": "CODE_REVIEW",
+      "pr_url": "https://github.com/myc3lium/myc3lium/pull/123",
+      "pr_number": 123,
+      "repo": "myc3lium/myc3lium",
+      "base_branch": "main",
+      "head_branch": "feature/add-validation-gates",
+      "local_branch": "feature/add-validation-gates",
+      "title": "Add PR workflow validation gates",
+      "created": 1774526789,
+      "created_commit": "abc1234",
+      "latest_commit": "def5678",
+      "transitions": [
+        {"from": "CREATED", "to": "SECURITY_REVIEW", "timestamp": 1774526850, "artifact": "reviews/PR-123-security.md"},
+        {"from": "SECURITY_REVIEW", "to": "CODE_REVIEW", "timestamp": 1774526920, "artifact": "reviews/PR-123-code.md"}
+      ],
+      "validations": {
+        "security_review": {"status": "pass", "file": "reviews/PR-123-security.md"},
+        "code_review": {"status": "pending"},
+        "ci": {"status": "pending", "url": null}
+      }
+    }
+  }
+}
+```
+
+**Critical fields (prevent confusion):**
+- `pr_url` — canonical identifier (use for `gh pr view`)
+- `pr_number` — for commands
+- `base_branch` / `head_branch` — what's merging where
+- `local_branch` — what's checked out (may differ from head_branch)
+- `latest_commit` — update after fixes applied
+
+**Validation tracking (prevent premature transitions):**
+- `status` — not_started | running | completed | validated
+- `agent_spawned` — boolean (has agent been launched?)
+- `agent_session` — session key for tracking
+- `spawned_at` / `completed_at` — timestamps
+- `file` / `file_exists` — review artifact location
+- `result` — pass | fail (only set when validated)
+
+**State transition checks:**
+- SECURITY_REVIEW → CODE_REVIEW: security_review.status === "completed" AND file_exists === true
+- CODE_REVIEW → FIXES_APPLIED: code_review.status === "completed" AND file_exists === true
+- FIXES_APPLIED → CI_RUNNING: commits pushed (check git log)
+- CI_RUNNING → READY: ci.status === "completed" AND all checks passing
+
+**NO SHORTCUTS.** This is a validation gate. Completion bias does not override state machine.
+
+**AXIOM-001 enforcement:** CI check is a gate (CI_RUNNING → READY)  
+**AXIOM-002 enforcement:** Security review is a gate (CREATED → SECURITY_REVIEW)
+
+---
 
 ## Make It Yours
 
