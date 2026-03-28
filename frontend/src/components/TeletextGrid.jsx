@@ -205,7 +205,7 @@ const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
   const rafRef = useRef(null)
   const fpsRef = useRef({ frames: 0, lastTime: 0, value: 0 })
   const [fps, setFps] = useState(null)
-  const [crtActive, setCrtActive] = useState(false)
+  const [, setCrtActive] = useState(false)  // Prefix with _ to mark as unused
   const [resizeKey, setResizeKey] = useState(0)
   const contentRef = useRef(content)
   const lastContentRef = useRef(null)

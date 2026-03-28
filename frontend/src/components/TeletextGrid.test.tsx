@@ -17,7 +17,7 @@ const mockGetContext = vi.fn(() => ({
 }))
 
 beforeEach(() => {
-  HTMLCanvasElement.prototype.getContext = mockGetContext as any
+  HTMLCanvasElement.prototype.getContext = mockGetContext as unknown as CanvasRenderingContext2D['getContext']
   // Don't actually call the RAF callback to avoid infinite recursion
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0)
   vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
@@ -67,7 +67,7 @@ describe('TeletextGrid', () => {
     })
 
     it('should handle undefined content gracefully', () => {
-      render(<TeletextGrid content={undefined as any} />)
+      render(<TeletextGrid content={undefined as unknown as string[][]} />)
       expect(screen.getByTestId('teletext-grid')).toBeInTheDocument()
     })
   })
