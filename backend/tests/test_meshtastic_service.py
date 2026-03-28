@@ -252,3 +252,126 @@ def test_on_node_info_updated_with_none_node(mock_pub, mock_serial):
 
     assert len(service._nodes) == 0
     ws_callback.assert_not_called()
+
+
+def test_on_node_info_extracts_device_metrics(mock_pub, mock_serial):
+    """_on_node_info_updated extracts all four deviceMetrics fields."""
+    service = MeshtasticService()
+    service.start()
+
+    test_node = {
+        "user": {"id": "!node010", "shortName": "M10", "longName": "Metrics Node"},
+        "lastHeard": 1234567890.0,
+        "deviceMetrics": {
+            "batteryLevel": 85,
+            "voltage": 3.9,
+            "channelUtilization": 12.5,
+            "airUtilTx": 3.2,
+        },
+    }
+
+    service._on_node_info_updated(node=test_node)
+
+    stored = service._nodes["!node010"]
+    assert stored.battery_level == 85
+    assert stored.voltage == 3.9
+    assert stored.channel_utilization == 12.5
+    assert stored.air_util_tx == 3.2
+
+
+def test_on_node_info_device_metrics_missing(mock_pub, mock_serial):
+    """_on_node_info_updated sets metric fields to None when deviceMetrics absent."""
+    service = MeshtasticService()
+    service.start()
+
+    test_node = {
+        "user": {"id": "!node011", "shortName": "M11", "longName": "No Metrics"},
+        "lastHeard": 1234567890.0,
+    }
+
+    service._on_node_info_updated(node=test_node)
+
+    stored = service._nodes["!node011"]
+    assert stored.battery_level is None
+    assert stored.voltage is None
+    assert stored.channel_utilization is None
+    assert stored.air_util_tx is None
+
+
+def test_on_node_info_device_metrics_partial(mock_pub, mock_serial):
+    """_on_node_info_updated handles partial deviceMetrics (only batteryLevel)."""
+    service = MeshtasticService()
+    service.start()
+
+    test_node = {
+        "user": {"id": "!node012", "shortName": "M12", "longName": "Partial Metrics"},
+        "lastHeard": 1234567890.0,
+        "deviceMetrics": {"batteryLevel": 50},
+    }
+
+    service._on_node_info_updated(node=test_node)
+
+    stored = service._nodes["!node012"]
+    assert stored.battery_level == 50
+    assert stored.voltage is None
+    assert stored.channel_utilization is None
+    assert stored.air_util_tx is None
+
+
+def test_get_status_includes_device_metrics(mock_pub, mock_serial):
+    """get_status() returns device metrics from the local node."""
+    service = MeshtasticService()
+    service.start()
+
+    # Set the local node ID so get_status looks it up
+    service._my_node_id = "!localnode"
+
+    test_node = {
+        "user": {"id": "!localnode", "shortName": "LOC", "longName": "Local Node"},
+        "lastHeard": 1234567890.0,
+        "deviceMetrics": {
+            "batteryLevel": 72,
+            "voltage": 4.1,
+            "channelUtilization": 8.3,
+            "airUtilTx": 1.5,
+        },
+    }
+
+    service._on_node_info_updated(node=test_node)
+    status = service.get_status()
+
+    assert status.connected is True
+    assert status.battery_level == 72
+    assert status.voltage == 4.1
+    assert status.channel_utilization == 8.3
+    assert status.air_util_tx == 1.5
+
+
+def test_ws_callback_includes_device_metrics(mock_pub, mock_serial):
+    """ws_callback receives all four device metric fields on node update."""
+    service = MeshtasticService()
+    service.start()
+
+    ws_callback = MagicMock()
+    service.set_ws_callback(ws_callback)
+
+    test_node = {
+        "user": {"id": "!node013", "shortName": "M13", "longName": "WS Metrics Node"},
+        "lastHeard": 1234567890.0,
+        "deviceMetrics": {
+            "batteryLevel": 60,
+            "voltage": 3.7,
+            "channelUtilization": 5.0,
+            "airUtilTx": 2.1,
+        },
+    }
+
+    service._on_node_info_updated(node=test_node)
+
+    ws_callback.assert_called_once()
+    event_type, data = ws_callback.call_args.args
+    assert event_type == "meshtastic_node_updated"
+    assert data["battery_level"] == 60
+    assert data["voltage"] == 3.7
+    assert data["channel_utilization"] == 5.0
+    assert data["air_util_tx"] == 2.1
