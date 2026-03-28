@@ -175,10 +175,20 @@ class MeshtasticService:
             # Store my node info
             if interface.myInfo:
                 self._my_node_info = interface.myInfo
+                # Get node info from interface.nodes (myInfo.get() removed in Meshtastic 2.x)
+                nodes_list = list(interface.nodes.values())
+                if nodes_list:
+                    my_node = nodes_list[0]
+                    short_name = my_node.get("user", {}).get("shortName", "Unknown")
+                    node_id = my_node.get("user", {}).get("id", "Unknown")
+                else:
+                    short_name = "Unknown"
+                    node_id = "Unknown"
+                
                 logger.info(
                     "Connected to Meshtastic node: %s (%s)",
-                    interface.myInfo.get("user", {}).get("shortName", "Unknown"),
-                    interface.myInfo.get("user", {}).get("id", "Unknown"),
+                    short_name,
+                    node_id,
                 )
 
             logger.info("Meshtastic service started successfully")
