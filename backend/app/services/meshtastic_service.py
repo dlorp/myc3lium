@@ -84,6 +84,10 @@ class MeshtasticNode:
     last_heard: float
     snr: Optional[float] = None
     position: Optional[dict] = None  # {"lat": float, "lon": float, "alt": int}
+    battery_level: Optional[int] = None
+    voltage: Optional[float] = None
+    channel_utilization: Optional[float] = None
+    air_util_tx: Optional[float] = None
 
 
 @dataclass
@@ -340,6 +344,13 @@ class MeshtasticService:
                     "alt": pos_data.get("altitude"),
                 }
 
+            # Extract device metrics if available
+            device_metrics = node.get("deviceMetrics", {})
+            battery_level = device_metrics.get("batteryLevel")
+            voltage = device_metrics.get("voltage")
+            channel_utilization = device_metrics.get("channelUtilization")
+            air_util_tx = device_metrics.get("airUtilTx")
+
             mesh_node = MeshtasticNode(
                 node_id=node_id,
                 short_name=short_name,
@@ -347,6 +358,10 @@ class MeshtasticService:
                 last_heard=last_heard,
                 snr=snr,
                 position=position,
+                battery_level=battery_level,
+                voltage=voltage,
+                channel_utilization=channel_utilization,
+                air_util_tx=air_util_tx,
             )
 
             with self._nodes_lock:
@@ -366,6 +381,10 @@ class MeshtasticService:
                         "last_heard": last_heard,
                         "snr": snr,
                         "position": position,
+                        "battery_level": battery_level,
+                        "voltage": voltage,
+                        "channel_utilization": channel_utilization,
+                        "air_util_tx": air_util_tx,
                         "nodes_count": nodes_count,
                     },
                 )
@@ -477,6 +496,10 @@ class MeshtasticService:
             if my_node:
                 short_name = my_node.short_name
                 long_name = my_node.long_name
+                battery_level = my_node.battery_level
+                voltage = my_node.voltage
+                channel_util = my_node.channel_utilization
+                air_util_tx = my_node.air_util_tx
 
         with self._nodes_lock:
             nodes_count = len(self._nodes)
