@@ -172,7 +172,7 @@ const P100 = () => {
       radioData.lora = {
         enabled: true,
         status: 'TX/RX',
-        strength: Math.round(meshtasticStatus.channel_utilization),
+        strength: Math.round(meshtasticStatus.channel_utilization ?? 0),
       }
     }
 

@@ -1,5 +1,6 @@
 """Simple API key authentication for Meshtastic endpoints"""
 
+import hmac
 import logging
 import os
 
@@ -23,6 +24,6 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     if not API_KEY:
         # No key configured — skip auth (dev mode)
         return api_key
-    if api_key != API_KEY:
+    if not hmac.compare_digest(api_key or "", API_KEY):
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
     return api_key

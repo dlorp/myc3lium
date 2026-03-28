@@ -10,9 +10,11 @@ Provides:
 """
 
 import asyncio
+import hmac
 import logging
 import os
 from asyncio import Queue
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import (
@@ -27,7 +29,7 @@ from pydantic import BaseModel
 
 from app.auth import verify_api_key
 from app.rate_limit import send_limiter
-from app.websocket import ConnectionManager
+from app.websocket import ConnectionManager, manager as main_ws_manager
 
 from app.services.meshtastic_service import (
     MeshtasticService,
@@ -276,7 +278,7 @@ async def websocket_endpoint(websocket: WebSocket):
     api_key = os.getenv("MESHTASTIC_API_KEY")
     if api_key:
         token = websocket.query_params.get("token")
-        if token != api_key:
+        if not hmac.compare_digest(token or "", api_key):
             await websocket.close(code=1008, reason="Unauthorized")
             return
 
@@ -308,7 +310,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             # Message size validation
-            if len(data) > 1024:
+            if len(data.encode("utf-8")) > 1024:
                 await websocket.send_json(
                     {"type": "error", "data": {"message": "Message too large"}}
                 )
@@ -342,8 +344,17 @@ async def _process_event_queue():
 
 async def _broadcast_to_websockets_internal(event_type: str, data: dict):
     """Internal broadcast function (async, called from event processor)."""
+    # Broadcast to Meshtastic-specific WS clients (/api/meshtastic/ws)
     message = {"type": event_type, "data": data}
     await _meshtastic_ws_manager.broadcast(message)
+
+    # Bridge to main WS (/ws) so P100 dashboard receives Meshtastic events
+    main_message = {
+        "event": event_type,
+        "data": data,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await main_ws_manager.broadcast(main_message)
 
 
 # Reference to the running event loop, set during startup
