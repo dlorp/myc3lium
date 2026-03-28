@@ -21,10 +21,7 @@ from app.auth import verify_api_key
 from app.rate_limit import send_limiter
 
 from app.services.meshtastic_service import (
-    MeshtasticMessage,
-    MeshtasticNode,
     MeshtasticService,
-    MeshtasticStatus,
 )
 
 logger = logging.getLogger(__name__)
