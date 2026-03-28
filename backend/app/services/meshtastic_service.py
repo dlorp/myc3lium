@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 try:
-    from pubsub import pub  # type: ignore
+    from pubsub import pub
 except ImportError:
-    pub = None  # type: ignore
+    pub = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
