@@ -64,8 +64,11 @@ Thumbs.db
 # Testing
 coverage/
 
-# Plans (local working docs)
+# Plans & session docs (local working docs, not for repo)
 plans/
+SESSION_NOTES.md
+CHANGELOG.md
+*_REWORK.md
 
 # Firmware (ESP32)
 firmware/.pio/
