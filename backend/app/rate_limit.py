@@ -2,6 +2,7 @@
 
 import time
 from collections import defaultdict
+from typing import Dict, List
 from fastapi import HTTPException, Request
 
 
@@ -11,9 +12,11 @@ class RateLimiter:
     def __init__(self, calls: int, period: int):
         self.calls = calls
         self.period = period
-        self.requests = defaultdict(list)
+        self.requests: Dict[str, List[float]] = defaultdict(list)
 
     async def __call__(self, request: Request):
+        if request.client is None:
+            raise HTTPException(status_code=400, detail="Client address unavailable")
         client = request.client.host
         now = time.time()
 
