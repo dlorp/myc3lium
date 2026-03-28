@@ -268,6 +268,46 @@ export async function fetchMeshStatistics(): Promise<MeshStatistics> {
 }
 
 // ============================================================================
+// Meshtastic API
+// ============================================================================
+
+export interface MeshtasticStatus {
+  connected: boolean;
+  device: string;
+  node_id: string;
+  short_name: string;
+  long_name: string;
+  battery_level: number;
+  voltage: number;
+  channel_utilization: number;
+  air_util_tx: number;
+  nodes_count: number;
+}
+
+export interface MeshtasticNode {
+  node_id: string;
+  short_name: string;
+  long_name: string;
+  last_heard: number;
+  snr: number | null;
+  position: { lat: number; lon: number; alt: number } | null;
+}
+
+/**
+ * Get Meshtastic device status
+ */
+export async function fetchMeshtasticStatus(): Promise<MeshtasticStatus> {
+  return apiFetch<MeshtasticStatus>('/api/meshtastic/status');
+}
+
+/**
+ * Get all Meshtastic mesh nodes
+ */
+export async function fetchMeshtasticNodes(): Promise<MeshtasticNode[]> {
+  return apiFetch<MeshtasticNode[]>('/api/meshtastic/nodes');
+}
+
+// ============================================================================
 // Health Check
 // ============================================================================
 

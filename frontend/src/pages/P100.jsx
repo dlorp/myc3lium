@@ -6,7 +6,9 @@ import { renderDashboard, getMockData } from './P100.utils'
 import { 
   fetchMeshStatus, 
   fetchRadioStatus, 
-  fetchMeshStatistics 
+  fetchMeshStatistics,
+  fetchMeshtasticStatus,
+  fetchMeshtasticNodes
 } from '../services/api'
 import { getWebSocketClient } from '../services/ws'
 
@@ -42,18 +44,24 @@ const P100 = () => {
   const [meshStatus, setMeshStatus] = useState(null)
   const [radioStatus, setRadioStatus] = useState(null)
   const [statistics, setStatistics] = useState(null)
+  const [meshtasticStatus, setMeshtasticStatus] = useState(null)
+  const [meshtasticNodes, setMeshtasticNodes] = useState([])
 
   // Fetch mesh data from API
   const fetchMeshData = async () => {
     try {
-      const [status, radios, stats] = await Promise.all([
+      const [status, radios, stats, mtStatus, mtNodes] = await Promise.all([
         fetchMeshStatus(),
         fetchRadioStatus(),
         fetchMeshStatistics(),
+        fetchMeshtasticStatus().catch(() => null),
+        fetchMeshtasticNodes().catch(() => []),
       ])
       setMeshStatus(status)
       setRadioStatus(radios)
       setStatistics(stats)
+      setMeshtasticStatus(mtStatus)
+      setMeshtasticNodes(mtNodes)
     } catch (error) {
       console.error('[P100] Failed to fetch mesh data:', error)
     }
@@ -67,22 +75,62 @@ const P100 = () => {
     connectWS()
     fetchMeshData()
 
-    // Set up WebSocket listener for mesh_update events
+    // Set up WebSocket listeners for live updates
     const wsClient = getWebSocketClient()
-    const unsubscribe = wsClient.on('mesh_update', () => {
+    const unsubMeshUpdate = wsClient.on('mesh_update', () => {
       console.log('[P100] Mesh update received, refreshing data')
       fetchMeshData()
     })
 
+    // Live Meshtastic node updates via WebSocket
+    const unsubNodeAdded = wsClient.on('meshtastic_node_added', (msg) => {
+      console.log('[P100] Meshtastic node added:', msg.data.short_name)
+      setMeshtasticNodes(prev => {
+        const exists = prev.find(n => n.node_id === msg.data.node_id)
+        if (exists) return prev
+        return [...prev, msg.data]
+      })
+      setMeshtasticStatus(prev => prev ? { ...prev, nodes_count: msg.data.nodes_count } : prev)
+    })
+
+    const unsubNodeUpdated = wsClient.on('meshtastic_node_updated', (msg) => {
+      console.log('[P100] Meshtastic node updated:', msg.data.short_name)
+      setMeshtasticNodes(prev =>
+        prev.map(n => n.node_id === msg.data.node_id ? { ...n, ...msg.data } : n)
+      )
+      setMeshtasticStatus(prev => prev ? { ...prev, nodes_count: msg.data.nodes_count } : prev)
+    })
+
+    // Periodic refresh as fallback (every 30s instead of rapid polling)
+    const refreshInterval = setInterval(fetchMeshData, 5000) // Poll every 5s for live updates
+
     return () => {
       disconnectWS()
-      unsubscribe()
+      unsubMeshUpdate()
+      unsubNodeAdded()
+      unsubNodeUpdated()
+      clearInterval(refreshInterval)
     }
   }, [setBreadcrumbs, loadAll, connectWS, disconnectWS])
 
   // Update dashboard data when mesh store or API data changes
   useEffect(() => {
-    const onlineNodes = nodes.filter((n) => n.status === 'online').length
+    // Use Meshtastic nodes if available, otherwise fall back to store
+    const nowUnix = Date.now() / 1000
+    const fiveMinAgo = nowUnix - 300
+    const onlineNodes = meshtasticNodes.length > 0 
+      ? meshtasticNodes.filter(n => {
+          const isOnline = n.last_heard > fiveMinAgo
+          if (!isOnline) console.log(`[P100] Node ${n.short_name} stale: ${Math.floor(nowUnix - n.last_heard)}s ago`)
+          return isOnline
+        }).length // Active in last 5 min
+      : nodes.filter((n) => n.status === 'online').length
+    
+    const totalNodes = meshtasticNodes.length > 0 
+      ? meshtasticNodes.length 
+      : (nodes.length > 0 ? nodes.length : (meshStatus?.batman?.neighbor_count || 0))
+    
+    console.log(`[P100] Meshtastic: ${onlineNodes}/${totalNodes} nodes (${meshtasticNodes.length} in state)`)
     
     // Map radio status from API
     const radioData = {
@@ -90,7 +138,7 @@ const P100 = () => {
       halow: { enabled: true, status: 'DOWN', strength: 0 },
       wifi: { enabled: true, status: 'OFFLINE', strength: 0 },
     }
-
+    
     if (radioStatus) {
       // Map HaLow radio (case-sensitive check for "up")
       if (radioStatus.halow0) {
@@ -104,8 +152,8 @@ const P100 = () => {
         }
       }
 
-      // Map LoRa radio
-      if (radioStatus.lora0) {
+      // Map LoRa radio (only if not using Meshtastic)
+      if (radioStatus.lora0 && !meshtasticStatus?.connected) {
         const lora = radioStatus.lora0
         radioData.lora = {
           enabled: true,
@@ -114,6 +162,15 @@ const P100 = () => {
             ? Math.min(100, Math.round((lora.throughput / 5000000) * 100)) // Scale to 0-100%
             : 0,
         }
+      }
+    }
+    
+    // If Meshtastic is connected, override LoRa with Meshtastic data (after radioStatus check)
+    if (meshtasticStatus?.connected) {
+      radioData.lora = {
+        enabled: true,
+        status: 'TX/RX',
+        strength: Math.round(meshtasticStatus.channel_utilization),
       }
     }
 
@@ -142,7 +199,7 @@ const P100 = () => {
       ...prevData,
       nodes: {
         online: onlineNodes,
-        total: nodes.length > 0 ? nodes.length : (meshStatus?.batman?.neighbor_count || 0),
+        total: totalNodes,
       },
       messages: {
         unread: messages.length,
@@ -154,7 +211,7 @@ const P100 = () => {
       },
       wsStatus: wsConnected ? 'CONNECTED' : 'DISCONNECTED',
     }))
-  }, [nodes, threads, messages, wsConnected, meshStatus, radioStatus, statistics])
+  }, [nodes, threads, messages, wsConnected, meshStatus, radioStatus, statistics, meshtasticStatus, meshtasticNodes])
 
   // Update clock every second
   useEffect(() => {
