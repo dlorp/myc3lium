@@ -12,8 +12,11 @@ Provides:
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+from app.auth import verify_api_key
+from app.rate_limit import send_limiter
 
 from app.services.meshtastic_service import (
     MeshtasticMessage,
@@ -183,7 +186,12 @@ async def get_messages(
 
 
 @router.post("/send")
-async def send_message(request: SendMessageRequest):
+async def send_message(
+    request: SendMessageRequest,
+    req: Request,
+    api_key: str = Depends(verify_api_key),
+    _rate_limit=Depends(send_limiter)
+):
     """
     Send a text message to the mesh.
 
