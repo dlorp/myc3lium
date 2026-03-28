@@ -103,7 +103,8 @@ def set_service(service: MeshtasticService):
 
 async def start_event_processor():
     """Start the event processor task. Must be called from within a running event loop."""
-    global _event_processor_task
+    global _event_processor_task, _event_loop
+    _event_loop = asyncio.get_running_loop()
     if _event_processor_task is None:
         _event_processor_task = asyncio.create_task(_process_event_queue())
         logger.info("Event processor task started")
@@ -339,16 +340,26 @@ async def _broadcast_to_websockets_internal(event_type: str, data: dict):
         _ws_connections.remove(ws)
 
 
+# Reference to the running event loop, set during startup
+_event_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
 def broadcast_to_websockets(event_type: str, data: dict):
     """
     Queue an event for broadcast to WebSocket clients.
-    Thread-safe: can be called from sync Meshtastic callbacks.
+    Thread-safe: uses call_soon_threadsafe since meshtastic callbacks
+    fire from a background serial reader thread, not the asyncio loop.
 
     Args:
         event_type: Type of event (e.g., "meshtastic_message")
         data: Event data dict
     """
     try:
-        _event_queue.put_nowait((event_type, data))
+        if _event_loop is not None and _event_loop.is_running():
+            _event_loop.call_soon_threadsafe(
+                _event_queue.put_nowait, (event_type, data)
+            )
+        else:
+            logger.warning("No event loop available for WebSocket broadcast")
     except Exception as e:
         logger.error("Failed to queue WebSocket event: %s", e)
