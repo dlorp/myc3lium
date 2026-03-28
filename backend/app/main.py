@@ -6,9 +6,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import messages, mesh, nodes, threads, ws
+from app.routers import messages, mesh, meshtastic, nodes, threads, ws
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
+from app.services.meshtastic_service import MeshtasticService
 from app.services.mock_data import MeshDataSource, MockMeshDataSource
 from app.services.reticulum_service import ReticulumBridge
 
@@ -71,11 +72,23 @@ app.include_router(messages.router)
 app.include_router(threads.router)
 app.include_router(ws.router)
 app.include_router(mesh.router)
+app.include_router(meshtastic.router)
 
+
+# Initialize Meshtastic service
+meshtastic_service = MeshtasticService()
 
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
+    # Start Meshtastic service
+    if meshtastic_service.start():
+        logger.info("Meshtastic service started successfully")
+        # Register WebSocket callback for real-time updates
+        meshtastic_service.set_ws_callback(meshtastic.broadcast_to_websockets)
+    else:
+        logger.warning("Meshtastic service not available")
+    
     if settings.use_live_data:
         logger.info("Starting mesh monitor (live data enabled)")
         ws.set_data_source(data_source)
