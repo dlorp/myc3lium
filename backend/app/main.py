@@ -81,6 +81,7 @@ app.include_router(meshtastic.router)
 
 # Initialize Meshtastic service
 meshtastic_service = MeshtasticService()
+meshtastic.set_service(meshtastic_service)  # Inject service into router
 
 @app.on_event("startup")
 async def start_mesh_monitor():
@@ -101,6 +102,19 @@ async def start_mesh_monitor():
         asyncio.create_task(ws.mesh_monitor_loop())
     else:
         logger.info("Mesh monitor disabled (using mock data)")
+
+
+@app.on_event("shutdown")
+async def shutdown_services():
+    """Clean up services on shutdown."""
+    logger.info("Shutting down services...")
+    
+    # Stop Meshtastic service and release serial port
+    if meshtastic_service and meshtastic_service.available:
+        meshtastic_service.stop()
+        logger.info("Meshtastic service stopped")
+    
+    logger.info("Shutdown complete")
 
 
 @app.get("/")

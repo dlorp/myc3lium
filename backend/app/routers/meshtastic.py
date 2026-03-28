@@ -9,7 +9,9 @@ Provides:
 - WebSocket endpoint for real-time updates
 """
 
+import asyncio
 import logging
+from asyncio import Queue
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -31,6 +33,10 @@ router = APIRouter(prefix="/api/meshtastic", tags=["meshtastic"])
 
 # Global service instance - will be set by main.py
 _service: Optional[MeshtasticService] = None
+
+# Event queue for async/sync bridge
+_event_queue: Queue = Queue()
+_event_processor_task = None
 
 
 class MessageResponse(BaseModel):
@@ -86,8 +92,13 @@ def set_service(service: MeshtasticService):
     Args:
         service: MeshtasticService instance
     """
-    global _service
+    global _service, _event_processor_task
     _service = service
+    
+    # Start event processor if not already running
+    if _event_processor_task is None:
+        _event_processor_task = asyncio.create_task(_process_event_queue())
+        logger.info("Event processor task started")
 
 
 @router.get("/status", response_model=StatusResponse)
@@ -275,13 +286,23 @@ async def websocket_endpoint(websocket: WebSocket):
             _ws_connections.remove(websocket)
 
 
-async def broadcast_to_websockets(event_type: str, data: dict):
+async def _process_event_queue():
     """
-    Broadcast an event to all connected WebSocket clients.
+    Process events from the queue and broadcast to WebSocket clients.
+    Runs as background task to bridge sync callbacks to async WebSocket sends.
+    """
+    logger.info("Event processor started")
+    while True:
+        try:
+            event_type, data = await _event_queue.get()
+            await _broadcast_to_websockets_internal(event_type, data)
+        except Exception as e:
+            logger.error("Event processor error: %s", e)
 
-    Args:
-        event_type: Type of event (e.g., "meshtastic_message")
-        data: Event data dict
+
+async def _broadcast_to_websockets_internal(event_type: str, data: dict):
+    """
+    Internal broadcast function (async, called from event processor).
     """
     if not _ws_connections:
         return
@@ -300,3 +321,18 @@ async def broadcast_to_websockets(event_type: str, data: dict):
     # Clean up disconnected clients
     for ws in disconnected:
         _ws_connections.remove(ws)
+
+
+def broadcast_to_websockets(event_type: str, data: dict):
+    """
+    Queue an event for broadcast to WebSocket clients.
+    Thread-safe: can be called from sync Meshtastic callbacks.
+
+    Args:
+        event_type: Type of event (e.g., "meshtastic_message")
+        data: Event data dict
+    """
+    try:
+        _event_queue.put_nowait((event_type, data))
+    except Exception as e:
+        logger.error("Failed to queue WebSocket event: %s", e)
