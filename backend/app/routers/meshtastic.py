@@ -96,10 +96,14 @@ def set_service(service: MeshtasticService):
     Args:
         service: MeshtasticService instance
     """
-    global _service, _event_processor_task
+    global _service
     _service = service
+    # Don't start event processor here - no event loop at import time
 
-    # Start event processor if not already running
+
+async def start_event_processor():
+    """Start the event processor task. Must be called from within a running event loop."""
+    global _event_processor_task
     if _event_processor_task is None:
         _event_processor_task = asyncio.create_task(_process_event_queue())
         logger.info("Event processor task started")

@@ -87,6 +87,9 @@ meshtastic.set_service(meshtastic_service)  # Inject service into router
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
+    # Start event processor (needs running event loop)
+    await meshtastic.start_event_processor()
+
     # Start Meshtastic service
     if meshtastic_service.start():
         logger.info("Meshtastic service started successfully")
