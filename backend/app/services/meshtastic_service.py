@@ -344,12 +344,32 @@ class MeshtasticService:
                     "alt": pos_data.get("altitude"),
                 }
 
-            # Extract device metrics if available
+            # Extract device metrics if available (validated like other mesh input)
             device_metrics = node.get("deviceMetrics", {})
-            battery_level = device_metrics.get("batteryLevel")
-            voltage = device_metrics.get("voltage")
-            channel_utilization = device_metrics.get("channelUtilization")
-            air_util_tx = device_metrics.get("airUtilTx")
+            raw_battery = device_metrics.get("batteryLevel")
+            battery_level = (
+                raw_battery
+                if isinstance(raw_battery, int) and 0 <= raw_battery <= 100
+                else None
+            )
+            raw_voltage = device_metrics.get("voltage")
+            voltage = (
+                round(raw_voltage, 2)
+                if isinstance(raw_voltage, (int, float)) and 0 <= raw_voltage <= 10
+                else None
+            )
+            raw_chan = device_metrics.get("channelUtilization")
+            channel_utilization = (
+                round(raw_chan, 2)
+                if isinstance(raw_chan, (int, float)) and 0 <= raw_chan <= 100
+                else None
+            )
+            raw_air = device_metrics.get("airUtilTx")
+            air_util_tx = (
+                round(raw_air, 2)
+                if isinstance(raw_air, (int, float)) and 0 <= raw_air <= 100
+                else None
+            )
 
             mesh_node = MeshtasticNode(
                 node_id=node_id,
