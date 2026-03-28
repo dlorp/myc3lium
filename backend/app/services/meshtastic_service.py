@@ -13,12 +13,12 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 try:
     from pubsub import pub
 except ImportError:
-    pub = None
+    pub = None  # type: Any
 
 logger = logging.getLogger(__name__)
 
