@@ -494,8 +494,12 @@ class MeshtasticService:
                 # Unsubscribe from PyPubSub topics
                 if pub:
                     pub.unsubscribe(self._on_receive, "meshtastic.receive")
-                    pub.unsubscribe(self._on_connection, "meshtastic.connection.established")
-                    pub.unsubscribe(self._on_node_info_updated, "meshtastic.node.updated")
+                    pub.unsubscribe(
+                        self._on_connection, "meshtastic.connection.established"
+                    )
+                    pub.unsubscribe(
+                        self._on_node_info_updated, "meshtastic.node.updated"
+                    )
                 self._interface.close()
             except Exception as e:
                 logger.error("Error closing Meshtastic interface: %s", e)
