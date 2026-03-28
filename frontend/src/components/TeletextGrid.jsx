@@ -212,6 +212,11 @@ const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
   const needsRedrawRef = useRef(true)
   contentRef.current = content
 
+  // Trigger redraw when content prop changes
+  useEffect(() => {
+    needsRedrawRef.current = true
+  }, [content])
+
   // Determine canvas dimensions
   const getSize = useCallback(() => {
     const el = containerRef.current
@@ -222,7 +227,9 @@ const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
   }, [])
 
   // Draw text content to the off-screen buffer canvas
-  const drawContent = useCallback((ctx, w, h) => {
+  // Note: Not using useCallback because it's only used within the useEffect below,
+  // and we want it to always use the latest contentRef.current value
+  const drawContent = (ctx, w, h) => {
     const grid = normalizeContent(contentRef.current)
     const F = Math.max(11, Math.round(w / 58))
 
@@ -252,7 +259,7 @@ const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
       ctx.fillStyle = color
       ctx.fillText(lineStr, padX, padY + row * lineHeight)
     }
-  }, [])
+  }
 
   // Initialize and run the render loop
   useEffect(() => {
@@ -359,7 +366,7 @@ const TeletextGrid = ({ content, showFps = false, onTextureError }) => {
         if (loseCtx) loseCtx.loseContext()
       }
     }
-  }, [getSize, drawContent, showFps, onTextureError, resizeKey])
+  }, [getSize, showFps, onTextureError, resizeKey])
 
   return (
     <div
