@@ -9,13 +9,25 @@ This service provides:
 """
 
 import logging
+import re
 import threading
 import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+try:
+    from pubsub import pub
+except ImportError:
+    pub = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
+
+# Input validation constants for mesh radio packets (untrusted external input)
+_MAX_TEXT_LENGTH = 237  # Meshtastic max LoRa payload for TEXT_MESSAGE_APP
+_MAX_NODE_ID_LENGTH = 20
+_MAX_CHANNELS = 8
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]")
 
 # Lazy imports — meshtastic may not be installed on dev machines
 _meshtastic = None
@@ -134,7 +146,8 @@ class MeshtasticService:
         self._ws_callback: Optional[Callable] = None
         self._messages_lock = threading.Lock()
         self._nodes_lock = threading.Lock()
-        self._my_node_info = None
+        self._my_node_id: Optional[str] = None
+        self._subscribed = False
 
     def start(self) -> bool:
         """
@@ -157,14 +170,20 @@ class MeshtasticService:
             return False
 
         try:
+            # Register callbacks BEFORE connecting — SerialInterface constructor
+            # downloads the full nodedb, firing node.updated events during init.
+            if pub:
+                pub.subscribe(self._on_receive, "meshtastic.receive")
+                pub.subscribe(self._on_connection, "meshtastic.connection.established")
+                pub.subscribe(self._on_node_info_updated, "meshtastic.node.updated")
+                self._subscribed = True
+                logger.info("Registered PyPubSub callbacks for Meshtastic events")
+            else:
+                logger.warning("PyPubSub not available - callbacks won't work")
+
             # Connect to Heltec V3 via serial
             logger.info("Connecting to Meshtastic device at %s", self._device_path)
             interface = _serial.SerialInterface(devPath=self._device_path)
-
-            # Register callbacks
-            interface.onReceive = self._on_receive
-            interface.onConnection = self._on_connection
-            interface.onNodeInfoUpdated = self._on_node_info_updated
 
             self._interface = interface
             self._available = True
@@ -172,30 +191,26 @@ class MeshtasticService:
             # Give it a moment to fetch initial node info
             time.sleep(2)
 
-            # Store my node info
-            if interface.myInfo:
-                self._my_node_info = interface.myInfo
-                # Get node info from interface.nodes (myInfo.get() removed in Meshtastic 2.x)
-                nodes_list = list(interface.nodes.values())
-                if nodes_list:
-                    my_node = nodes_list[0]
-                    short_name = my_node.get("user", {}).get("shortName", "Unknown")
-                    node_id = my_node.get("user", {}).get("id", "Unknown")
-                else:
-                    short_name = "Unknown"
-                    node_id = "Unknown"
-
-                logger.info(
-                    "Connected to Meshtastic node: %s (%s)",
-                    short_name,
-                    node_id,
-                )
+            # Store local node ID from interface.nodes (myInfo is protobuf, not dict)
+            if interface.myInfo and interface.nodes:
+                my_node_num = str(interface.myInfo.my_node_num)
+                for nid, ndata in interface.nodes.items():
+                    if str(ndata.get("num")) == my_node_num:
+                        self._my_node_id = ndata.get("user", {}).get("id")
+                        short_name = ndata.get("user", {}).get("shortName", "Unknown")
+                        logger.info(
+                            "Connected to Meshtastic node: %s (%s)",
+                            short_name,
+                            self._my_node_id,
+                        )
+                        break
 
             logger.info("Meshtastic service started successfully")
             return True
 
         except Exception as e:
             logger.error("Failed to start Meshtastic service: %s", e, exc_info=True)
+            self._unsubscribe_all()
             self._available = False
             return False
 
@@ -204,13 +219,13 @@ class MeshtasticService:
         """Check if service is available and running"""
         return self._available
 
-    def _on_receive(self, packet, interface):
+    def _on_receive(self, packet, interface=None):
         """
-        Callback for incoming Meshtastic packets.
+        Callback for incoming Meshtastic packets via PyPubSub.
 
         Args:
-            packet: Meshtastic packet dict
-            interface: SerialInterface instance
+            packet: Meshtastic packet dict (keyword arg from PyPubSub)
+            interface: SerialInterface instance (optional)
         """
         try:
             # Only process TEXT_MESSAGE_APP packets
@@ -218,15 +233,29 @@ class MeshtasticService:
                 return
 
             decoded = packet.get("decoded", {})
-            from_id = packet.get("fromId", "Unknown")
-            text = decoded.get("text", "")
+
+            # Validate and sanitize untrusted mesh input
+            from_id = _CONTROL_CHAR_RE.sub(
+                "", str(packet.get("fromId", "Unknown"))[:_MAX_NODE_ID_LENGTH]
+            )
+            text = _CONTROL_CHAR_RE.sub(
+                "", str(decoded.get("text", ""))[:_MAX_TEXT_LENGTH]
+            )
+
             timestamp = packet.get("rxTime", time.time())
+            if not isinstance(timestamp, (int, float)) or not (
+                0 < timestamp < 4_102_444_800
+            ):
+                timestamp = time.time()
+
+            channel = packet.get("channel", 0)
+            if not isinstance(channel, int) or not (0 <= channel < _MAX_CHANNELS):
+                channel = 0
 
             # Extract signal metrics
             snr = packet.get("rxSnr")
             rssi = packet.get("rxRssi")
             hop_limit = packet.get("hopLimit")
-            channel = packet.get("channel", 0)
 
             msg = MeshtasticMessage(
                 sender=from_id,
@@ -244,13 +273,14 @@ class MeshtasticService:
                     "Received Meshtastic message from %s (ch=%d, SNR=%.1f): %s",
                     from_id,
                     channel,
-                    snr if snr else 0,
+                    snr if snr is not None else 0.0,
                     text[:50],
                 )
 
-            # Notify WebSocket clients
-            if self._ws_callback:
-                self._ws_callback(
+            # Notify WebSocket clients (capture ref for thread safety)
+            callback = self._ws_callback
+            if callback:
+                callback(
                     "meshtastic_message",
                     {
                         "sender": from_id,
@@ -265,40 +295,44 @@ class MeshtasticService:
         except Exception as e:
             logger.error("Error processing Meshtastic packet: %s", e)
 
-    def _on_connection(self, interface, topic=None):
+    def _on_connection(self, interface=None, topic=None):
         """
-        Callback for connection events.
+        Callback for connection events via PyPubSub.
 
         Args:
-            interface: SerialInterface instance
+            interface: SerialInterface instance (keyword arg from PyPubSub)
             topic: MQTT topic (unused for serial)
         """
         try:
             logger.info("Meshtastic connection event")
-            if interface.myInfo:
-                self._my_node_info = interface.myInfo
-                logger.debug("Updated node info: %s", interface.myInfo)
+            if interface is not None and interface.myInfo:
+                logger.debug(
+                    "Connection confirmed: my_node_num=%s", interface.myInfo.my_node_num
+                )
         except Exception as e:
             logger.error("Error in connection callback: %s", e)
 
-    def _on_node_info_updated(self, interface, node_info):
+    def _on_node_info_updated(self, node=None, interface=None):
         """
-        Callback for node info updates.
+        Callback for node info updates via PyPubSub.
 
         Args:
-            interface: SerialInterface instance
-            node_info: Node info dict
+            node: Node info dict (keyword arg from PyPubSub, named 'node' not 'node_info')
+            interface: SerialInterface instance (optional)
         """
         try:
-            node_id = node_info.get("user", {}).get("id", "Unknown")
-            short_name = node_info.get("user", {}).get("shortName", "Unknown")
-            long_name = node_info.get("user", {}).get("longName", "Unknown")
-            last_heard = node_info.get("lastHeard", time.time())
-            snr = node_info.get("snr")
+            if not node:
+                return
+
+            node_id = node.get("user", {}).get("id", "Unknown")
+            short_name = node.get("user", {}).get("shortName", "Unknown")
+            long_name = node.get("user", {}).get("longName", "Unknown")
+            last_heard = node.get("lastHeard", time.time())
+            snr = node.get("snr")
 
             # Extract position if available
             position = None
-            pos_data = node_info.get("position", {})
+            pos_data = node.get("position", {})
             if pos_data and "latitude" in pos_data:
                 position = {
                     "lat": pos_data.get("latitude"),
@@ -306,7 +340,7 @@ class MeshtasticService:
                     "alt": pos_data.get("altitude"),
                 }
 
-            node = MeshtasticNode(
+            mesh_node = MeshtasticNode(
                 node_id=node_id,
                 short_name=short_name,
                 long_name=long_name,
@@ -316,8 +350,25 @@ class MeshtasticService:
             )
 
             with self._nodes_lock:
-                self._nodes[node_id] = node
+                self._nodes[node_id] = mesh_node
+                nodes_count = len(self._nodes)
                 logger.debug("Updated node info: %s (%s)", short_name, node_id)
+
+            # Notify WebSocket clients (capture ref for thread safety)
+            callback = self._ws_callback
+            if callback:
+                callback(
+                    "meshtastic_node_updated",
+                    {
+                        "node_id": node_id,
+                        "short_name": short_name,
+                        "long_name": long_name,
+                        "last_heard": last_heard,
+                        "snr": snr,
+                        "position": position,
+                        "nodes_count": nodes_count,
+                    },
+                )
 
         except Exception as e:
             logger.error("Error processing node info: %s", e)
@@ -411,8 +462,8 @@ class MeshtasticService:
         if not self._available or self._interface is None:
             return MeshtasticStatus(connected=False)
 
-        # Extract node info
-        node_id = None
+        # Extract local node info from tracked nodes
+        node_id = self._my_node_id
         short_name = None
         long_name = None
         battery_level = None
@@ -420,18 +471,12 @@ class MeshtasticService:
         channel_util = None
         air_util_tx = None
 
-        if self._my_node_info:
-            user = self._my_node_info.get("user", {})
-            node_id = user.get("id")
-            short_name = user.get("shortName")
-            long_name = user.get("longName")
-
-            # Device metrics (if available)
-            device_metrics = self._my_node_info.get("deviceMetrics", {})
-            battery_level = device_metrics.get("batteryLevel")
-            voltage = device_metrics.get("voltage")
-            channel_util = device_metrics.get("channelUtilization")
-            air_util_tx = device_metrics.get("airUtilTx")
+        if node_id:
+            with self._nodes_lock:
+                my_node = self._nodes.get(node_id)
+            if my_node:
+                short_name = my_node.short_name
+                long_name = my_node.long_name
 
         with self._nodes_lock:
             nodes_count = len(self._nodes)
@@ -459,12 +504,33 @@ class MeshtasticService:
         self._ws_callback = callback
         logger.debug("WebSocket callback registered for Meshtastic")
 
+    def _unsubscribe_all(self) -> None:
+        """Remove all PyPubSub subscriptions if registered."""
+        if not pub or not self._subscribed:
+            return
+        try:
+            pub.unsubscribe(self._on_receive, "meshtastic.receive")
+            pub.unsubscribe(self._on_connection, "meshtastic.connection.established")
+            pub.unsubscribe(self._on_node_info_updated, "meshtastic.node.updated")
+            self._subscribed = False
+        except Exception as e:
+            logger.warning("Error unsubscribing PyPubSub callbacks: %s", e)
+
     def stop(self):
         """Shut down the Meshtastic service"""
-        if self._available and self._interface:
-            logger.info("Shutting down Meshtastic service")
+        if not self._available:
+            return
+
+        logger.info("Shutting down Meshtastic service")
+
+        self._unsubscribe_all()
+
+        # Close the serial interface
+        if self._interface:
             try:
                 self._interface.close()
             except Exception as e:
                 logger.error("Error closing Meshtastic interface: %s", e)
-            self._available = False
+
+        self._interface = None
+        self._available = False
