@@ -15,6 +15,11 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+try:
+    from pubsub import pub
+except ImportError:
+    pub = None
+
 logger = logging.getLogger(__name__)
 
 # Lazy imports — meshtastic may not be installed on dev machines
@@ -161,10 +166,14 @@ class MeshtasticService:
             logger.info("Connecting to Meshtastic device at %s", self._device_path)
             interface = _serial.SerialInterface(devPath=self._device_path)
 
-            # Register callbacks
-            interface.onReceive = self._on_receive
-            interface.onConnection = self._on_connection
-            interface.onNodeInfoUpdated = self._on_node_info_updated
+            # Register callbacks via PyPubSub (Meshtastic Python API uses pubsub, not attributes)
+            if pub:
+                pub.subscribe(self._on_receive, "meshtastic.receive")
+                pub.subscribe(self._on_connection, "meshtastic.connection.established")
+                pub.subscribe(self._on_node_info_updated, "meshtastic.node.updated")
+                logger.info("Registered PyPubSub callbacks for Meshtastic events")
+            else:
+                logger.warning("PyPubSub not available - callbacks won't work")
 
             self._interface = interface
             self._available = True
@@ -204,13 +213,13 @@ class MeshtasticService:
         """Check if service is available and running"""
         return self._available
 
-    def _on_receive(self, packet, interface):
+    def _on_receive(self, packet, interface=None):
         """
-        Callback for incoming Meshtastic packets.
+        Callback for incoming Meshtastic packets (PyPubSub).
 
         Args:
-            packet: Meshtastic packet dict
-            interface: SerialInterface instance
+            packet: Meshtastic packet dict (keyword arg from PyPubSub)
+            interface: SerialInterface instance (optional)
         """
         try:
             # Only process TEXT_MESSAGE_APP packets
@@ -265,12 +274,12 @@ class MeshtasticService:
         except Exception as e:
             logger.error("Error processing Meshtastic packet: %s", e)
 
-    def _on_connection(self, interface, topic=None):
+    def _on_connection(self, interface=None, topic=None):
         """
-        Callback for connection events.
+        Callback for connection events (PyPubSub).
 
         Args:
-            interface: SerialInterface instance
+            interface: SerialInterface instance (keyword arg from PyPubSub)
             topic: MQTT topic (unused for serial)
         """
         try:
@@ -281,15 +290,18 @@ class MeshtasticService:
         except Exception as e:
             logger.error("Error in connection callback: %s", e)
 
-    def _on_node_info_updated(self, interface, node_info):
+    def _on_node_info_updated(self, node=None, interface=None):
         """
-        Callback for node info updates.
+        Callback for node info updates (PyPubSub).
 
         Args:
-            interface: SerialInterface instance
-            node_info: Node info dict
+            node: Node info dict (keyword arg from PyPubSub - may be 'node' not 'node_info')
+            interface: SerialInterface instance (optional)
         """
         try:
+            node_info = node  # PyPubSub sends 'node' not 'node_info'
+            if not node_info:
+                return
             node_id = node_info.get("user", {}).get("id", "Unknown")
             short_name = node_info.get("user", {}).get("shortName", "Unknown")
             long_name = node_info.get("user", {}).get("longName", "Unknown")
@@ -318,6 +330,21 @@ class MeshtasticService:
             with self._nodes_lock:
                 self._nodes[node_id] = node
                 logger.debug("Updated node info: %s (%s)", short_name, node_id)
+
+            # Notify WebSocket clients of node update
+            if self._ws_callback:
+                self._ws_callback(
+                    "meshtastic_node_updated",
+                    {
+                        "node_id": node_id,
+                        "short_name": short_name,
+                        "long_name": long_name,
+                        "last_heard": last_heard,
+                        "snr": snr,
+                        "position": position,
+                        "nodes_count": len(self._nodes),
+                    },
+                )
 
         except Exception as e:
             logger.error("Error processing node info: %s", e)
@@ -464,6 +491,11 @@ class MeshtasticService:
         if self._available and self._interface:
             logger.info("Shutting down Meshtastic service")
             try:
+                # Unsubscribe from PyPubSub topics
+                if pub:
+                    pub.unsubscribe(self._on_receive, "meshtastic.receive")
+                    pub.unsubscribe(self._on_connection, "meshtastic.connection.established")
+                    pub.unsubscribe(self._on_node_info_updated, "meshtastic.node.updated")
                 self._interface.close()
             except Exception as e:
                 logger.error("Error closing Meshtastic interface: %s", e)
