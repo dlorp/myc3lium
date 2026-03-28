@@ -22,7 +22,10 @@ export type WebSocketEventType =
   | 'client_disconnected'
   | 'store_cleared'
   | 'store_loaded'
-  | 'mesh_update';
+  | 'mesh_update'
+  | 'meshtastic_node_added'
+  | 'meshtastic_node_updated'
+  | 'meshtastic_message';
 
 export interface WebSocketMessage {
   event: WebSocketEventType;
