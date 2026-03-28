@@ -84,6 +84,10 @@ class MeshtasticNode:
     last_heard: float
     snr: Optional[float] = None
     position: Optional[dict] = None  # {"lat": float, "lon": float, "alt": int}
+    battery_level: Optional[int] = None
+    voltage: Optional[float] = None
+    channel_utilization: Optional[float] = None
+    air_util_tx: Optional[float] = None
 
 
 @dataclass
@@ -340,6 +344,33 @@ class MeshtasticService:
                     "alt": pos_data.get("altitude"),
                 }
 
+            # Extract device metrics if available (validated like other mesh input)
+            device_metrics = node.get("deviceMetrics", {})
+            raw_battery = device_metrics.get("batteryLevel")
+            battery_level = (
+                raw_battery
+                if isinstance(raw_battery, int) and 0 <= raw_battery <= 100
+                else None
+            )
+            raw_voltage = device_metrics.get("voltage")
+            voltage = (
+                round(raw_voltage, 2)
+                if isinstance(raw_voltage, (int, float)) and 0 <= raw_voltage <= 10
+                else None
+            )
+            raw_chan = device_metrics.get("channelUtilization")
+            channel_utilization = (
+                round(raw_chan, 2)
+                if isinstance(raw_chan, (int, float)) and 0 <= raw_chan <= 100
+                else None
+            )
+            raw_air = device_metrics.get("airUtilTx")
+            air_util_tx = (
+                round(raw_air, 2)
+                if isinstance(raw_air, (int, float)) and 0 <= raw_air <= 100
+                else None
+            )
+
             mesh_node = MeshtasticNode(
                 node_id=node_id,
                 short_name=short_name,
@@ -347,6 +378,10 @@ class MeshtasticService:
                 last_heard=last_heard,
                 snr=snr,
                 position=position,
+                battery_level=battery_level,
+                voltage=voltage,
+                channel_utilization=channel_utilization,
+                air_util_tx=air_util_tx,
             )
 
             with self._nodes_lock:
@@ -366,6 +401,10 @@ class MeshtasticService:
                         "last_heard": last_heard,
                         "snr": snr,
                         "position": position,
+                        "battery_level": battery_level,
+                        "voltage": voltage,
+                        "channel_utilization": channel_utilization,
+                        "air_util_tx": air_util_tx,
                         "nodes_count": nodes_count,
                     },
                 )
@@ -477,6 +516,10 @@ class MeshtasticService:
             if my_node:
                 short_name = my_node.short_name
                 long_name = my_node.long_name
+                battery_level = my_node.battery_level
+                voltage = my_node.voltage
+                channel_util = my_node.channel_utilization
+                air_util_tx = my_node.air_util_tx
 
         with self._nodes_lock:
             nodes_count = len(self._nodes)

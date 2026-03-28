@@ -48,7 +48,7 @@ class ConnectionManager:
         exclude = exclude or set()
         disconnected = []
 
-        for client_id, websocket in self.active_connections.items():
+        for client_id, websocket in list(self.active_connections.items()):
             if client_id in exclude:
                 continue
 
