@@ -11,11 +11,23 @@
     "READY": "All gates passed - PR ready for merge"
   },
   "transitions": {
-    "CREATED": ["SECURITY_REVIEW"],
-    "SECURITY_REVIEW": ["CODE_REVIEW", "FIXES_APPLIED"],
-    "CODE_REVIEW": ["FIXES_APPLIED"],
-    "FIXES_APPLIED": ["CI_RUNNING"],
-    "CI_RUNNING": ["READY", "FIXES_APPLIED"],
+    "CREATED": [
+      "SECURITY_REVIEW"
+    ],
+    "SECURITY_REVIEW": [
+      "CODE_REVIEW",
+      "FIXES_APPLIED"
+    ],
+    "CODE_REVIEW": [
+      "FIXES_APPLIED"
+    ],
+    "FIXES_APPLIED": [
+      "CI_RUNNING"
+    ],
+    "CI_RUNNING": [
+      "READY",
+      "FIXES_APPLIED"
+    ],
     "READY": []
   },
   "active_prs": {
@@ -70,6 +82,145 @@
           "file_exists": true,
           "result": "approve",
           "issues_found": 7
+        },
+        "ci": {
+          "status": "not_started",
+          "url": null,
+          "checks": []
+        }
+      }
+    },
+    "myc3lium#46": {
+      "state": "READY",
+      "pr_url": "https://github.com/dlorp/myc3lium/pull/46",
+      "pr_number": 46,
+      "repo": "dlorp/myc3lium",
+      "repo_short": "myc3lium",
+      "base_branch": "main",
+      "head_branch": "feat/meshtastic-integration",
+      "local_branch": "feat/meshtastic-integration",
+      "title": "feat: Meshtastic live mesh integration",
+      "description": "Live Meshtastic mesh data integration for dashboard",
+      "created": 1774670909,
+      "created_commit": "ac22237",
+      "latest_commit": "8c23455",
+      "transitions": [
+        {
+          "from": "CREATED",
+          "to": "SECURITY_REVIEW",
+          "timestamp": 1774671919,
+          "artifact": "reviews/PR-46-security.md"
+        },
+        {
+          "from": "SECURITY_REVIEW",
+          "to": "CODE_REVIEW",
+          "timestamp": 1774672307,
+          "artifact": "reviews/PR-46-code.md"
+        },
+        {
+          "from": "CODE_REVIEW",
+          "to": "FIXES_APPLIED",
+          "timestamp": 1774672607,
+          "artifact": "commits: 7508cfc, a7053c1"
+        },
+        {
+          "from": "FIXES_APPLIED",
+          "to": "CI_RUNNING",
+          "timestamp": 1774691425
+        },
+        {
+          "from": "CI_RUNNING",
+          "to": "READY",
+          "timestamp": 1774691485
+        }
+      ],
+      "validations": {
+        "security_review": {
+          "status": "completed",
+          "agent_spawned": true,
+          "agent_session": "agent:security-specialist:subagent:d3964987-a6b0-4775-9b76-c78ce95d5228",
+          "spawned_at": 1774671009,
+          "completed_at": 1774671250,
+          "file": "reviews/PR-46-security.md",
+          "file_exists": true,
+          "result": "fixes_applied",
+          "issues_found": 7,
+          "issues_fixed": 7
+        },
+        "code_review": {
+          "status": "completed",
+          "agent_spawned": true,
+          "agent_session": "agent:code-reviewer:subagent:85f3419a-85cb-47bb-94e5-97738f318ff1",
+          "spawned_at": 1774672307,
+          "completed_at": 1774672547,
+          "file": "reviews/PR-46-code.md",
+          "file_exists": true,
+          "result": "approve_with_fixes",
+          "issues_found": 3,
+          "issues_fixed": 3
+        },
+        "ci": {
+          "status": "completed",
+          "url": "https://github.com/dlorp/myc3lium/actions/runs/23682590619",
+          "checks": [
+            {
+              "name": "Backend Tests",
+              "state": "pass"
+            },
+            {
+              "name": "Frontend Tests",
+              "state": "pass"
+            },
+            {
+              "name": "All Checks Passed",
+              "state": "pass"
+            }
+          ]
+        }
+      }
+    },
+    "myc3lium#48": {
+      "state": "CODE_REVIEW",
+      "pr_url": "https://github.com/dlorp/myc3lium/pull/48",
+      "pr_number": 48,
+      "repo": "dlorp/myc3lium",
+      "repo_short": "myc3lium",
+      "base_branch": "main",
+      "head_branch": "fix/meshtastic-websocket-callbacks",
+      "local_branch": "fix/meshtastic-websocket-callbacks",
+      "title": "fix: Enable real-time WebSocket broadcasts via PyPubSub",
+      "description": "Fixes Issue #47 - PyPubSub callback registration",
+      "created": 1774692167,
+      "created_commit": "090c0be",
+      "latest_commit": "2fd2d31",
+      "transitions": [
+        {
+          "from": "CREATED",
+          "to": "SECURITY_REVIEW",
+          "timestamp": 1774692467
+        },
+        {
+          "from": "SECURITY_REVIEW",
+          "to": "CODE_REVIEW",
+          "timestamp": 1774692767
+        }
+      ],
+      "validations": {
+        "security_review": {
+          "status": "completed",
+          "file": "reviews/PR-48-security.md",
+          "file_exists": true,
+          "result": "approve",
+          "issues_found": 2,
+          "issues_fixed": 0
+        },
+        "code_review": {
+          "status": "completed",
+          "file": "reviews/PR-48-code.md",
+          "file_exists": true,
+          "result": "approve",
+          "issues_found": 2,
+          "issues_fixed": 0
         },
         "ci": {
           "status": "not_started",
