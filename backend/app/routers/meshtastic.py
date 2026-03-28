@@ -10,8 +10,11 @@ Provides:
 """
 
 import asyncio
+import hmac
 import logging
+import os
 from asyncio import Queue
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import (
@@ -26,6 +29,7 @@ from pydantic import BaseModel
 
 from app.auth import verify_api_key
 from app.rate_limit import send_limiter
+from app.websocket import ConnectionManager, manager as main_ws_manager
 
 from app.services.meshtastic_service import (
     MeshtasticService,
@@ -64,6 +68,10 @@ class NodeResponse(BaseModel):
     last_heard: float
     snr: Optional[float] = None
     position: Optional[dict] = None
+    battery_level: Optional[int] = None
+    voltage: Optional[float] = None
+    channel_utilization: Optional[float] = None
+    air_util_tx: Optional[float] = None
 
 
 class StatusResponse(BaseModel):
@@ -165,6 +173,10 @@ async def get_nodes():
             last_heard=node.last_heard,
             snr=node.snr,
             position=node.position,
+            battery_level=node.battery_level,
+            voltage=node.voltage,
+            channel_utilization=node.channel_utilization,
+            air_util_tx=node.air_util_tx,
         )
         for node in nodes
     ]
@@ -250,26 +262,33 @@ async def send_message(
 
     except Exception as e:
         logger.error("Failed to send message: %s", e)
-        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Failed to send message to mesh radio"
+        )
 
 
-# WebSocket connections pool
-_ws_connections: list[WebSocket] = []
+# WebSocket connection manager
+_meshtastic_ws_manager = ConnectionManager()
 
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time Meshtastic updates.
+    """WebSocket endpoint for real-time Meshtastic updates."""
+    # Optional token auth (skip if no API key configured, like REST endpoints)
+    api_key = os.getenv("MESHTASTIC_API_KEY")
+    if api_key:
+        token = websocket.query_params.get("token")
+        if not hmac.compare_digest(token or "", api_key):
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
 
-    Streams:
-        - New messages
-        - Node updates
-        - Status changes
-    """
-    await websocket.accept()
-    _ws_connections.append(websocket)
-    logger.info("WebSocket client connected to Meshtastic stream")
+    # Accept connection (ConnectionManager handles capacity check)
+    try:
+        client_id = await _meshtastic_ws_manager.connect(websocket)
+    except ValueError:
+        return  # Already closed with 1008 by ConnectionManager
+
+    logger.info("WebSocket client %s connected to Meshtastic stream", client_id)
 
     try:
         # Send initial status
@@ -287,20 +306,26 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             )
 
-        # Keep connection alive and listen for close
+        # Keep connection alive and listen for client messages
         while True:
-            # Wait for client messages (ping/pong)
             data = await websocket.receive_text()
+            # Message size validation
+            if len(data.encode("utf-8")) > 1024:
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": "Message too large"}}
+                )
+                continue
             # Echo back for keepalive
             await websocket.send_json({"type": "pong", "data": data})
 
     except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected from Meshtastic stream")
-        _ws_connections.remove(websocket)
+        logger.info(
+            "WebSocket client %s disconnected from Meshtastic stream", client_id
+        )
     except Exception as e:
-        logger.error("WebSocket error: %s", e)
-        if websocket in _ws_connections:
-            _ws_connections.remove(websocket)
+        logger.error("WebSocket error for client %s: %s", client_id, e)
+    finally:
+        _meshtastic_ws_manager.disconnect(client_id)
 
 
 async def _process_event_queue():
@@ -318,26 +343,18 @@ async def _process_event_queue():
 
 
 async def _broadcast_to_websockets_internal(event_type: str, data: dict):
-    """
-    Internal broadcast function (async, called from event processor).
-    """
-    if not _ws_connections:
-        return
-
+    """Internal broadcast function (async, called from event processor)."""
+    # Broadcast to Meshtastic-specific WS clients (/api/meshtastic/ws)
     message = {"type": event_type, "data": data}
+    await _meshtastic_ws_manager.broadcast(message)
 
-    # Send to all connected clients
-    disconnected = []
-    for ws in _ws_connections:
-        try:
-            await ws.send_json(message)
-        except Exception as e:
-            logger.warning("Failed to send to WebSocket client: %s", e)
-            disconnected.append(ws)
-
-    # Clean up disconnected clients
-    for ws in disconnected:
-        _ws_connections.remove(ws)
+    # Bridge to main WS (/ws) so P100 dashboard receives Meshtastic events
+    main_message = {
+        "event": event_type,
+        "data": data,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await main_ws_manager.broadcast(main_message)
 
 
 # Reference to the running event loop, set during startup

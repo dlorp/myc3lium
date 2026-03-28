@@ -25,7 +25,8 @@ export type WebSocketEventType =
   | 'mesh_update'
   | 'meshtastic_node_added'
   | 'meshtastic_node_updated'
-  | 'meshtastic_message';
+  | 'meshtastic_message'
+  | 'reconnected';
 
 export interface WebSocketMessage {
   event: WebSocketEventType;
@@ -90,10 +91,20 @@ export class MeshWebSocketClient {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
+        const wasReconnect = this.reconnectAttempts > 0;
         console.log('[WS] Connected');
         this._isConnected = true;
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
+
+        if (wasReconnect) {
+          console.log('[WS] Reconnected after disconnect');
+          this.handleMessage({
+            event: 'reconnected',
+            data: {},
+            timestamp: new Date().toISOString(),
+          });
+        }
       };
 
       this.ws.onmessage = (event) => {

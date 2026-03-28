@@ -101,15 +101,17 @@ const P100 = () => {
       setMeshtasticStatus(prev => prev ? { ...prev, nodes_count: msg.data.nodes_count } : prev)
     })
 
-    // Periodic refresh as fallback (every 30s instead of rapid polling)
-    const refreshInterval = setInterval(fetchMeshData, 5000) // Poll every 5s for live updates
+    const unsubReconnect = wsClient.on('reconnected', () => {
+      console.log('[P100] WS reconnected, refreshing all data')
+      fetchMeshData()
+    })
 
     return () => {
       disconnectWS()
       unsubMeshUpdate()
       unsubNodeAdded()
       unsubNodeUpdated()
-      clearInterval(refreshInterval)
+      unsubReconnect()
     }
   }, [setBreadcrumbs, loadAll, connectWS, disconnectWS])
 
@@ -170,7 +172,7 @@ const P100 = () => {
       radioData.lora = {
         enabled: true,
         status: 'TX/RX',
-        strength: Math.round(meshtasticStatus.channel_utilization),
+        strength: Math.round(meshtasticStatus.channel_utilization ?? 0),
       }
     }
 
