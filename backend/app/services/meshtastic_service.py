@@ -184,7 +184,7 @@ class MeshtasticService:
                 else:
                     short_name = "Unknown"
                     node_id = "Unknown"
-                
+
                 logger.info(
                     "Connected to Meshtastic node: %s (%s)",
                     short_name,
@@ -317,14 +317,14 @@ class MeshtasticService:
 
             with self._nodes_lock:
                 self._nodes[node_id] = node
-                logger.debug(
-                    "Updated node info: %s (%s)", short_name, node_id
-                )
+                logger.debug("Updated node info: %s (%s)", short_name, node_id)
 
         except Exception as e:
             logger.error("Error processing node info: %s", e)
 
-    def send_message(self, text: str, channel: int = 0, destination: Optional[str] = None) -> bool:
+    def send_message(
+        self, text: str, channel: int = 0, destination: Optional[str] = None
+    ) -> bool:
         """
         Send a text message to the mesh.
 
@@ -344,8 +344,12 @@ class MeshtasticService:
 
         try:
             if destination:
-                self._interface.sendText(text, destinationId=destination, channelIndex=channel)
-                logger.info("Sent message to %s (ch=%d): %s", destination, channel, text[:50])
+                self._interface.sendText(
+                    text, destinationId=destination, channelIndex=channel
+                )
+                logger.info(
+                    "Sent message to %s (ch=%d): %s", destination, channel, text[:50]
+                )
             else:
                 self._interface.sendText(text, channelIndex=channel)
                 logger.info("Broadcast message (ch=%d): %s", channel, text[:50])
@@ -356,7 +360,10 @@ class MeshtasticService:
             raise
 
     def get_messages(
-        self, limit: Optional[int] = None, sender: Optional[str] = None, channel: Optional[int] = None
+        self,
+        limit: Optional[int] = None,
+        sender: Optional[str] = None,
+        channel: Optional[int] = None,
     ) -> list[MeshtasticMessage]:
         """
         Get recent messages with optional filters.

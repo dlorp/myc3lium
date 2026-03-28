@@ -14,7 +14,14 @@ import logging
 from asyncio import Queue
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
 from app.auth import verify_api_key
@@ -91,7 +98,7 @@ def set_service(service: MeshtasticService):
     """
     global _service, _event_processor_task
     _service = service
-    
+
     # Start event processor if not already running
     if _event_processor_task is None:
         _event_processor_task = asyncio.create_task(_process_event_queue())
@@ -107,7 +114,9 @@ async def get_status():
         Connection status, node info, signal metrics
     """
     if _service is None:
-        raise HTTPException(status_code=503, detail="Meshtastic service not initialized")
+        raise HTTPException(
+            status_code=503, detail="Meshtastic service not initialized"
+        )
 
     status = _service.get_status()
 
@@ -134,7 +143,9 @@ async def get_nodes():
         List of mesh nodes with their info and last-heard times
     """
     if _service is None:
-        raise HTTPException(status_code=503, detail="Meshtastic service not initialized")
+        raise HTTPException(
+            status_code=503, detail="Meshtastic service not initialized"
+        )
 
     if not _service.available:
         raise HTTPException(status_code=503, detail="Meshtastic service not connected")
@@ -172,7 +183,9 @@ async def get_messages(
         List of recent messages matching filters
     """
     if _service is None:
-        raise HTTPException(status_code=503, detail="Meshtastic service not initialized")
+        raise HTTPException(
+            status_code=503, detail="Meshtastic service not initialized"
+        )
 
     if not _service.available:
         raise HTTPException(status_code=503, detail="Meshtastic service not connected")
@@ -198,7 +211,7 @@ async def send_message(
     request: SendMessageRequest,
     req: Request,
     api_key: str = Depends(verify_api_key),
-    _rate_limit=Depends(send_limiter)
+    _rate_limit=Depends(send_limiter),
 ):
     """
     Send a text message to the mesh.
@@ -210,7 +223,9 @@ async def send_message(
         Success status
     """
     if _service is None:
-        raise HTTPException(status_code=503, detail="Meshtastic service not initialized")
+        raise HTTPException(
+            status_code=503, detail="Meshtastic service not initialized"
+        )
 
     if not _service.available:
         raise HTTPException(status_code=503, detail="Meshtastic service not connected")
