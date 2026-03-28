@@ -28,7 +28,7 @@ app.add_middleware(
     allow_origins=[
         "http://192.168.40.15:3000",  # Mac dev server
         "http://192.168.40.19:3000",  # Pi dev server
-        "http://localhost:3000",       # Local dev
+        "http://localhost:3000",  # Local dev
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -83,6 +83,7 @@ app.include_router(meshtastic.router)
 meshtastic_service = MeshtasticService()
 meshtastic.set_service(meshtastic_service)  # Inject service into router
 
+
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
@@ -93,7 +94,7 @@ async def start_mesh_monitor():
         meshtastic_service.set_ws_callback(meshtastic.broadcast_to_websockets)
     else:
         logger.warning("Meshtastic service not available")
-    
+
     if settings.use_live_data:
         logger.info("Starting mesh monitor (live data enabled)")
         ws.set_data_source(data_source)
@@ -108,12 +109,12 @@ async def start_mesh_monitor():
 async def shutdown_services():
     """Clean up services on shutdown."""
     logger.info("Shutting down services...")
-    
+
     # Stop Meshtastic service and release serial port
     if meshtastic_service and meshtastic_service.available:
         meshtastic_service.stop()
         logger.info("Meshtastic service stopped")
-    
+
     logger.info("Shutdown complete")
 
 
