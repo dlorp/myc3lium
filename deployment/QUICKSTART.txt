@@ -56,7 +56,7 @@
   Power OFF, then:
   
   1. Attach Waveshare SX1262 LoRa HAT to GPIO pins
-  2. Plug in Heltec HT-HC01P HaLow module (USB)
+  2. Plug in ESP32 USB boards (Meshtastic + HaLow)
   3. Attach UPS HAT (optional but recommended)
   4. Connect touchscreen (optional)
   5. Power ON
@@ -66,10 +66,13 @@
 └──────────────────────────────────────────────────────────────────────────────┘
 
   WebUI:
-    http://<pi-ip-address>
-  
+    http://myc3.local
+
+  First-boot setup wizard:
+    http://myc3.local/setup
+
   System Status:
-    ssh myc3lium@<pi-ip-address>
+    ssh myc3lium@myc3.local
     myc3lium-status
   
   Run Tests:
@@ -89,12 +92,12 @@
 
   Service Management:
     sudo systemctl restart reticulum
-    sudo systemctl restart myc3lium-backend
+    sudo systemctl restart myc3lium
     sudo systemctl restart batman-adv
 
   View Logs:
     journalctl -fu reticulum.service
-    journalctl -fu myc3lium-backend.service
+    journalctl -fu myc3lium.service
 
   Mesh Status:
     batctl o                  # BATMAN neighbors
@@ -132,7 +135,8 @@
   Configuration:
     /etc/nginx/sites-available/myc3lium           # Nginx config
     /etc/systemd/system/reticulum.service         # Reticulum service
-    /etc/systemd/system/myc3lium-backend.service  # Backend service
+    /opt/myc3lium/config/myc3lium.toml      # User config (TOML)
+    /etc/systemd/system/myc3lium.service   # Backend service
     /etc/systemd/system/batman-adv.service        # BATMAN service
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -181,5 +185,5 @@
   BATMAN-adv docs:     https://www.open-mesh.org/
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                    🍄 MYC3LIUM v1.0.0 - Production Ready                     ║
+║                    🍄 MYC3LIUM v0.4.0 - Production Ready                     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝

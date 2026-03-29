@@ -16,9 +16,9 @@ The MYC3LIUM bridge provides unified access to multiple mesh protocols:
 - **ATAK/TAK** - Cursor-on-Target tactical awareness
 - **Camera Streams** - FROND video feeds
 
-**Base URL:** `http://<node-ip>:8000`
+**Base URL:** `http://myc3.local/api` (via nginx) or `http://localhost:8000` (direct)
 
-**WebSocket:** `ws://<node-ip>:8000/ws`
+**WebSocket:** `ws://myc3.local/ws`
 
 ---
 
@@ -36,9 +36,9 @@ The MYC3LIUM bridge provides unified access to multiple mesh protocols:
 
 ## Authentication
 
-**Currently:** No authentication (local network only)
+**API Key:** Meshtastic send and config mutation endpoints require `X-API-Key` header when `MESHTASTIC_API_KEY` is set. Auth is skipped in dev mode (no key configured).
 
-**Production:** Add API keys or JWT tokens for security.
+**Protected endpoints:** `POST /api/meshtastic/send`, `PATCH /api/config/*`, `POST /api/config/*`
 
 ---
 
@@ -65,10 +65,8 @@ Health check.
 ```json
 {
   "status": "healthy",
-  "reticulum": "running",
-  "meshtastic": "running",
-  "websockets": 3,
-  "message_history": 42
+  "live_data": true,
+  "reticulum": true
 }
 ```
 
@@ -382,7 +380,7 @@ Get recent network events.
 ### Connection
 
 ```javascript
-const ws = new WebSocket('ws://<node-ip>:8000/ws');
+const ws = new WebSocket('ws://myc3.local/ws');
 
 ws.onopen = () => {
   console.log('Connected to MYC3LIUM bridge');
@@ -567,7 +565,7 @@ Excessive traffic may cause:
 ```python
 import requests
 
-API_URL = "http://10.13.0.1:8000"
+API_URL = "http://myc3.local"
 
 response = requests.post(f"{API_URL}/message/send", json={
     "destination": "abc123...",
@@ -581,7 +579,7 @@ print(response.json())
 ### Send Meshtastic Broadcast (cURL)
 
 ```bash
-curl -X POST http://10.13.0.1:8000/message/send \
+curl -X POST http://myc3.local/message/send \
   -H "Content-Type: application/json" \
   -d '{
     "destination": "^all",
@@ -593,7 +591,7 @@ curl -X POST http://10.13.0.1:8000/message/send \
 ### Send Position to ATAK (JavaScript)
 
 ```javascript
-fetch('http://10.13.0.1:8000/atak/position', {
+fetch('http://myc3.local/atak/position', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -621,7 +619,7 @@ requests.post(f"{API_URL}/cameras/register", json={
 ### Listen to Real-Time Updates (JavaScript)
 
 ```javascript
-const ws = new WebSocket('ws://10.13.0.1:8000/ws');
+const ws = new WebSocket('ws://myc3.local/ws');
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
@@ -694,7 +692,7 @@ Then register as HLS:
 Interactive API documentation available at:
 
 ```
-http://<node-ip>:8000/docs
+http://myc3.local/docs
 ```
 
 Try endpoints directly in your browser!
@@ -710,10 +708,10 @@ Try endpoints directly in your browser!
 ### "Meshtastic disabled"
 - Install package: `pip3 install meshtastic`
 - Check device: `ls /dev/ttyUSB*`
-- Configure in bridge config
+- Configure device path in `http://myc3.local/p/600` (Radio section)
 
 ### WebSocket disconnects
-- Check backend service: `systemctl status myc3lium-backend`
+- Check backend service: `systemctl status myc3lium`
 - Monitor logs: `tail -f /opt/myc3lium/logs/bridge.log`
 
 ### Messages not sending
@@ -725,14 +723,17 @@ Try endpoints directly in your browser!
 
 ## Version History
 
-**v2.0.0** (2024-03-18)
-- Multi-protocol support (Reticulum, Meshtastic, ATAK)
-- Camera stream management
-- WebSocket real-time updates
-- Page-specific routing (P200, P300, P400, P500, P700)
+**v0.4.0** (2026-03-28)
+- TOML configuration API (`/api/config`)
+- Meshtastic bridge into unified mesh store
+- Zod WebSocket validation
+- API key auth on protected endpoints
 
-**v1.0.0** (Initial)
-- Basic Reticulum/LXMF support
+**v0.3.0** (2026-03-28)
+- Multi-protocol support (Reticulum, Meshtastic, ATAK)
+- WebSocket hardening, device metrics, connection limits
+- Camera stream management
+- Page-specific routing (P200, P300, P400, P500, P700)
 
 ---
 

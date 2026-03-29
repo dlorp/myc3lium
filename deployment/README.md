@@ -38,7 +38,7 @@ sudo ./setup-all.sh
 |--------|---------|------|
 | `setup-pi4.sh` | Base system setup, dependencies, user creation | ~8 min |
 | `setup-lora.sh` | LoRa HAT configuration (SX1262) | ~2 min |
-| `setup-halow.sh` | WiFi HaLow module setup (HT-HC01P) | ~2 min |
+| `setup-halow.sh` | WiFi HaLow module setup (ESP32 USB) | ~2 min |
 | `setup-batman.sh` | BATMAN-adv mesh networking | ~3 min |
 | `deploy-webui.sh` | Frontend deployment to Nginx | ~2 min |
 
@@ -91,13 +91,14 @@ Tests:
 **Tested on:**
 - Raspberry Pi 4 (4GB RAM)
 - Waveshare SX1262 LoRa HAT (915 MHz)
-- Heltec HT-HC01P WiFi HaLow (USB)
+- ESP32 USB HaLow board (routes via bat0)
+- ESP32 USB Meshtastic board (LoRa mesh)
 - Built-in BCM43455 WiFi (BATMAN-adv)
 
 **Also works with:**
 - Raspberry Pi 4 (2GB, 8GB)
 - Other SX1262-based LoRa HATs
-- Alternative HaLow modules (may need driver tweaks)
+- Alternative ESP32 HaLow or HaLow modules (may need driver tweaks)
 
 ---
 
@@ -134,7 +135,7 @@ sudo cp ../backend/reticulum_bridge.py /opt/myc3lium/backend/
 sudo ./deploy-webui.sh
 
 # Start services:
-sudo systemctl start reticulum myc3lium-backend batman-adv nginx
+sudo systemctl start reticulum myc3lium batman-adv nginx
 
 # Test:
 cd ../tests
@@ -197,10 +198,10 @@ myc3lium-status
 
 # View logs
 journalctl -fu reticulum.service
-journalctl -fu myc3lium-backend.service
+journalctl -fu myc3lium.service
 
 # Restart services
-sudo systemctl restart reticulum myc3lium-backend
+sudo systemctl restart reticulum myc3lium
 
 # Check mesh neighbors
 batctl o
@@ -239,7 +240,7 @@ sudo ./test-all.sh
 
 # Check service status:
 systemctl status reticulum
-systemctl status myc3lium-backend
+systemctl status myc3lium
 systemctl status batman-adv
 systemctl status nginx
 
@@ -323,7 +324,7 @@ See `DEPLOYMENT.md` for detailed troubleshooting.
   │              │              │
 ┌─▼────────┐ ┌──▼──────────┐ ┌─▼──────────┐
 │  LoRa    │ │   HaLow     │ │  BATMAN    │
-│ SX1262   │ │  HT-HC01P   │ │   bat0     │
+│ SX1262   │ │ ESP32 HaLow │ │   bat0     │
 │ (HAT)    │ │   (USB)     │ │  (wlan0)   │
 └──────────┘ └─────────────┘ └────────────┘
    915 MHz      902-928 MHz     2.4 GHz
@@ -436,7 +437,7 @@ sudo nano /home/myc3lium/.reticulum/config
 # Change loglevel to 2 (warnings only)
 
 # Limit resource usage:
-sudo systemctl edit myc3lium-backend.service
+sudo systemctl edit myc3lium.service
 # Add:
 [Service]
 CPUQuota=50%
@@ -498,7 +499,7 @@ Receives real-time events:
 sudo nano /opt/myc3lium/backend/reticulum_bridge.py
 
 # Restart to apply:
-sudo systemctl restart myc3lium-backend
+sudo systemctl restart myc3lium
 ```
 
 **Frontend modifications:**
@@ -580,7 +581,7 @@ See individual component licenses for details.
 
 **Hardware:**
 - Waveshare SX1262 LoRa HAT
-- Heltec HT-HC01P WiFi HaLow
+- ESP32 USB HaLow board
 - Raspberry Pi Foundation
 
 ---
@@ -605,10 +606,10 @@ See individual component licenses for details.
 
 ## Version
 
-**Package Version:** 1.0.0  
-**Target Platform:** Raspberry Pi 4  
-**Build Date:** 2024-03-18  
-**Status:** Production Ready ✅
+**Package Version:** 0.4.0
+**Target Platform:** Raspberry Pi 4
+**Build Date:** 2026-03-28
+**Status:** Production Ready
 
 ---
 
