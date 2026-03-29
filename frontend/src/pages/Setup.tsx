@@ -2,7 +2,7 @@
  * First-boot Setup Wizard
  *
  * Guides the user through initial system configuration when no config file exists.
- * Steps: hostname -> radio settings -> mesh settings -> save
+ * Steps: hostname -> radio settings -> mesh settings -> backhaul (optional) -> save
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,9 +16,11 @@ import {
   saveConfigDefaults,
   updateConfigSection,
   checkFirstBoot,
+  fetchBackhaulAdapters,
 } from '../services/api';
+import type { BackhaulAdapter } from '../services/api';
 
-const STEPS = ['SYSTEM', 'RADIO', 'MESH', 'CONFIRM'] as const;
+const STEPS = ['SYSTEM', 'RADIO', 'MESH', 'BACKHAUL', 'CONFIRM'] as const;
 type Step = (typeof STEPS)[number];
 
 const Setup: React.FC = () => {
@@ -38,6 +40,21 @@ const Setup: React.FC = () => {
   const [batmanSsid, setBatmanSsid] = useState('myc3lium-mesh');
   const [batmanChannel, setBatmanChannel] = useState('6');
   const [reticulumTransport, setReticulumTransport] = useState(true);
+
+  // Backhaul
+  const [backhaulAdapters, setBackhaulAdapters] = useState<BackhaulAdapter[]>([]);
+  // Auto-AP defaults: AP mode is active on first boot with default creds.
+  // Pre-populate so user sees current state and can change the password.
+  const [backhaulEnabled, setBackhaulEnabled] = useState(true);
+  const [backhaulMode, setBackhaulMode] = useState<'client' | 'ap' | 'disabled'>('ap');
+  const [clientSsid, setClientSsid] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
+  const [apSsid, setApSsid] = useState('myc3_m3sh');
+  const [apPassword, setApPassword] = useState('myc3m3sh');
+
+  useEffect(() => {
+    fetchBackhaulAdapters().then((r) => setBackhaulAdapters(r.adapters)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     checkFirstBoot().then((result) => {
@@ -79,6 +96,16 @@ const Setup: React.FC = () => {
         batman_channel: parseInt(batmanChannel, 10),
         reticulum_transport: reticulumTransport,
       });
+      if (backhaulEnabled && backhaulMode !== 'disabled') {
+        await updateConfigSection('backhaul', {
+          enabled: backhaulEnabled,
+          mode: backhaulMode,
+          client_ssid: clientSsid,
+          client_password: clientPassword,
+          ap_ssid: apSsid,
+          ap_password: apPassword,
+        });
+      }
       navigate('/p/100', { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save configuration');
@@ -212,6 +239,61 @@ const Setup: React.FC = () => {
           </TeletextPanel>
         )}
 
+        {step === 'BACKHAUL' && (
+          <TeletextPanel title="BACKHAUL / AP MODE (OPTIONAL)" color="cyan">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px' }}>
+              {backhaulAdapters.length === 0 ? (
+                <>
+                  <TeletextText color="yellow">NO USB WIFI ADAPTER DETECTED</TeletextText>
+                  <TeletextText color="gray">
+                    Skip this step or plug in a USB WiFi adapter and reload.
+                  </TeletextText>
+                </>
+              ) : (
+                <>
+                  <TeletextText color="green">
+                    ADAPTER: {backhaulAdapters[0].name} ({backhaulAdapters[0].driver})
+                  </TeletextText>
+                  <TeletextText color="yellow">
+                    AP mode is active with default password. Change it below.
+                  </TeletextText>
+                  <TeletextToggle
+                    label="ENABLE BACKHAUL"
+                    value={backhaulEnabled}
+                    onChange={setBackhaulEnabled}
+                  />
+                  {backhaulEnabled && (
+                    <>
+                      <TeletextSelect
+                        label="MODE"
+                        value={backhaulMode}
+                        onChange={(v) => setBackhaulMode(v as 'client' | 'ap' | 'disabled')}
+                        options={[
+                          { value: 'disabled', label: 'DISABLED' },
+                          { value: 'client', label: 'CLIENT (join WiFi for internet)' },
+                          { value: 'ap', label: 'AP (broadcast myc3_m3sh hotspot)' },
+                        ]}
+                      />
+                      {backhaulMode === 'client' && (
+                        <>
+                          <TeletextInput label="WIFI SSID" value={clientSsid} onChange={setClientSsid} />
+                          <TeletextInput label="WIFI PASSWORD" value={clientPassword} onChange={setClientPassword} />
+                        </>
+                      )}
+                      {backhaulMode === 'ap' && (
+                        <>
+                          <TeletextInput label="AP SSID" value={apSsid} onChange={setApSsid} placeholder="myc3_m3sh" />
+                          <TeletextInput label="AP PASSWORD (min 8)" value={apPassword} onChange={setApPassword} />
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </TeletextPanel>
+        )}
+
         {step === 'CONFIRM' && (
           <TeletextPanel title="REVIEW CONFIGURATION" color="yellow">
             <div style={{ padding: '4px', lineHeight: '1.6' }}>
@@ -225,6 +307,20 @@ const Setup: React.FC = () => {
               <TeletextText color="white">  SSID: {batmanSsid}</TeletextText>
               <TeletextText color="white">  Channel: {batmanChannel}</TeletextText>
               <TeletextText color="white">  Reticulum: {reticulumTransport ? 'ON' : 'OFF'}</TeletextText>
+              <TeletextText color="cyan">BACKHAUL</TeletextText>
+              {backhaulEnabled && backhaulMode !== 'disabled' ? (
+                <>
+                  <TeletextText color="white">  Mode: {backhaulMode.toUpperCase()}</TeletextText>
+                  {backhaulMode === 'client' && (
+                    <TeletextText color="white">  SSID: {clientSsid}</TeletextText>
+                  )}
+                  {backhaulMode === 'ap' && (
+                    <TeletextText color="white">  SSID: {apSsid}</TeletextText>
+                  )}
+                </>
+              ) : (
+                <TeletextText color="gray">  Disabled (configure later in P600)</TeletextText>
+              )}
             </div>
           </TeletextPanel>
         )}

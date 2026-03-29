@@ -359,3 +359,34 @@ export async function restartService(name: string): Promise<Record<string, unkno
     method: 'POST',
   });
 }
+
+// ============================================================================
+// Backhaul / Network Apply API
+// ============================================================================
+
+export interface BackhaulAdapter {
+  name: string;
+  driver: string;
+  mac: string;
+  usb_id: string;
+}
+
+export async function fetchBackhaulAdapters(): Promise<{ adapters: BackhaulAdapter[] }> {
+  return apiFetch<{ adapters: BackhaulAdapter[] }>('/api/config/backhaul/adapters');
+}
+
+export async function fetchBackhaulStatus(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/api/config/backhaul/status');
+}
+
+export async function applyBackhaul(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/api/config/apply-backhaul', {
+    method: 'POST',
+  });
+}
+
+export async function applyNetwork(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/api/config/apply-network', {
+    method: 'POST',
+  });
+}

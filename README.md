@@ -128,7 +128,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Project Status
 
-**v0.4.1** - Documentation accuracy + 5GHz band config
+**v0.5.0** - Backhaul / AP mode with auto-AP first boot
 
 | Phase | Status | Details |
 |-------|--------|---------|

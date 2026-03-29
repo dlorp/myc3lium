@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+# myc3lium-netctl — Privileged network control helper
+#
+# Called by the myc3lium backend (running as non-root) to perform
+# system-level network operations that require root privileges.
+#
+# Install: sudo cp myc3lium-netctl /usr/local/bin/ && sudo chmod 755 /usr/local/bin/myc3lium-netctl
+# Sudoers: myc3 ALL=(ALL) NOPASSWD: /usr/local/bin/myc3lium-netctl
+#
+# Usage:
+#   myc3lium-netctl write-hostapd <content>
+#   myc3lium-netctl write-dnsmasq <content>
+#   myc3lium-netctl write-wpa <content>
+#   myc3lium-netctl start-ap
+#   myc3lium-netctl stop-ap
+#   myc3lium-netctl start-client <interface>
+#   myc3lium-netctl stop-client <interface>
+#   myc3lium-netctl setup-bridge
+#   myc3lium-netctl teardown-bridge
+#   myc3lium-netctl setup-nat <interface>
+#   myc3lium-netctl remove-nat <interface>
+#   myc3lium-netctl set-ip <interface> <ip/mask>
+#   myc3lium-netctl flush-ip <interface>
+#   myc3lium-netctl iface-up <interface>
+#   myc3lium-netctl iface-down <interface>
+#   myc3lium-netctl cleanup <interface>
+#   myc3lium-netctl sysctl-forward
+
+set -euo pipefail
+
+HOSTAPD_CONF="/etc/hostapd/hostapd.conf"
+DNSMASQ_CONF="/etc/dnsmasq.d/myc3lium-ap.conf"
+WPA_CONF="/etc/wpa_supplicant/wpa_supplicant-backhaul.conf"
+BRIDGE="br0"
+
+# Validate interface name (wlanN, br0, eth0, bat0)
+validate_iface() {
+    if ! echo "$1" | grep -qE '^(wlan[0-9]{1,2}|br0|eth[0-9]|bat0)$'; then
+        echo "ERROR: Invalid interface: $1" >&2
+        exit 1
+    fi
+}
+
+case "${1:-}" in
+    write-hostapd)
+        # Read content from stdin
+        mkdir -p "$(dirname "$HOSTAPD_CONF")"
+        cat > "$HOSTAPD_CONF"
+        chmod 600 "$HOSTAPD_CONF"
+        ;;
+
+    write-dnsmasq)
+        mkdir -p "$(dirname "$DNSMASQ_CONF")"
+        cat > "$DNSMASQ_CONF"
+        chmod 644 "$DNSMASQ_CONF"
+        ;;
+
+    write-wpa)
+        mkdir -p "$(dirname "$WPA_CONF")"
+        cat > "$WPA_CONF"
+        chmod 600 "$WPA_CONF"
+        ;;
+
+    start-ap)
+        systemctl restart hostapd
+        systemctl restart dnsmasq
+        ;;
+
+    stop-ap)
+        systemctl stop hostapd 2>/dev/null || true
+        systemctl stop dnsmasq 2>/dev/null || true
+        ;;
+
+    start-client)
+        validate_iface "${2:?interface required}"
+        IFACE="$2"
+        pkill -f "wpa_supplicant.*${IFACE}" 2>/dev/null || true
+        ip link set "$IFACE" down
+        ip link set "$IFACE" up
+        wpa_supplicant -B -i "$IFACE" -c "$WPA_CONF"
+        dhclient "$IFACE"
+        ;;
+
+    stop-client)
+        validate_iface "${2:?interface required}"
+        IFACE="$2"
+        pkill -f "wpa_supplicant.*${IFACE}" 2>/dev/null || true
+        ip addr flush dev "$IFACE" 2>/dev/null || true
+        ip link set "$IFACE" down 2>/dev/null || true
+        ;;
+
+    setup-bridge)
+        # Create br0 and add bat0
+        ip link show "$BRIDGE" > /dev/null 2>&1 || ip link add name "$BRIDGE" type bridge
+        ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+        ip link set "$BRIDGE" up
+        ;;
+
+    teardown-bridge)
+        ip link set "$BRIDGE" down 2>/dev/null || true
+        ip link delete "$BRIDGE" type bridge 2>/dev/null || true
+        ;;
+
+    setup-nat)
+        validate_iface "${2:?interface required}"
+        IFACE="$2"
+        sysctl -w net.ipv4.ip_forward=1 > /dev/null
+
+        # Determine NAT source (br0 if exists, else bat0)
+        if ip link show "$BRIDGE" > /dev/null 2>&1; then
+            SRC="$BRIDGE"
+        else
+            SRC="bat0"
+        fi
+
+        # Idempotent: check before add
+        iptables -t nat -C POSTROUTING -o "$IFACE" -j MASQUERADE 2>/dev/null || \
+            iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
+        iptables -C FORWARD -i "$SRC" -o "$IFACE" -j ACCEPT 2>/dev/null || \
+            iptables -A FORWARD -i "$SRC" -o "$IFACE" -j ACCEPT
+        iptables -C FORWARD -i "$IFACE" -o "$SRC" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+            iptables -A FORWARD -i "$IFACE" -o "$SRC" -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+        netfilter-persistent save 2>/dev/null || true
+        ;;
+
+    remove-nat)
+        validate_iface "${2:?interface required}"
+        IFACE="$2"
+        for SRC in "$BRIDGE" bat0; do
+            iptables -t nat -D POSTROUTING -o "$IFACE" -j MASQUERADE 2>/dev/null || true
+            iptables -D FORWARD -i "$SRC" -o "$IFACE" -j ACCEPT 2>/dev/null || true
+            iptables -D FORWARD -i "$IFACE" -o "$SRC" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+        done
+        netfilter-persistent save 2>/dev/null || true
+        ;;
+
+    set-ip)
+        validate_iface "${2:?interface required}"
+        ip addr flush dev "$2" 2>/dev/null || true
+        ip addr add "${3:?ip/mask required}" dev "$2"
+        ;;
+
+    flush-ip)
+        validate_iface "${2:?interface required}"
+        ip addr flush dev "$2" 2>/dev/null || true
+        ;;
+
+    iface-up)
+        validate_iface "${2:?interface required}"
+        ip link set "$2" up
+        ;;
+
+    iface-down)
+        validate_iface "${2:?interface required}"
+        ip link set "$2" down 2>/dev/null || true
+        ;;
+
+    cleanup)
+        # Full cleanup: stop all services, remove configs, teardown bridge/NAT
+        systemctl stop hostapd 2>/dev/null || true
+        systemctl stop dnsmasq 2>/dev/null || true
+
+        if [ -n "${2:-}" ]; then
+            validate_iface "$2"
+            pkill -f "wpa_supplicant.*$2" 2>/dev/null || true
+            ip addr flush dev "$2" 2>/dev/null || true
+            ip link set "$2" down 2>/dev/null || true
+            # Remove NAT
+            for SRC in "$BRIDGE" bat0; do
+                iptables -t nat -D POSTROUTING -o "$2" -j MASQUERADE 2>/dev/null || true
+                iptables -D FORWARD -i "$SRC" -o "$2" -j ACCEPT 2>/dev/null || true
+                iptables -D FORWARD -i "$2" -o "$SRC" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+            done
+        else
+            # No interface known — kill any backhaul wpa_supplicant
+            pkill -f "wpa_supplicant.*backhaul" 2>/dev/null || true
+        fi
+
+        # Teardown bridge
+        ip link set "$BRIDGE" down 2>/dev/null || true
+        ip link delete "$BRIDGE" type bridge 2>/dev/null || true
+
+        netfilter-persistent save 2>/dev/null || true
+
+        # Remove config files
+        rm -f "$HOSTAPD_CONF" "$DNSMASQ_CONF" "$WPA_CONF"
+        ;;
+
+    sysctl-forward)
+        sysctl -w net.ipv4.ip_forward=1 > /dev/null
+        ;;
+
+    *)
+        echo "Usage: myc3lium-netctl <command> [args...]" >&2
+        echo "Commands: write-hostapd write-dnsmasq write-wpa start-ap stop-ap" >&2
+        echo "          start-client stop-client setup-bridge teardown-bridge" >&2
+        echo "          setup-nat remove-nat set-ip flush-ip iface-up iface-down" >&2
+        echo "          cleanup sysctl-forward" >&2
+        exit 1
+        ;;
+esac
