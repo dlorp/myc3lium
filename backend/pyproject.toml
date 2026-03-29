@@ -1,6 +1,6 @@
 [project]
 name = "myc3lium-backend"
-version = "0.1.0"
+version = "0.3.0"
 description = "MYC3LIUM Backend - FastAPI + Reticulum"
 requires-python = ">=3.9"
 dependencies = [

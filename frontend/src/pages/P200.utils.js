@@ -46,27 +46,46 @@ export const validateNodeId = (id) => {
 
 /**
  * Validate mesh link structure
+ * Accepts both internal format (from/to, string quality) and API format
+ * (source_id/target_id, float quality 0-1)
  */
 export const validateLink = (link) => {
   if (!link || typeof link !== 'object') return false
-  return (
-    validateNodeId(link.from) &&
-    validateNodeId(link.to) &&
-    ['GOOD', 'FAIR', 'DEGRADED', 'OFFLINE'].includes(link.quality) &&
-    typeof link.rssi === 'number' &&
-    link.rssi >= -120 &&
-    link.rssi <= -30 &&
-    typeof link.latency === 'number' &&
-    link.latency >= 0 &&
-    link.latency <= 5000 &&
-    typeof link.packetLoss === 'number' &&
-    link.packetLoss >= 0 &&
-    link.packetLoss <= 100
-  )
+
+  const fromId = link.from || link.source_id
+  const toId = link.to || link.target_id
+
+  if (!validateNodeId(fromId) || !validateNodeId(toId)) return false
+
+  // Quality: accept 0-1 float OR string enum
+  const q = link.quality
+  const validQuality =
+    (typeof q === 'number' && q >= 0 && q <= 1) ||
+    ['GOOD', 'FAIR', 'DEGRADED', 'OFFLINE'].includes(q)
+  if (!validQuality) return false
+
+  // RSSI: optional, validate it's a finite number in plausible range
+  if (link.rssi != null) {
+    if (typeof link.rssi !== 'number' || !isFinite(link.rssi) || link.rssi < -150 || link.rssi > 0) return false
+  }
+
+  // Latency: optional, validate range if present
+  if (link.latency != null) {
+    if (typeof link.latency !== 'number' || link.latency < 0 || link.latency > 5000) return false
+  }
+
+  // packetLoss: optional (API Thread model does not provide this field)
+  if (link.packetLoss != null) {
+    if (typeof link.packetLoss !== 'number' || link.packetLoss < 0 || link.packetLoss > 100) return false
+  }
+
+  return true
 }
 
 /**
  * Validate mesh node structure
+ * Accepts both internal format (x/y, gps, 'active'/'warning') and API format
+ * (no x/y, position: {lat,lon}, 'online'/'degraded')
  */
 export const validateNode = (node) => {
   if (!node || typeof node !== 'object') return false
@@ -74,20 +93,24 @@ export const validateNode = (node) => {
     validateNodeId(node.id) &&
     typeof node.type === 'string' &&
     ['SPORE', 'HYPHA', 'FROND', 'RHIZOME'].includes(node.type) &&
-    typeof node.x === 'number' &&
-    typeof node.y === 'number' &&
-    typeof node.battery === 'number' &&
-    node.battery >= 0 &&
-    node.battery <= 100 &&
-    ['active', 'warning', 'offline'].includes(node.status)
+    (node.battery == null ||
+      (typeof node.battery === 'number' && node.battery >= 0 && node.battery <= 100)) &&
+    ['online', 'offline', 'degraded', 'active', 'warning'].includes(node.status)
 
   if (!isValidNode) return false
 
-  // Validate GPS if present
+  // Validate GPS if present (internal format)
   if (node.gps) {
     const latValid = validateLatitude(node.gps.lat)
     const lngValid = validateLongitude(node.gps.lng)
     if (latValid === null || lngValid === null) return false
+  }
+
+  // Validate position if present (API format)
+  if (node.position) {
+    const latValid = validateLatitude(node.position.lat)
+    const lonValid = validateLongitude(node.position.lon)
+    if (latValid === null || lonValid === null) return false
   }
 
   return true

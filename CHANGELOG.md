@@ -4,7 +4,7 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.0] - 2026-03-28
 
 ### Added
 - Device metrics tracking: battery level, voltage, channel utilization, air TX utilization extracted from Meshtastic node update packets with type/range validation
@@ -24,6 +24,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 12-test suite for MeshtasticService PyPubSub callback lifecycle (`test_meshtastic_service.py`)
 
 ### Fixed
+- P200 lattice map: `validateNode()` and `validateLink()` now accept actual API data format (status `online`/`degraded`, nullable battery, float quality 0-1, `position.lon`) instead of only mock format
+- P200 lattice map: data transformation maps API fields to internal format (`statusToDisplay`, `qualityToLabel`, `position` to `gps`)
+- P200 lattice map: node positions preserved by ID across data refreshes instead of array index (prevents visual jumps)
+- P200 lattice map: RSSI validation widened to -150..0 dBm to accept Meshtastic device values
+- P200 lattice map: error state shows generic "MESH DATA UNAVAILABLE" instead of raw API error details
+- P200 lattice map: GPS defaults to null/N/A instead of hardcoded Anchorage coordinates when no position data
+- P200 lattice map: removed duplicate `validateNodeId` definition, imported from `P200.utils.js`
+- P200 lattice map: `qualityToLabel` and `statusToDisplay` default to safe fallback values for unknown inputs
 - Error detail leaks: 4 endpoints no longer expose `str(e)` in HTTP responses (`messages.py` send/create, `nodes.py` create, `intelligence_api.py` observation)
 - API key caching: WebSocket endpoint uses module-level `API_KEY` from `auth.py` instead of per-connection `os.getenv()`
 - `except HTTPException: raise` in `messages.py` send endpoint prevents 400 being swallowed as 500

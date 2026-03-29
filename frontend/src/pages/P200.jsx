@@ -2,18 +2,19 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import TeletextGrid from '../components/TeletextGrid'
 import useNavigationStore from '../store/navigationStore'
 import useMeshStore from '../store/meshStore'
-import { 
-  renderLatticeMap, 
+import {
+  renderLatticeMap,
   renderRoutesTable,
-  getMockMeshData, 
+  getMockMeshData,
   updateNodePositions,
   validateNode,
   validateLink,
+  validateNodeId,
 } from './P200.utils'
 
 /**
  * P200 - Lattice Map Page (Enhanced)
- * 
+ *
  * Force-directed graph visualization of mesh network topology with:
  * - Animated data flow particles (quality-based speed)
  * - Interactive tooltips on hover (node & link details)
@@ -30,6 +31,22 @@ import {
  * - Event listeners properly managed with useCallback
  * - Particle generation capped to prevent resource exhaustion
  */
+
+// Map API quality float (0-1) to display label
+const qualityToLabel = (q) => {
+  if (typeof q === 'number') {
+    if (q >= 0.75) return 'GOOD'
+    if (q >= 0.5) return 'FAIR'
+    if (q > 0) return 'DEGRADED'
+    return 'OFFLINE'
+  }
+  const valid = ['GOOD', 'FAIR', 'DEGRADED', 'OFFLINE']
+  return valid.includes(q) ? q : 'OFFLINE'
+}
+
+// Map API status to internal display status
+const STATUS_MAP = { online: 'active', degraded: 'warning', offline: 'offline' }
+const statusToDisplay = (s) => STATUS_MAP[s] || 'offline'
 
 const P200 = () => {
   const setBreadcrumbs = useNavigationStore((state) => state.setBreadcrumbs)
@@ -90,48 +107,54 @@ const P200 = () => {
 
     try {
       const transformedNodes = nodes
-        .filter(node => validateNode(node)) // Filter out invalid nodes
-        .map((node, index) => ({
-          id: node.id,
-          callsign: node.callsign || `NODE-${index}`,
-          type: node.type,
-          status: node.status,
-          battery: Math.max(0, Math.min(100, node.battery || 50)),
-          rssi: node.rssi || -80,
-          gps: node.gps || { lat: 61.2181, lng: -149.9003 },
-          uptime: node.uptime || 0,
-          x: meshDataRef.current.nodes[index]?.x ?? 15 + Math.cos(index * 0.5) * 10,
-          y: meshDataRef.current.nodes[index]?.y ?? 12 + Math.sin(index * 0.5) * 8,
-          vx: 0,
-          vy: 0,
-        }))
+        .filter(node => validateNode(node))
+        .map((node, index) => {
+          // Map API position:{lat,lon} to internal gps:{lat,lng}
+          let gps = node.gps || null
+          if (!gps && node.position) {
+            gps = { lat: node.position.lat, lng: node.position.lon }
+          }
+
+          // Preserve position from previous layout by node ID, not array index
+          const prevNode = meshDataRef.current.nodes.find(n => n.id === node.id)
+
+          return {
+            id: node.id,
+            callsign: node.callsign || `NODE-${index}`,
+            type: node.type,
+            status: statusToDisplay(node.status),
+            battery: Math.max(0, Math.min(100, node.battery ?? 50)),
+            rssi: node.rssi ?? -80,
+            gps: gps || null,
+            uptime: node.uptime || 0,
+            x: prevNode?.x ?? 15 + Math.cos(index * 0.5) * 10,
+            y: prevNode?.y ?? 12 + Math.sin(index * 0.5) * 8,
+            vx: 0,
+            vy: 0,
+          }
+        })
 
       const transformedLinks = threads
-        .filter(thread => validateLink({
-          from: thread.source_id,
-          to: thread.target_id,
-          quality: thread.quality,
-          rssi: thread.rssi || -80,
-          latency: thread.latency || 50,
-          packetLoss: thread.packet_loss || 0,
-        }))
+        .filter(thread => validateLink(thread))
         .map((thread) => ({
-          from: thread.source_id,
-          to: thread.target_id,
-          quality: thread.quality,
-          rssi: thread.rssi || -80,
-          latency: thread.latency || 50,
-          packetLoss: thread.packet_loss || 0,
+          from: thread.source_id || thread.from,
+          to: thread.target_id || thread.to,
+          quality: qualityToLabel(thread.quality),
+          rssi: thread.rssi ?? -80,
+          latency: thread.latency ?? 50,
+          packetLoss: thread.packet_loss ?? 0,
           radioType: thread.radio_type || 'LoRa',
         }))
 
       const routeTable = generateRouteTable(transformedNodes, transformedLinks)
 
-      setMeshData({
+      const newMeshData = {
         nodes: transformedNodes,
         links: transformedLinks,
         routeTable,
-      })
+      }
+      meshDataRef.current = newMeshData
+      setMeshData(newMeshData)
     } catch (error) {
       console.error('Error transforming mesh data:', error)
       setMeshData(getMockMeshData())
@@ -356,11 +379,10 @@ const P200 = () => {
 
   // Error state
   if (nodesError || threadsError) {
-    const errorGrid = Array.from({ length: 25 }, () => 
+    const errorGrid = Array.from({ length: 25 }, () =>
       Array.from({ length: 40 }, () => ' ')
     )
-    const errorMsg = nodesError || threadsError || 'Unknown error'
-    const lines = [`ERROR: ${errorMsg}`, '', 'Press R to retry']
+    const lines = ['ERROR: MESH DATA UNAVAILABLE', '', 'Press R to retry']
     lines.forEach((line, i) => {
       for (let j = 0; j < line.length && j < 40; j++) {
         if (10 + i < 25) {
@@ -373,7 +395,7 @@ const P200 = () => {
       <div 
         className="teletext-demo"
         role="alert"
-        aria-label={`Error: ${errorMsg}`}
+        aria-label="Error: Mesh data unavailable"
       >
         <div className="teletext-overlay">
           P200 - LATTICE MAP (ERROR)
@@ -495,14 +517,6 @@ const generateRouteTable = (nodes, links) => {
   })
 
   return routes.slice(0, 100) // Limit returned routes
-}
-
-/**
- * Validate node ID format
- */
-const validateNodeId = (id) => {
-  if (typeof id !== 'string') return false
-  return /^[A-Za-z0-9_-]{1,50}$/.test(id)
 }
 
 export default P200
