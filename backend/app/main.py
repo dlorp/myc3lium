@@ -98,7 +98,7 @@ async def start_mesh_monitor():
         meshtastic_service.add_ws_callback(meshtastic.broadcast_to_websockets)
 
         # Register MeshStore sync callback so Meshtastic nodes appear in /api/nodes
-        local_node_id = meshtastic_service._my_node_id
+        local_node_id = meshtastic_service.my_node_id
         sync_cb = create_store_sync_callback(mesh_store, local_node_id)
         meshtastic_service.add_ws_callback(sync_cb)
 

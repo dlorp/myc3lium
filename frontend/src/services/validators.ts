@@ -10,7 +10,7 @@ import { z } from 'zod';
 export const NodeSchema = z.object({
   id: z.string().min(1).max(64),
   type: z.enum(['SPORE', 'HYPHA', 'FROND', 'RHIZOME']),
-  callsign: z.string().max(64),
+  callsign: z.string().max(32),
   status: z.enum(['online', 'offline', 'degraded']),
   rssi: z.number().nullable(),
   battery: z.number().min(0).max(100).nullable(),
@@ -19,6 +19,7 @@ export const NodeSchema = z.object({
     .object({
       lat: z.number().min(-90).max(90),
       lon: z.number().min(-180).max(180),
+      alt: z.number().optional(),
     })
     .nullable(),
 });
@@ -31,7 +32,7 @@ export const ThreadSchema = z.object({
   rssi: z.number().nullable(),
   quality: z.number().min(0).max(1),
   latency: z.number().nullable(),
-  established: z.string(),
+  established: z.string().optional().default(new Date().toISOString()),
 });
 
 export const MessageSchema = z.object({
@@ -41,6 +42,11 @@ export const MessageSchema = z.object({
   content: z.string().max(1024),
   timestamp: z.string(),
   hops: z.number().min(0),
+});
+
+/** Schema for removal events that only carry an ID */
+export const RemovalSchema = z.object({
+  id: z.string().min(1).max(64),
 });
 
 export type ValidatedNode = z.infer<typeof NodeSchema>;

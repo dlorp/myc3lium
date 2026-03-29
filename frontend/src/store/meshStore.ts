@@ -22,7 +22,7 @@ import {
   getWebSocketClient,
   type WebSocketMessage,
 } from '../services/ws';
-import { NodeSchema, ThreadSchema, MessageSchema } from '../services/validators';
+import { NodeSchema, ThreadSchema, MessageSchema, RemovalSchema } from '../services/validators';
 
 interface MeshStore {
   // Data
@@ -204,8 +204,9 @@ const useMeshStore = create<MeshStore>((set, get) => ({
     });
 
     client.on('node_removed', (msg: WebSocketMessage) => {
-      if (msg.data?.id) {
-        get().removeNode(msg.data.id);
+      const parsed = RemovalSchema.safeParse(msg.data);
+      if (parsed.success) {
+        get().removeNode(parsed.data.id);
       }
     });
 
@@ -233,8 +234,9 @@ const useMeshStore = create<MeshStore>((set, get) => ({
     });
 
     client.on('thread_removed', (msg: WebSocketMessage) => {
-      if (msg.data?.id) {
-        get().removeThread(msg.data.id);
+      const parsed = RemovalSchema.safeParse(msg.data);
+      if (parsed.success) {
+        get().removeThread(parsed.data.id);
       }
     });
 
@@ -251,8 +253,9 @@ const useMeshStore = create<MeshStore>((set, get) => ({
     });
 
     client.on('message_removed', (msg: WebSocketMessage) => {
-      if (msg.data?.id) {
-        get().removeMessage(msg.data.id);
+      const parsed = RemovalSchema.safeParse(msg.data);
+      if (parsed.success) {
+        get().removeMessage(parsed.data.id);
       }
     });
 

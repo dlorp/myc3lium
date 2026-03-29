@@ -72,15 +72,16 @@ def meshtastic_node_to_mesh_node(mnode: MeshtasticNode) -> Node:
     Returns:
         Node model suitable for MeshStore
     """
+    raw_callsign = mnode.short_name or mnode.long_name or mnode.node_id
     return Node(
         id=f"{MESH_ID_PREFIX}{mnode.node_id}",
         type="HYPHA",
-        callsign=mnode.short_name or mnode.long_name or mnode.node_id,
+        callsign=raw_callsign[:32],
         status=_last_heard_to_status(mnode.last_heard),
         rssi=snr_to_rssi(mnode.snr),
         battery=mnode.battery_level,
         last_seen=datetime.fromtimestamp(mnode.last_heard, tz=timezone.utc),
-        position=mnode.position if mnode.position else None,
+        position=mnode.position or None,
     )
 
 
@@ -98,10 +99,11 @@ def meshtastic_data_to_mesh_node(data: dict) -> Node:
     last_heard = data.get("last_heard", time.time())
     snr = data.get("snr")
 
+    raw_callsign = data.get("short_name") or data.get("long_name") or node_id
     return Node(
         id=f"{MESH_ID_PREFIX}{node_id}",
         type="HYPHA",
-        callsign=data.get("short_name") or data.get("long_name") or node_id,
+        callsign=raw_callsign[:32],
         status=_last_heard_to_status(last_heard),
         rssi=snr_to_rssi(snr),
         battery=data.get("battery_level"),
@@ -153,30 +155,38 @@ def seed_meshtastic_nodes(
     Returns:
         Number of nodes seeded
     """
+    # Pass 1: Seed all nodes first (threads require both endpoints to exist)
     count = 0
     for mnode in nodes:
         try:
             mesh_node = meshtastic_node_to_mesh_node(mnode)
             existing = mesh_store.get_node(mesh_node.id)
             if existing:
-                mesh_store.update_node(mesh_node.id, **mesh_node.model_dump())
+                updates = mesh_node.model_dump(exclude={"id"})
+                mesh_store.update_node(mesh_node.id, **updates)
             else:
                 mesh_store.add_node(mesh_node)
+            count += 1
+        except Exception as e:
+            logger.warning("Failed to seed Meshtastic node %s: %s", mnode.node_id, e)
 
-            # Create synthetic thread to local node if we know who we are
-            if local_node_id and mnode.node_id != local_node_id:
+    # Pass 2: Create synthetic threads (all nodes now exist in store)
+    if local_node_id:
+        for mnode in nodes:
+            if mnode.node_id == local_node_id:
+                continue
+            try:
                 thread = create_synthetic_thread(
                     mnode.node_id, local_node_id, mnode.snr
                 )
                 existing_thread = mesh_store.get_thread(thread.id)
                 if existing_thread:
-                    mesh_store.update_thread(thread.id, **thread.model_dump())
+                    updates = thread.model_dump(exclude={"id"})
+                    mesh_store.update_thread(thread.id, **updates)
                 else:
                     mesh_store.add_thread(thread)
-
-            count += 1
-        except Exception as e:
-            logger.warning("Failed to seed Meshtastic node %s: %s", mnode.node_id, e)
+            except Exception as e:
+                logger.warning("Failed to create thread for %s: %s", mnode.node_id, e)
 
     logger.info("Seeded %d Meshtastic nodes into MeshStore", count)
     return count
@@ -205,21 +215,25 @@ def create_store_sync_callback(
                 mesh_node = meshtastic_data_to_mesh_node(data)
                 existing = mesh_store.get_node(mesh_node.id)
                 if existing:
-                    mesh_store.update_node(mesh_node.id, **mesh_node.model_dump())
+                    updates = mesh_node.model_dump(exclude={"id"})
+                    mesh_store.update_node(mesh_node.id, **updates)
                 else:
                     mesh_store.add_node(mesh_node)
 
-                # Update synthetic thread
+                # Update synthetic thread (only if both endpoints exist)
                 node_id = data.get("node_id")
                 if local_node_id and node_id and node_id != local_node_id:
-                    thread = create_synthetic_thread(
-                        node_id, local_node_id, data.get("snr")
-                    )
-                    existing_thread = mesh_store.get_thread(thread.id)
-                    if existing_thread:
-                        mesh_store.update_thread(thread.id, **thread.model_dump())
-                    else:
-                        mesh_store.add_thread(thread)
+                    local_mesh_id = f"{MESH_ID_PREFIX}{local_node_id}"
+                    if mesh_store.get_node(local_mesh_id):
+                        thread = create_synthetic_thread(
+                            node_id, local_node_id, data.get("snr")
+                        )
+                        existing_thread = mesh_store.get_thread(thread.id)
+                        if existing_thread:
+                            updates = thread.model_dump(exclude={"id"})
+                            mesh_store.update_thread(thread.id, **updates)
+                        else:
+                            mesh_store.add_thread(thread)
 
         except Exception as e:
             logger.error("Error syncing Meshtastic to MeshStore: %s", e)

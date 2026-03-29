@@ -223,6 +223,11 @@ class MeshtasticService:
         """Check if service is available and running"""
         return self._available
 
+    @property
+    def my_node_id(self) -> Optional[str]:
+        """The local Meshtastic node ID."""
+        return self._my_node_id
+
     def _on_receive(self, packet, interface=None):
         """
         Callback for incoming Meshtastic packets via PyPubSub.
@@ -330,10 +335,20 @@ class MeshtasticService:
             if not node:
                 return
 
-            node_id = node.get("user", {}).get("id", "Unknown")
-            short_name = node.get("user", {}).get("shortName", "Unknown")
-            long_name = node.get("user", {}).get("longName", "Unknown")
+            node_id = _CONTROL_CHAR_RE.sub(
+                "", str(node.get("user", {}).get("id", "Unknown"))[:_MAX_NODE_ID_LENGTH]
+            )
+            short_name = _CONTROL_CHAR_RE.sub(
+                "", str(node.get("user", {}).get("shortName", "Unknown"))[:40]
+            )
+            long_name = _CONTROL_CHAR_RE.sub(
+                "", str(node.get("user", {}).get("longName", "Unknown"))[:40]
+            )
             last_heard = node.get("lastHeard", time.time())
+            if not isinstance(last_heard, (int, float)) or not (
+                0 < last_heard < 4_102_444_800
+            ):
+                last_heard = time.time()
             snr = node.get("snr")
 
             # Extract position if available
