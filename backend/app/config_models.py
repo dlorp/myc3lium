@@ -115,10 +115,10 @@ class SystemConfig(BaseModel):
 class Myc3liumConfig(BaseModel):
     """Top-level configuration combining all sections."""
 
-    radio: RadioConfig = Field(default_factory=RadioConfig)
-    mesh: MeshConfig = Field(default_factory=MeshConfig)
-    display: DisplayConfig = Field(default_factory=DisplayConfig)
-    system: SystemConfig = Field(default_factory=SystemConfig)
+    radio: RadioConfig = RadioConfig()
+    mesh: MeshConfig = MeshConfig()
+    display: DisplayConfig = DisplayConfig()
+    system: SystemConfig = SystemConfig()
 
 
 class Myc3liumConfigPublic(BaseModel):

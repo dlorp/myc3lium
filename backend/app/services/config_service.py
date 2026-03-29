@@ -13,6 +13,7 @@ import tomllib
 from pathlib import Path
 
 import tomli_w
+from pydantic import BaseModel
 
 from app.config_models import Myc3liumConfig
 
@@ -98,7 +99,8 @@ class ConfigService:
         """
         if section not in VALID_SECTIONS:
             raise ValueError(f"Invalid section: {section}. Valid: {VALID_SECTIONS}")
-        return getattr(self._config, section).model_dump()
+        section_model: BaseModel = getattr(self._config, section)
+        return dict(section_model.model_dump())
 
     def update_section(self, section: str, updates: dict) -> dict:
         """
@@ -132,7 +134,7 @@ class ConfigService:
         self._save()
 
         logger.info("Updated config section [%s]: %s", section, list(updates.keys()))
-        return updated_section.model_dump()
+        return dict(updated_section.model_dump())
 
     def create_default_config(self) -> None:
         """Write default configuration to disk (for first boot)."""
