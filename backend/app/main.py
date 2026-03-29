@@ -87,17 +87,21 @@ if config_svc.is_first_boot():
     if usb_iface:
         logger.info(
             "First boot with USB WiFi adapter %s — enabling auto-AP (SSID: %s)",
-            usb_iface, BACKHAUL_DEFAULT_SSID,
+            usb_iface,
+            BACKHAUL_DEFAULT_SSID,
         )
         config_svc.create_default_config()
-        config_svc.update_section("backhaul", {
-            "enabled": True,
-            "mode": "ap",
-            "ap_ssid": BACKHAUL_DEFAULT_SSID,
-            "ap_password": BACKHAUL_DEFAULT_PASSWORD,
-            "ap_band": "2.4GHz",
-            "ap_channel": 1,
-        })
+        config_svc.update_section(
+            "backhaul",
+            {
+                "enabled": True,
+                "mode": "ap",
+                "ap_ssid": BACKHAUL_DEFAULT_SSID,
+                "ap_password": BACKHAUL_DEFAULT_PASSWORD,
+                "ap_band": "2.4GHz",
+                "ap_channel": 1,
+            },
+        )
     else:
         logger.info("First boot, no USB WiFi adapter — skipping auto-AP")
 

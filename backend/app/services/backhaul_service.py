@@ -53,20 +53,29 @@ def _run(cmd: list[str], timeout: int = 15) -> subprocess.CompletedProcess[str]:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         logger.warning("Command timed out after %ds: %s", timeout, cmd)
-        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="timeout")
+        return subprocess.CompletedProcess(
+            cmd, returncode=1, stdout="", stderr="timeout"
+        )
 
 
-def _netctl(command: str, *args: str, stdin: str | None = None,
-            timeout: int = 15) -> subprocess.CompletedProcess[str]:
+def _netctl(
+    command: str, *args: str, stdin: str | None = None, timeout: int = 15
+) -> subprocess.CompletedProcess[str]:
     """Call the myc3lium-netctl privileged helper via sudo."""
     cmd = ["sudo", NETCTL, command, *args]
     try:
         return subprocess.run(
-            cmd, input=stdin, capture_output=True, text=True, timeout=timeout,
+            cmd,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
     except subprocess.TimeoutExpired:
         logger.warning("netctl %s timed out after %ds", command, timeout)
-        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="timeout")
+        return subprocess.CompletedProcess(
+            cmd, returncode=1, stdout="", stderr="timeout"
+        )
 
 
 def _save_active_interface(interface: str) -> None:
@@ -137,12 +146,14 @@ def detect_usb_wifi_adapters() -> list[dict[str, str]]:
             except (FileNotFoundError, OSError):
                 pass
 
-            adapters.append({
-                "name": name,
-                "driver": driver,
-                "mac": mac,
-                "usb_id": usb_id,
-            })
+            adapters.append(
+                {
+                    "name": name,
+                    "driver": driver,
+                    "mac": mac,
+                    "usb_id": usb_id,
+                }
+            )
         except (OSError, FileNotFoundError):
             continue
 
@@ -172,22 +183,24 @@ def apply_client_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         return False, "No USB WiFi adapter detected", None
 
     # Use wpa_passphrase to generate hashed PSK
-    wpa_gen = _run(["wpa_passphrase", config.client_ssid, config.client_password], timeout=5)
+    wpa_gen = _run(
+        ["wpa_passphrase", config.client_ssid, config.client_password], timeout=5
+    )
     if wpa_gen.returncode == 0:
         wpa_config = (
-            'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n'
-            'update_config=1\n\n'
+            "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n"
+            "update_config=1\n\n"
         ) + wpa_gen.stdout
     else:
         logger.warning("wpa_passphrase failed, using plaintext PSK")
         wpa_config = (
-            'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n'
-            'update_config=1\n\n'
-            'network={\n'
+            "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n"
+            "update_config=1\n\n"
+            "network={\n"
             f'    ssid="{config.client_ssid}"\n'
             f'    psk="{config.client_password}"\n'
-            '    key_mgmt=WPA-PSK\n'
-            '}\n'
+            "    key_mgmt=WPA-PSK\n"
+            "}\n"
         )
 
     # Write config via privileged helper
@@ -206,7 +219,9 @@ def apply_client_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         return False, f"Failed to connect on {interface}", interface
 
     _save_active_interface(interface)
-    logger.info("Client mode active on %s, connected to %s", interface, config.client_ssid)
+    logger.info(
+        "Client mode active on %s, connected to %s", interface, config.client_ssid
+    )
     return True, f"Connected to {config.client_ssid} on {interface}", interface
 
 
@@ -256,6 +271,7 @@ def apply_ap_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
     hostname = "myc3"
     try:
         import socket
+
         hostname = socket.gethostname()
     except OSError:
         pass
@@ -296,8 +312,12 @@ def apply_ap_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         return False, "AP failed to start (check system logs)", interface
 
     _save_active_interface(interface)
-    logger.info("AP mode active on %s: SSID=%s, bridge=%s", interface, config.ap_ssid,
-                BRIDGE_INTERFACE)
+    logger.info(
+        "AP mode active on %s: SSID=%s, bridge=%s",
+        interface,
+        config.ap_ssid,
+        BRIDGE_INTERFACE,
+    )
     return True, f"AP '{config.ap_ssid}' active on {interface}", interface
 
 
@@ -428,7 +448,8 @@ def get_status(config: BackhaulConfig | None = None) -> dict[str, Any]:
         clients_result = _run(["/usr/sbin/hostapd_cli", "-i", interface, "all_sta"])
         if clients_result.returncode == 0:
             macs = [
-                line for line in clients_result.stdout.splitlines()
+                line
+                for line in clients_result.stdout.splitlines()
                 if len(line) == 17 and line.count(":") == 5
             ]
             status["connected_clients"] = len(macs)

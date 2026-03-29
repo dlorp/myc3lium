@@ -129,21 +129,29 @@ class BackhaulConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = Field(False, description="Enable backhaul networking")
-    interface: str = Field("", description="USB WiFi interface (auto-detected if empty)")
+    interface: str = Field(
+        "", description="USB WiFi interface (auto-detected if empty)"
+    )
     mode: Literal["client", "ap", "disabled"] = Field(
         "disabled", description="Backhaul mode"
     )
 
     # Client mode
-    client_ssid: str = Field("", max_length=32, description="WiFi network SSID to connect to")
+    client_ssid: str = Field(
+        "", max_length=32, description="WiFi network SSID to connect to"
+    )
     client_password: str = Field("", max_length=63, description="WiFi network password")
 
     # AP mode
     ap_ssid: str = Field(
         "myc3_m3sh", max_length=32, description="Access point SSID to broadcast"
     )
-    ap_password: str = Field("", max_length=63, description="AP password (min 8 chars if set)")
-    ap_channel: int = Field(1, ge=1, le=165, description="AP WiFi channel (ch1 avoids mesh on ch6)")
+    ap_password: str = Field(
+        "", max_length=63, description="AP password (min 8 chars if set)"
+    )
+    ap_channel: int = Field(
+        1, ge=1, le=165, description="AP WiFi channel (ch1 avoids mesh on ch6)"
+    )
     ap_band: Literal["2.4GHz", "5GHz"] = Field(
         "2.4GHz", description="AP WiFi band (2.4GHz avoids 5GHz uplink interference)"
     )
@@ -174,7 +182,9 @@ class BackhaulConfig(BaseModel):
     @classmethod
     def validate_backhaul_ssid(cls, v: str) -> str:
         if v and not re.match(r"^[A-Za-z0-9_ -]{1,32}$", v):
-            raise ValueError("SSID must be alphanumeric, spaces, hyphens, or underscores")
+            raise ValueError(
+                "SSID must be alphanumeric, spaces, hyphens, or underscores"
+            )
         return v
 
     @model_validator(mode="after")
@@ -184,7 +194,10 @@ class BackhaulConfig(BaseModel):
                 raise ValueError(
                     f"AP channel {self.ap_channel} invalid for 2.4GHz (must be 1-11)"
                 )
-            if self.ap_band == "5GHz" and self.ap_channel not in MeshConfig._VALID_5GHZ_CHANNELS:
+            if (
+                self.ap_band == "5GHz"
+                and self.ap_channel not in MeshConfig._VALID_5GHZ_CHANNELS
+            ):
                 raise ValueError(
                     f"AP channel {self.ap_channel} is not a valid 5GHz channel"
                 )
@@ -275,7 +288,9 @@ class Myc3liumConfigPublic(BaseModel):
         system_data["api_key"] = "***" if system_data.get("api_key") else ""
 
         backhaul_data = config.backhaul.model_dump()
-        backhaul_data["client_password"] = "***" if backhaul_data.get("client_password") else ""
+        backhaul_data["client_password"] = (
+            "***" if backhaul_data.get("client_password") else ""
+        )
         backhaul_data["ap_password"] = "***" if backhaul_data.get("ap_password") else ""
 
         return Myc3liumConfigPublic(

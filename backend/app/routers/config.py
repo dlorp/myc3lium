@@ -73,11 +73,15 @@ def apply_backhaul() -> dict:
         return {"success": success, "message": message}
 
     if backhaul_config.mode == "client":
-        success, message, used_iface = backhaul_service.apply_client_mode(backhaul_config)
+        success, message, used_iface = backhaul_service.apply_client_mode(
+            backhaul_config
+        )
     elif backhaul_config.mode == "ap":
         success, message, used_iface = backhaul_service.apply_ap_mode(backhaul_config)
     else:
-        raise HTTPException(status_code=400, detail=f"Unknown mode: {backhaul_config.mode}")
+        raise HTTPException(
+            status_code=400, detail=f"Unknown mode: {backhaul_config.mode}"
+        )
 
     if not success:
         raise HTTPException(status_code=500, detail=message)

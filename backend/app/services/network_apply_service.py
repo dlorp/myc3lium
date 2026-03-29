@@ -27,17 +27,45 @@ RETICULUM_CONF_DEV = Path("./reticulum.conf")
 
 # Channel-to-frequency mappings
 _FREQ_2_4GHZ: dict[int, int] = {
-    1: 2412, 2: 2417, 3: 2422, 4: 2427, 5: 2432,
-    6: 2437, 7: 2442, 8: 2447, 9: 2452, 10: 2457, 11: 2462,
+    1: 2412,
+    2: 2417,
+    3: 2422,
+    4: 2427,
+    5: 2432,
+    6: 2437,
+    7: 2442,
+    8: 2447,
+    9: 2452,
+    10: 2457,
+    11: 2462,
 }
 
 _FREQ_5GHZ: dict[int, int] = {
-    36: 5180, 40: 5200, 44: 5220, 48: 5240,
-    52: 5260, 56: 5280, 60: 5300, 64: 5320,
-    100: 5500, 104: 5520, 108: 5540, 112: 5560,
-    116: 5580, 120: 5600, 124: 5620, 128: 5640,
-    132: 5660, 136: 5680, 140: 5700, 144: 5720,
-    149: 5745, 153: 5765, 157: 5785, 161: 5805, 165: 5825,
+    36: 5180,
+    40: 5200,
+    44: 5220,
+    48: 5240,
+    52: 5260,
+    56: 5280,
+    60: 5300,
+    64: 5320,
+    100: 5500,
+    104: 5520,
+    108: 5540,
+    112: 5560,
+    116: 5580,
+    120: 5600,
+    124: 5620,
+    128: 5640,
+    132: 5660,
+    136: 5680,
+    140: 5700,
+    144: 5720,
+    149: 5745,
+    153: 5765,
+    157: 5785,
+    161: 5805,
+    165: 5825,
 }
 
 
@@ -47,7 +75,9 @@ def _run(cmd: list[str], timeout: int = 15) -> subprocess.CompletedProcess[str]:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         logger.warning("Command timed out after %ds: %s", timeout, cmd)
-        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="timeout")
+        return subprocess.CompletedProcess(
+            cmd, returncode=1, stdout="", stderr="timeout"
+        )
 
 
 def _channel_to_freq(channel: int, band: str) -> int | None:
@@ -84,15 +114,26 @@ def apply_batman(mesh_config: MeshConfig) -> dict[str, Any]:
     if freq:
         result = _run(["sudo", "iw", "dev", "wlan0", "set", "freq", str(freq)])
         if result.returncode == 0:
-            details.append(f"Set wlan0 frequency to {freq} MHz (ch {mesh_config.batman_channel})")
+            details.append(
+                f"Set wlan0 frequency to {freq} MHz (ch {mesh_config.batman_channel})"
+            )
         else:
             errors.append(f"Failed to set frequency: {result.stderr.strip()}")
 
     # Join mesh
-    result = _run([
-        "sudo", "iw", "dev", "wlan0", "mesh", "join",
-        mesh_config.batman_ssid, "freq", str(freq or 2437),
-    ])
+    result = _run(
+        [
+            "sudo",
+            "iw",
+            "dev",
+            "wlan0",
+            "mesh",
+            "join",
+            mesh_config.batman_ssid,
+            "freq",
+            str(freq or 2437),
+        ]
+    )
     if result.returncode == 0:
         details.append(f"Joined mesh '{mesh_config.batman_ssid}'")
     else:
@@ -111,9 +152,13 @@ def apply_batman(mesh_config: MeshConfig) -> dict[str, Any]:
             errors.append(f"batman-adv not available: {modprobe_result.stderr.strip()}")
 
     success = len(errors) == 0
-    message = "BATMAN config applied" if success else f"BATMAN errors: {'; '.join(errors)}"
+    message = (
+        "BATMAN config applied" if success else f"BATMAN errors: {'; '.join(errors)}"
+    )
 
-    logger.info("apply_batman: success=%s details=%s errors=%s", success, details, errors)
+    logger.info(
+        "apply_batman: success=%s details=%s errors=%s", success, details, errors
+    )
     return {"success": success, "message": message, "details": details + errors}
 
 
@@ -224,11 +269,13 @@ def apply_network(config: Myc3liumConfig) -> dict[str, Any]:
     reticulum_result = apply_reticulum(config)
     meshtastic_result = apply_meshtastic(config)
 
-    all_success = all([
-        batman_result["success"],
-        reticulum_result["success"],
-        meshtastic_result["success"],
-    ])
+    all_success = all(
+        [
+            batman_result["success"],
+            reticulum_result["success"],
+            meshtastic_result["success"],
+        ]
+    )
 
     return {
         "success": all_success,
