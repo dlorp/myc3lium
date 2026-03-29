@@ -8,9 +8,9 @@ Separate from app/config.py which handles internal app settings via env vars.
 from __future__ import annotations
 
 import re
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RadioConfig(BaseModel):
@@ -65,6 +65,49 @@ class MeshConfig(BaseModel):
     store_forward_max_messages: int = Field(
         1000, ge=100, le=10000, description="Max stored messages"
     )
+
+    _VALID_5GHZ_CHANNELS: ClassVar[set[int]] = {
+        36,
+        40,
+        44,
+        48,
+        52,
+        56,
+        60,
+        64,
+        100,
+        104,
+        108,
+        112,
+        116,
+        120,
+        124,
+        128,
+        132,
+        136,
+        140,
+        144,
+        149,
+        153,
+        157,
+        161,
+        165,
+    }
+
+    @model_validator(mode="after")
+    def validate_channel_for_band(self) -> MeshConfig:
+        if self.batman_band == "2.4GHz" and not (1 <= self.batman_channel <= 11):
+            raise ValueError(
+                f"Channel {self.batman_channel} invalid for 2.4GHz (must be 1-11)"
+            )
+        if (
+            self.batman_band == "5GHz"
+            and self.batman_channel not in self._VALID_5GHZ_CHANNELS
+        ):
+            raise ValueError(
+                f"Channel {self.batman_channel} is not a valid 5GHz channel"
+            )
+        return self
 
     @field_validator("batman_ssid")
     @classmethod
