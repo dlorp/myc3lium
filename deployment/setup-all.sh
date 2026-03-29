@@ -118,10 +118,10 @@ log_success "Reticulum config deployed"
 
 # Copy backend
 echo "Copying backend bridge..."
-mkdir -p /opt/myc3lium/backend
+mkdir -p /opt/myc3lium/{backend,config}
 cp "$SCRIPT_DIR/backend/reticulum_bridge.py" /opt/myc3lium/backend/
 chmod +x /opt/myc3lium/backend/reticulum_bridge.py
-chown -R myc3lium:myc3lium /opt/myc3lium/backend
+chown -R myc3lium:myc3lium /opt/myc3lium/backend /opt/myc3lium/config
 log_success "Backend deployed"
 
 # ============================================================================

@@ -22,6 +22,9 @@ pypubsub>=4.0.3
 # Security
 cryptography>=41.0.0
 
+# Configuration
+tomli_w>=1.0.0
+
 # Environment
 python-dotenv>=1.0.0
 

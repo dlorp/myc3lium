@@ -108,7 +108,7 @@ fi
 
 # Create directory structure
 log_info "Creating MYC3LIUM directory structure..."
-mkdir -p /opt/myc3lium/{backend,frontend,logs,data}
+mkdir -p /opt/myc3lium/{backend,frontend,logs,data,config}
 mkdir -p /home/myc3lium/.reticulum
 mkdir -p /home/myc3lium/.nomadnet
 
@@ -201,6 +201,25 @@ ExecStart=/usr/bin/python3 /opt/myc3lium/backend/reticulum_bridge.py
 Restart=always
 RestartSec=10
 Environment="PYTHONUNBUFFERED=1"
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Filesystem access
+ReadWritePaths=/opt/myc3lium/backend /opt/myc3lium/config /opt/myc3lium/logs
+
+# Device access for serial radios
+DeviceAllow=char-ttyUSB rw
+
+# Resource limits
+LimitNOFILE=4096
+MemoryMax=512M
 
 [Install]
 WantedBy=multi-user.target

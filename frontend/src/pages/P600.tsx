@@ -1,255 +1,318 @@
-import React, { useState, useEffect } from 'react';
-import {
-  TeletextPanel,
-  TeletextText,
-  ProgressBar,
-} from '../components';
+import React, { useState, useEffect, useCallback } from 'react';
+import { TeletextPanel } from '../components/TeletextPanel';
+import { TeletextText } from '../components/TeletextText';
+import { TeletextInput } from '../components/TeletextInput';
+import { TeletextSelect } from '../components/TeletextSelect';
+import { TeletextToggle } from '../components/TeletextToggle';
+import useConfigStore from '../store/configStore';
 
-interface SatellitePass {
-  satellite: string;
-  aos: Date; // Acquisition of Signal
-  los: Date; // Loss of Signal
-  maxElevation: number;
-  direction: string;
-  frequency: string;
-  autoCapture: boolean;
+interface RadioConfig {
+  lora_frequency: number;
+  lora_bandwidth: number;
+  lora_spreading_factor: number;
+  lora_tx_power: number;
+  meshtastic_device: string;
+  meshtastic_enabled: boolean;
 }
 
+interface MeshConfig {
+  batman_channel: number;
+  batman_ssid: string;
+  reticulum_transport: boolean;
+  store_forward_enabled: boolean;
+  store_forward_max_messages: number;
+}
+
+interface DisplayConfig {
+  crt_effects: boolean;
+  scanlines: boolean;
+  phosphor_glow: boolean;
+  brightness: number;
+  color_scheme: string;
+}
+
+interface SystemConfig {
+  hostname: string;
+  timezone: string;
+  log_level: string;
+  auto_start_meshtastic: boolean;
+}
+
+const RADIO_DEFAULTS: RadioConfig = {
+  lora_frequency: 915000000,
+  lora_bandwidth: 125000,
+  lora_spreading_factor: 7,
+  lora_tx_power: 22,
+  meshtastic_device: '/dev/ttyUSB1',
+  meshtastic_enabled: true,
+};
+
+const MESH_DEFAULTS: MeshConfig = {
+  batman_channel: 6,
+  batman_ssid: 'myc3lium-mesh',
+  reticulum_transport: true,
+  store_forward_enabled: true,
+  store_forward_max_messages: 1000,
+};
+
+const DISPLAY_DEFAULTS: DisplayConfig = {
+  crt_effects: true,
+  scanlines: true,
+  phosphor_glow: true,
+  brightness: 100,
+  color_scheme: 'classic',
+};
+
+const SYSTEM_DEFAULTS: SystemConfig = {
+  hostname: 'myc3',
+  timezone: 'UTC',
+  log_level: 'INFO',
+  auto_start_meshtastic: true,
+};
+
+const SaveButton: React.FC<{ onClick: () => void; saving: boolean }> = ({ onClick, saving }) => (
+  <button
+    onClick={onClick}
+    disabled={saving}
+    style={{
+      backgroundColor: '#000',
+      color: saving ? '#808080' : '#00FF00',
+      border: '1px solid #00FF00',
+      fontFamily: 'IBM VGA, monospace',
+      fontSize: '14px',
+      padding: '4px 16px',
+      cursor: saving ? 'not-allowed' : 'pointer',
+      marginTop: '8px',
+    }}
+  >
+    {saving ? 'SAVING...' : '[ SAVE ]'}
+  </button>
+);
+
 const P600: React.FC = () => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedPass, setSelectedPass] = useState<SatellitePass | null>(null);
+  const { config, loading, saving, error, saveSuccess, loadConfig, updateSection, clearSaveStatus } =
+    useConfigStore();
 
-  // Mock satellite pass predictions
-  const passes: SatellitePass[] = [
-    {
-      satellite: 'NOAA 18',
-      aos: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
-      los: new Date(Date.now() + 20 * 60 * 1000),
-      maxElevation: 45,
-      direction: 'N→S',
-      frequency: '137.9125 MHz',
-      autoCapture: true,
-    },
-    {
-      satellite: 'NOAA 19',
-      aos: new Date(Date.now() + 85 * 60 * 1000), // 1h 25m
-      los: new Date(Date.now() + 100 * 60 * 1000),
-      maxElevation: 67,
-      direction: 'S→N',
-      frequency: '137.1000 MHz',
-      autoCapture: true,
-    },
-    {
-      satellite: 'METEOR-M 2',
-      aos: new Date(Date.now() + 142 * 60 * 1000), // 2h 22m
-      los: new Date(Date.now() + 157 * 60 * 1000),
-      maxElevation: 52,
-      direction: 'N→S',
-      frequency: '137.1000 MHz',
-      autoCapture: false,
-    },
-    {
-      satellite: 'ISS',
-      aos: new Date(Date.now() + 215 * 60 * 1000), // 3h 35m
-      los: new Date(Date.now() + 222 * 60 * 1000),
-      maxElevation: 28,
-      direction: 'W→E',
-      frequency: '145.800 MHz',
-      autoCapture: false,
-    },
-  ];
+  const [radio, setRadio] = useState<RadioConfig>(RADIO_DEFAULTS);
+  const [mesh, setMesh] = useState<MeshConfig>(MESH_DEFAULTS);
+  const [display, setDisplay] = useState<DisplayConfig>(DISPLAY_DEFAULTS);
+  const [system, setSystem] = useState<SystemConfig>(SYSTEM_DEFAULTS);
 
-  // Update current time every second
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    loadConfig();
+  }, [loadConfig]);
 
-  // Auto-select first upcoming pass
+  // Sync local state when config loads
   useEffect(() => {
-    if (!selectedPass && passes.length > 0) {
-      setSelectedPass(passes[0]);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!config) return;
+    if (config.radio) setRadio((prev) => ({ ...prev, ...config.radio }));
+    if (config.mesh) setMesh((prev) => ({ ...prev, ...config.mesh }));
+    if (config.display) setDisplay((prev) => ({ ...prev, ...config.display }));
+    if (config.system) setSystem((prev) => ({ ...prev, ...config.system }));
+  }, [config]);
 
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString('en-US', { hour12: false });
-  };
+  // Clear save status after 3 seconds
+  useEffect(() => {
+    if (!saveSuccess) return;
+    const timer = setTimeout(() => clearSaveStatus(), 3000);
+    return () => clearTimeout(timer);
+  }, [saveSuccess, clearSaveStatus]);
 
-  const formatCountdown = (targetDate: Date): string => {
-    const diff = targetDate.getTime() - currentTime.getTime();
-    if (diff <= 0) return '00:00:00';
+  const handleSave = useCallback(
+    (section: string, data: Record<string, unknown>) => {
+      updateSection(section, data);
+    },
+    [updateSection]
+  );
 
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  const timestamp = new Date().toLocaleString('en-US', { hour12: false });
 
-    return `${hours.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const getPassProgress = (pass: SatellitePass): number => {
-    const now = currentTime.getTime();
-    const start = pass.aos.getTime();
-    const end = pass.los.getTime();
-
-    if (now < start) return 0;
-    if (now > end) return 100;
-
-    return ((now - start) / (end - start)) * 100;
-  };
-
-  const isPassActive = (pass: SatellitePass): boolean => {
-    const now = currentTime.getTime();
-    return now >= pass.aos.getTime() && now <= pass.los.getTime();
-  };
-
-  const getTimeUntilAOS = (pass: SatellitePass): number => {
-    return Math.max(0, pass.aos.getTime() - currentTime.getTime());
-  };
+  if (loading) {
+    return (
+      <div style={{ backgroundColor: '#000', minHeight: '100vh', padding: '20px' }}>
+        <TeletextText color="yellow" blink>LOADING CONFIGURATION...</TeletextText>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ backgroundColor: '#000', minHeight: '100vh', padding: '20px' }}>
-      <TeletextPanel title="P600 ─══─ SATELLITE PASS PREDICTIONS ─══─ APT/LRPT" color="cyan">
-        <div style={{ display: 'flex', gap: '20px' }}>
-          {/* Left sidebar - Pass list */}
-          <div style={{ width: '350px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <TeletextText color="yellow">UPCOMING PASSES:</TeletextText>
-            {passes.map((pass, index) => {
-              const isActive = isPassActive(pass);
-              const isSelected = selectedPass?.satellite === pass.satellite;
-              const color = isActive ? 'green' : isSelected ? 'cyan' : 'white';
+    <div style={{ backgroundColor: '#000', minHeight: '100vh', padding: '20px', overflowY: 'auto' }}>
+      <TeletextText color="cyan">P600 -- SYSTEM CONFIGURATION</TeletextText>
+      <br />
+      <TeletextText color="gray">{timestamp}</TeletextText>
 
-              return (
-                <div
-                  key={index}
-                  onClick={() => setSelectedPass(pass)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <TeletextText color={color}>
-                    {isActive ? '► ' : '  '}
-                    {pass.satellite}
-                  </TeletextText>
-                  <br />
-                  <TeletextText color="gray">
-                    {'  '}AOS: {formatTime(pass.aos)} | MAX: {pass.maxElevation}°
-                  </TeletextText>
-                  {isSelected && <TeletextText color="cyan"> ◄</TeletextText>}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Right panel - Pass details */}
-          <div style={{ flex: 1 }}>
-            {selectedPass ? (
-              <>
-                <TeletextPanel title={`PASS: ${selectedPass.satellite}`} color="green">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div>
-                      <TeletextText color="yellow">ACQUISITION OF SIGNAL (AOS):</TeletextText>
-                      <br />
-                      <TeletextText color="white">
-                        {'  '}Time: {formatTime(selectedPass.aos)}
-                      </TeletextText>
-                      <br />
-                      <TeletextText color="cyan">
-                        {'  '}Countdown: {formatCountdown(selectedPass.aos)}
-                      </TeletextText>
-                    </div>
-
-                    <div>
-                      <TeletextText color="yellow">LOSS OF SIGNAL (LOS):</TeletextText>
-                      <br />
-                      <TeletextText color="white">
-                        {'  '}Time: {formatTime(selectedPass.los)}
-                      </TeletextText>
-                    </div>
-
-                    <div>
-                      <TeletextText color="yellow">PASS PARAMETERS:</TeletextText>
-                      <br />
-                      <TeletextText color="white">
-                        {'  '}Max Elevation: {selectedPass.maxElevation}°
-                      </TeletextText>
-                      <br />
-                      <TeletextText color="white">
-                        {'  '}Direction: {selectedPass.direction}
-                      </TeletextText>
-                      <br />
-                      <TeletextText color="white">
-                        {'  '}Frequency: {selectedPass.frequency}
-                      </TeletextText>
-                    </div>
-
-                    <div>
-                      <TeletextText color="yellow">AUTO-CAPTURE:</TeletextText>
-                      <br />
-                      <TeletextText color={selectedPass.autoCapture ? 'green' : 'red'}>
-                        {'  '}
-                        {selectedPass.autoCapture ? '◉ ENABLED' : '○ DISABLED'}
-                      </TeletextText>
-                    </div>
-
-                    {/* Progress bar for active pass */}
-                    {isPassActive(selectedPass) && (
-                      <div style={{ marginTop: '8px' }}>
-                        <TeletextText color="green">PASS IN PROGRESS:</TeletextText>
-                        <br />
-                        <ProgressBar
-                          value={getPassProgress(selectedPass)}
-                          max={100}
-                          color="green"
-                          showPercentage
-                        />
-                      </div>
-                    )}
-
-                    {/* Countdown progress for upcoming pass */}
-                    {!isPassActive(selectedPass) && getTimeUntilAOS(selectedPass) > 0 && (
-                      <div style={{ marginTop: '8px' }}>
-                        <TeletextText color="cyan">TIME UNTIL AOS:</TeletextText>
-                        <br />
-                        <ProgressBar
-                          value={100 - Math.min(100, (getTimeUntilAOS(selectedPass) / (60 * 60 * 1000)) * 100)}
-                          max={100}
-                          color="cyan"
-                          showPercentage={false}
-                        />
-                        <TeletextText color="white">
-                          {'  '}{formatCountdown(selectedPass.aos)}
-                        </TeletextText>
-                      </div>
-                    )}
-                  </div>
-                </TeletextPanel>
-
-                {/* System status */}
-                <div style={{ marginTop: '16px' }}>
-                  <TeletextPanel title="RECEIVER STATUS" color="magenta">
-                    <TeletextText color="white">SDR: RTL-SDR v3</TeletextText>
-                    <br />
-                    <TeletextText color="white">Antenna: 137 MHz Dipole</TeletextText>
-                    <br />
-                    <TeletextText color="white">Decoder: SatDump</TeletextText>
-                    <br />
-                    <TeletextText color="green">Status: READY</TeletextText>
-                  </TeletextPanel>
-                </div>
-              </>
-            ) : (
-              <TeletextText color="gray">[ SELECT A PASS FROM THE LIST ]</TeletextText>
-            )}
-          </div>
+      {saveSuccess && (
+        <div style={{ marginTop: '8px' }}>
+          <TeletextText color="green">CONFIG SAVED</TeletextText>
         </div>
-      </TeletextPanel>
+      )}
+      {error && (
+        <div style={{ marginTop: '8px' }}>
+          <TeletextText color="red">ERROR: {error}</TeletextText>
+        </div>
+      )}
 
-      <div style={{ marginTop: '12px' }}>
+      {/* Radio Section */}
+      <div style={{ marginTop: '16px' }}>
+        <TeletextPanel title="RADIO CONFIGURATION" color="cyan">
+          <TeletextInput
+            label="LoRa Frequency (Hz)"
+            value={radio.lora_frequency}
+            onChange={(v) => setRadio((p) => ({ ...p, lora_frequency: Number(v) || 0 }))}
+            type="number"
+          />
+          <TeletextSelect
+            label="LoRa Bandwidth"
+            value={String(radio.lora_bandwidth)}
+            onChange={(v) => setRadio((p) => ({ ...p, lora_bandwidth: Number(v) }))}
+            options={[
+              { label: '125 kHz', value: '125000' },
+              { label: '250 kHz', value: '250000' },
+              { label: '500 kHz', value: '500000' },
+            ]}
+          />
+          <TeletextSelect
+            label="LoRa Spreading Factor"
+            value={String(radio.lora_spreading_factor)}
+            onChange={(v) => setRadio((p) => ({ ...p, lora_spreading_factor: Number(v) }))}
+            options={[7, 8, 9, 10, 11, 12].map((n) => ({ label: `SF${n}`, value: String(n) }))}
+          />
+          <TeletextInput
+            label="LoRa TX Power (dBm, 0-22)"
+            value={radio.lora_tx_power}
+            onChange={(v) => {
+              const n = Math.max(0, Math.min(22, Number(v) || 0));
+              setRadio((p) => ({ ...p, lora_tx_power: n }));
+            }}
+            type="number"
+          />
+          <TeletextInput
+            label="Meshtastic Device"
+            value={radio.meshtastic_device}
+            onChange={(v) => setRadio((p) => ({ ...p, meshtastic_device: v }))}
+            placeholder="/dev/ttyUSB0"
+          />
+          <TeletextToggle
+            label="Meshtastic Enabled"
+            value={radio.meshtastic_enabled}
+            onChange={(v) => setRadio((p) => ({ ...p, meshtastic_enabled: v }))}
+          />
+          <SaveButton onClick={() => handleSave('radio', radio)} saving={saving} />
+        </TeletextPanel>
+      </div>
+
+      {/* Mesh Section */}
+      <div style={{ marginTop: '16px' }}>
+        <TeletextPanel title="MESH CONFIGURATION" color="magenta">
+          <TeletextInput
+            label="BATMAN Channel (1-11)"
+            value={mesh.batman_channel}
+            onChange={(v) => {
+              const n = Math.max(1, Math.min(11, Number(v) || 1));
+              setMesh((p) => ({ ...p, batman_channel: n }));
+            }}
+            type="number"
+          />
+          <TeletextInput
+            label="BATMAN SSID"
+            value={mesh.batman_ssid}
+            onChange={(v) => setMesh((p) => ({ ...p, batman_ssid: v }))}
+          />
+          <TeletextToggle
+            label="Reticulum Transport"
+            value={mesh.reticulum_transport}
+            onChange={(v) => setMesh((p) => ({ ...p, reticulum_transport: v }))}
+          />
+          <TeletextToggle
+            label="Store & Forward"
+            value={mesh.store_forward_enabled}
+            onChange={(v) => setMesh((p) => ({ ...p, store_forward_enabled: v }))}
+          />
+          <TeletextInput
+            label="Max Messages (100-10000)"
+            value={mesh.store_forward_max_messages}
+            onChange={(v) => {
+              const n = Math.max(100, Math.min(10000, Number(v) || 100));
+              setMesh((p) => ({ ...p, store_forward_max_messages: n }));
+            }}
+            type="number"
+          />
+          <SaveButton onClick={() => handleSave('mesh', mesh)} saving={saving} />
+        </TeletextPanel>
+      </div>
+
+      {/* Display Section */}
+      <div style={{ marginTop: '16px' }}>
+        <TeletextPanel title="DISPLAY CONFIGURATION" color="yellow">
+          <TeletextToggle
+            label="CRT Effects"
+            value={display.crt_effects}
+            onChange={(v) => setDisplay((p) => ({ ...p, crt_effects: v }))}
+          />
+          <TeletextToggle
+            label="Scanlines"
+            value={display.scanlines}
+            onChange={(v) => setDisplay((p) => ({ ...p, scanlines: v }))}
+          />
+          <TeletextToggle
+            label="Phosphor Glow"
+            value={display.phosphor_glow}
+            onChange={(v) => setDisplay((p) => ({ ...p, phosphor_glow: v }))}
+          />
+          <TeletextInput
+            label="Brightness (10-100)"
+            value={display.brightness}
+            onChange={(v) => {
+              const n = Math.max(10, Math.min(100, Number(v) || 10));
+              setDisplay((p) => ({ ...p, brightness: n }));
+            }}
+            type="number"
+          />
+          <TeletextSelect
+            label="Color Scheme"
+            value={display.color_scheme}
+            onChange={(v) => setDisplay((p) => ({ ...p, color_scheme: v }))}
+            options={[
+              { label: 'CLASSIC', value: 'classic' },
+              { label: 'AMBER', value: 'amber' },
+              { label: 'GREEN', value: 'green' },
+            ]}
+          />
+          <SaveButton onClick={() => handleSave('display', display)} saving={saving} />
+        </TeletextPanel>
+      </div>
+
+      {/* System Section */}
+      <div style={{ marginTop: '16px' }}>
+        <TeletextPanel title="SYSTEM CONFIGURATION" color="green">
+          <TeletextInput
+            label="Hostname"
+            value={system.hostname}
+            onChange={(v) => setSystem((p) => ({ ...p, hostname: v }))}
+          />
+          <TeletextInput
+            label="Timezone"
+            value={system.timezone}
+            onChange={(v) => setSystem((p) => ({ ...p, timezone: v }))}
+          />
+          <TeletextSelect
+            label="Log Level"
+            value={system.log_level}
+            onChange={(v) => setSystem((p) => ({ ...p, log_level: v }))}
+            options={['DEBUG', 'INFO', 'WARNING', 'ERROR'].map((l) => ({ label: l, value: l }))}
+          />
+          <TeletextToggle
+            label="Auto Start Meshtastic"
+            value={system.auto_start_meshtastic}
+            onChange={(v) => setSystem((p) => ({ ...p, auto_start_meshtastic: v }))}
+          />
+          <SaveButton onClick={() => handleSave('system', system)} saving={saving} />
+        </TeletextPanel>
+      </div>
+
+      <div style={{ marginTop: '16px', paddingBottom: '20px' }}>
         <TeletextText color="gray">
-          Current time: {formatTime(currentTime)} | Press A to toggle auto-capture | ESC to exit
+          Press ESC to return | Changes are applied per-section
         </TeletextText>
       </div>
     </div>

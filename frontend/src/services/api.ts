@@ -321,3 +321,41 @@ export interface HealthStatus {
 export async function checkHealth(): Promise<HealthStatus> {
   return apiFetch<HealthStatus>('/health');
 }
+
+// ============================================================================
+// Config API
+// ============================================================================
+
+export async function fetchConfig(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/api/config');
+}
+
+export async function fetchConfigSection(section: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/api/config/${section}`);
+}
+
+export async function updateConfigSection(
+  section: string,
+  data: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/api/config/${section}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function checkFirstBoot(): Promise<{ first_boot: boolean }> {
+  return apiFetch<{ first_boot: boolean }>('/api/config/first-boot');
+}
+
+export async function saveConfigDefaults(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/api/config/save-defaults', {
+    method: 'POST',
+  });
+}
+
+export async function restartService(name: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/api/config/restart-service/${name}`, {
+    method: 'POST',
+  });
+}

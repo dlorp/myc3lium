@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.routers import config as config_router
 from app.routers import messages, mesh, meshtastic, nodes, threads, ws
+from app.services.config_service import ConfigService
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
 from app.services.meshtastic_bridge import (
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MYC3LIUM API",
     description="Backend for MYC3LIUM - Mycelial Network Visualization",
-    version="0.2.0",
+    version="0.4.0",
 )
 
 # CORS middleware for frontend communication
@@ -70,6 +72,10 @@ mesh_store.load_from_source(
     data_source.get_messages(),
 )
 
+# Initialize config service
+config_svc = ConfigService()
+config_router.config_service = config_svc
+
 # Include routers
 app.include_router(nodes.router)
 app.include_router(messages.router)
@@ -77,6 +83,7 @@ app.include_router(threads.router)
 app.include_router(ws.router)
 app.include_router(mesh.router)
 app.include_router(meshtastic.router)
+app.include_router(config_router.router)
 
 
 # Initialize Meshtastic service
@@ -145,7 +152,7 @@ async def shutdown_services():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "MYC3LIUM API", "version": "0.2.0"}
+    return {"message": "MYC3LIUM API", "version": "0.4.0"}
 
 
 @app.get("/health")
