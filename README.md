@@ -35,7 +35,7 @@ sudo ./setup-all.sh
 
 ### WebUI
 
-Access the tactical interface at:
+Access the mesh interface at:
 ```
 http://myc3.local
 ```
@@ -147,4 +147,4 @@ See LICENSE file.
 
 ---
 
-**MYC3LIUM** - _Making decentralized mesh networking as easy as mycelium growth._
+**MYC3LIUM** - Get out there and make a mesh._
