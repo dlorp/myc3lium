@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -10,6 +11,17 @@ from app.models import Node
 from app.routers import messages as messages_router
 from app.routers import nodes as nodes_router
 from app.services.mesh_store import MeshStore
+
+
+def _has_intelligence_deps() -> bool:
+    """Check if intelligence_api heavy dependencies are available."""
+    try:
+        import networkx  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
 
 client = TestClient(app)
 
@@ -122,6 +134,10 @@ class TestErrorDetailLeaks:
 class TestIntelligenceObservationErrorLeak:
     """Test intelligence_api observation endpoint does not leak ValueError details."""
 
+    @pytest.mark.skipif(
+        not _has_intelligence_deps(),
+        reason="intelligence_api dependencies (networkx, etc.) not installed",
+    )
     def test_observation_bad_metadata_returns_generic_error(self):
         """POST /api/intelligence/observation returns generic 400 for bad metadata."""
         from intelligence_api import app as intel_app
