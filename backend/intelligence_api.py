@@ -239,8 +239,8 @@ def get_mock_gps() -> Optional[dict]:
         import random
 
         return {
-            "lat": 61.2181 + random.uniform(-0.01, 0.01),
-            "lon": -149.9003 + random.uniform(-0.01, 0.01),
+            "lat": 47.6062 + random.uniform(-0.01, 0.01),
+            "lon": -122.3321 + random.uniform(-0.01, 0.01),
             "alt": random.uniform(0, 100),
             "accuracy": random.uniform(5, 15),
         }

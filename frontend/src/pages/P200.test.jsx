@@ -54,13 +54,13 @@ describe('P200 - Lattice Map', () => {
     })
 
     it('should format GPS coordinates safely', () => {
-      expect(formatGpsCoordinates({ lat: 61.2181, lng: -149.9003 }))
+      expect(formatGpsCoordinates({ lat: 47.6062, lng: -122.3321 }))
         .toMatch(/^-?\d+\.\d+,-?\d+\.\d+$/)
     })
 
     it('should return INVALID for bad GPS coordinates', () => {
-      expect(formatGpsCoordinates({ lat: 91, lng: -149.9003 })).toBe('INVALID')
-      expect(formatGpsCoordinates({ lat: 61.2181, lng: 181 })).toBe('INVALID')
+      expect(formatGpsCoordinates({ lat: 91, lng: -122.3321 })).toBe('INVALID')
+      expect(formatGpsCoordinates({ lat: 47.6062, lng: 181 })).toBe('INVALID')
     })
 
     it('should return N/A for missing GPS', () => {
@@ -190,7 +190,7 @@ describe('P200 - Lattice Map', () => {
         y: 10,
         battery: 50,
         status: 'active',
-        gps: { lat: 61.2181, lng: -149.9003 },
+        gps: { lat: 47.6062, lng: -122.3321 },
       }
       expect(validateNode(validNode)).toBe(true)
     })
@@ -239,7 +239,7 @@ describe('P200 - Lattice Map', () => {
         y: 10,
         battery: 50,
         status: 'active',
-        gps: { lat: 91, lng: -149.9003 },
+        gps: { lat: 91, lng: -122.3321 },
       }
       expect(validateNode(invalidNode)).toBe(false)
     })

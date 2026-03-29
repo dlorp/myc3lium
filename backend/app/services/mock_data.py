@@ -44,16 +44,16 @@ class MeshDataSource(ABC):
 class MockMeshDataSource(MeshDataSource):
     """Mock implementation of MeshDataSource for testing and development"""
 
-    # Anchorage, Alaska GPS coordinates for 8 nodes
-    ANCHORAGE_COORDS: list[CoordData] = [
-        {"lat": 61.2181, "lon": -149.9003, "name": "Downtown"},  # Downtown Anchorage
-        {"lat": 61.1919, "lon": -149.8478, "name": "Hillside"},  # Hillside area
-        {"lat": 61.2147, "lon": -149.8947, "name": "Midtown"},  # Midtown
-        {"lat": 61.1508, "lon": -149.8606, "name": "O'Malley"},  # O'Malley area
-        {"lat": 61.2225, "lon": -149.8842, "name": "Airport"},  # Near Airport
-        {"lat": 61.1944, "lon": -149.7661, "name": "Eagle River"},  # Eagle River
-        {"lat": 61.1197, "lon": -149.9669, "name": "Girdwood"},  # Girdwood
-        {"lat": 61.2489, "lon": -149.6856, "name": "JBER"},  # JBER base
+    # Mock GPS coordinates for 8 nodes (generic grid layout)
+    MOCK_COORDS: list[CoordData] = [
+        {"lat": 47.6062, "lon": -122.3321, "name": "Alpha"},
+        {"lat": 47.5980, "lon": -122.3150, "name": "Bravo"},
+        {"lat": 47.6100, "lon": -122.3200, "name": "Charlie"},
+        {"lat": 47.5850, "lon": -122.3280, "name": "Delta"},
+        {"lat": 47.6130, "lon": -122.3100, "name": "Echo"},
+        {"lat": 47.5950, "lon": -122.2900, "name": "Foxtrot"},
+        {"lat": 47.5700, "lon": -122.3400, "name": "Golf"},
+        {"lat": 47.6200, "lon": -122.2800, "name": "Hotel"},
     ]
 
     NODE_TYPES: list[Literal["SPORE", "HYPHA", "FROND", "RHIZOME"]] = [
@@ -69,15 +69,15 @@ class MockMeshDataSource(MeshDataSource):
 
     # Thread configuration: (source_idx, target_idx, radio_type)
     THREAD_CONFIG: list[tuple[int, int, Literal["LoRa", "HaLow", "WiFi"]]] = [
-        (0, 1, "LoRa"),  # Downtown <-> Hillside
-        (0, 2, "WiFi"),  # Downtown <-> Midtown
-        (1, 3, "LoRa"),  # Hillside <-> O'Malley
-        (2, 4, "WiFi"),  # Midtown <-> Airport
-        (2, 5, "HaLow"),  # Midtown <-> Eagle River
-        (3, 6, "LoRa"),  # O'Malley <-> Girdwood
-        (4, 7, "WiFi"),  # Airport <-> JBER
-        (5, 7, "HaLow"),  # Eagle River <-> JBER
-        (0, 4, "WiFi"),  # Downtown <-> Airport (backbone)
+        (0, 1, "LoRa"),  # Alpha <-> Bravo
+        (0, 2, "WiFi"),  # Alpha <-> Charlie
+        (1, 3, "LoRa"),  # Bravo <-> Delta
+        (2, 4, "WiFi"),  # Charlie <-> Echo
+        (2, 5, "HaLow"),  # Charlie <-> Foxtrot
+        (3, 6, "LoRa"),  # Delta <-> Golf
+        (4, 7, "WiFi"),  # Echo <-> Hotel
+        (5, 7, "HaLow"),  # Foxtrot <-> Hotel
+        (0, 4, "WiFi"),  # Alpha <-> Echo (backbone)
     ]
 
     def __init__(self, seed: int = 42, base_time: Optional[datetime] = None):
@@ -102,10 +102,10 @@ class MockMeshDataSource(MeshDataSource):
         self._generate_messages()
 
     def _generate_nodes(self):
-        """Generate 8 nodes with Anchorage coordinates and MYC3LIUM callsigns"""
+        """Generate 8 mock nodes with GPS coordinates and MYC3LIUM callsigns"""
         self._nodes = []
         for idx, (coord, node_type) in enumerate(
-            zip(self.ANCHORAGE_COORDS, self.NODE_TYPES)
+            zip(self.MOCK_COORDS, self.NODE_TYPES)
         ):
             # Determine status based on seed and index
             status_roll = self.rng.random()
@@ -249,7 +249,7 @@ class MockMeshDataSource(MeshDataSource):
         now = self.base_time
 
         # Generate temperature readings with diurnal cycle
-        # Anchorage March temps: ~25°F to ~35°F (-4°C to 2°C)
+        # Mock temps: ~25°F to ~35°F (-4°C to 2°C)
         for hours_ago in range(24):
             timestamp = now - timedelta(hours=hours_ago)
             hour_of_day = timestamp.hour
@@ -274,7 +274,7 @@ class MockMeshDataSource(MeshDataSource):
             )
 
         # Add humidity reading
-        humidity = self.rng.uniform(65, 85)  # Typical Anchorage humidity
+        humidity = self.rng.uniform(65, 85)
         sensor_data.append(
             SensorData(
                 node_id=node_id,
