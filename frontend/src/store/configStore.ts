@@ -23,6 +23,7 @@ export interface RadioConfig {
 
 export interface MeshConfig {
   batman_channel: number;
+  batman_band: '2.4GHz' | '5GHz';
   batman_ssid: string;
   reticulum_transport: boolean;
   store_forward_enabled: boolean;

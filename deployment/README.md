@@ -327,7 +327,7 @@ See `DEPLOYMENT.md` for detailed troubleshooting.
 │ SX1262   │ │ ESP32 HaLow │ │   bat0     │
 │ (HAT)    │ │   (USB)     │ │  (wlan0)   │
 └──────────┘ └─────────────┘ └────────────┘
-   915 MHz      902-928 MHz     2.4 GHz
+   915 MHz      902-928 MHz     2.4/5 GHz
    1-10+ km     100m-1km        50-200m
    ~5 kbps      ~1-4 Mbps       ~10+ Mbps
 ```
