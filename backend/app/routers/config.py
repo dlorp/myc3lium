@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.config_models import Myc3liumConfig
+from app.auth import verify_api_key
+from app.config_models import Myc3liumConfigPublic
 from app.services.config_service import RESTARTABLE_SERVICES, ConfigService
 
 logger = logging.getLogger(__name__)
@@ -18,12 +19,13 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 config_service: ConfigService | None = None
 
 
-@router.get("", response_model=Myc3liumConfig)
-async def get_config() -> Myc3liumConfig:
-    """Get the full system configuration."""
+@router.get("")
+async def get_config() -> dict:
+    """Get the full system configuration (API key masked)."""
     if not config_service:
         raise HTTPException(status_code=503, detail="Config service unavailable")
-    return config_service.config
+    public = Myc3liumConfigPublic.from_config(config_service.config)
+    return public.model_dump()
 
 
 @router.get("/first-boot")
@@ -38,22 +40,25 @@ async def check_first_boot() -> dict:
 async def get_config_section(
     section: Literal["radio", "mesh", "display", "system"],
 ) -> dict:
-    """Get a single configuration section."""
+    """Get a single configuration section (API key masked for system)."""
     if not config_service:
         raise HTTPException(status_code=503, detail="Config service unavailable")
     try:
-        return config_service.get_section(section)
+        data = config_service.get_section(section)
+        if section == "system" and "api_key" in data:
+            data["api_key"] = "***" if data["api_key"] else ""
+        return data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.patch("/{section}")
+@router.patch("/{section}", dependencies=[Depends(verify_api_key)])
 async def update_config_section(
     section: Literal["radio", "mesh", "display", "system"],
     updates: dict,
 ) -> dict:
     """
-    Partially update a configuration section.
+    Partially update a configuration section. Requires API key.
 
     Only provided fields are updated; others retain their current values.
     Changes are immediately persisted to disk.
@@ -71,10 +76,10 @@ async def update_config_section(
         ) from None
 
 
-@router.post("/restart-service/{service_name}")
+@router.post("/restart-service/{service_name}", dependencies=[Depends(verify_api_key)])
 async def restart_service(service_name: str) -> dict:
     """
-    Restart a system service (whitelisted services only).
+    Restart a system service. Requires API key. Whitelisted services only.
 
     Available services: reticulum, myc3lium-backend, lora-bridge
     """
@@ -88,14 +93,14 @@ async def restart_service(service_name: str) -> dict:
 
     success, message = ConfigService.restart_service(service_name)
     if success:
-        return {"status": "restarted", "service": service_name, "message": message}
-    raise HTTPException(status_code=500, detail=message)
+        return {"status": "restarted", "service": service_name}
+    raise HTTPException(status_code=500, detail="Service restart failed")
 
 
-@router.post("/save-defaults")
+@router.post("/save-defaults", dependencies=[Depends(verify_api_key)])
 async def save_defaults() -> dict:
-    """Create the default config file (used by first-boot setup wizard)."""
+    """Create the default config file. Requires API key."""
     if not config_service:
         raise HTTPException(status_code=503, detail="Config service unavailable")
     config_service.create_default_config()
-    return {"status": "created", "path": str(config_service.config_path)}
+    return {"status": "created"}

@@ -188,7 +188,7 @@ class ConfigService:
                 logger.error(
                     "Failed to restart %s: %s", service_name, result.stderr.strip()
                 )
-                return False, f"Failed to restart service: {result.stderr.strip()}"
+                return False, f"Service '{service_name}' failed to restart"
         except subprocess.TimeoutExpired:
             return False, f"Service restart timed out for '{service_name}'"
         except Exception as e:
