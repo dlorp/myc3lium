@@ -11,7 +11,8 @@ This guide will get your MYC3LIUM mesh node running in under 30 minutes.
 **Hardware:**
 - Raspberry Pi 4 (4GB RAM)
 - Waveshare SX1262 LoRa HAT with GPS
-- Heltec HT-HC01P WiFi HaLow module (USB)
+- ESP32 USB HaLow board (routes via bat0)
+- ESP32 USB Meshtastic board (LoRa mesh)
 - Waveshare UPS HAT or PiSugar 3 Plus
 - 7-10" touchscreen
 - MicroSD card (32GB+ recommended)
@@ -128,9 +129,10 @@ This guide will get your MYC3LIUM mesh node running in under 30 minutes.
    - Press down firmly but gently
    - Ensure all pins are aligned
 
-2. **Connect HaLow module:**
-   - Plug Heltec HT-HC01P into USB port
-   - Use USB 3.0 port (blue) for better power
+2. **Connect ESP32 USB boards:**
+   - Plug in ESP32 Meshtastic board (LoRa radio)
+   - Plug in ESP32 HaLow board (routes via bat0)
+   - Use USB 3.0 ports (blue) for better power
 
 3. **Attach UPS HAT (optional but recommended):**
    - Mount PiSugar or UPS HAT according to manufacturer instructions
@@ -195,7 +197,7 @@ This guide will get your MYC3LIUM mesh node running in under 30 minutes.
 1. **Start all services:**
    ```bash
    sudo systemctl start reticulum.service
-   sudo systemctl start myc3lium-backend.service
+   sudo systemctl start myc3lium.service
    sudo systemctl start batman-adv.service
    sudo systemctl start nginx
    ```
@@ -291,7 +293,7 @@ Shows:
 journalctl -fu reticulum.service
 
 # Backend logs:
-journalctl -fu myc3lium-backend.service
+journalctl -fu myc3lium.service
 tail -f /opt/myc3lium/logs/bridge.log
 
 # BATMAN mesh logs:
@@ -374,7 +376,7 @@ sudo -u myc3lium rnsd --config /home/myc3lium/.reticulum/config -vvv
 
 ```bash
 # Check service status:
-systemctl status myc3lium-backend.service
+systemctl status myc3lium.service
 
 # Check if port is listening:
 sudo netstat -tlnp | grep 8000
@@ -582,7 +584,7 @@ myc3lium-status
 
 # Service management
 sudo systemctl {start|stop|restart|status} reticulum.service
-sudo systemctl {start|stop|restart|status} myc3lium-backend.service
+sudo systemctl {start|stop|restart|status} myc3lium.service
 sudo systemctl {start|stop|restart|status} batman-adv.service
 
 # Logs
@@ -620,7 +622,7 @@ sudo ./test-all.sh
 # Create debug bundle:
 mkdir ~/debug-logs
 journalctl -u reticulum.service > ~/debug-logs/reticulum.log
-journalctl -u myc3lium-backend.service > ~/debug-logs/backend.log
+journalctl -u myc3lium.service > ~/debug-logs/backend.log
 journalctl -u batman-adv.service > ~/debug-logs/batman.log
 cp /opt/myc3lium/logs/bridge.log ~/debug-logs/
 dmesg > ~/debug-logs/dmesg.log
