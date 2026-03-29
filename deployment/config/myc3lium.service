@@ -1,3 +1,6 @@
+# Install: sudo cp myc3lium.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable myc3lium
+
 [Unit]
 Description=MYC3LIUM Backend API
 After=network.target
@@ -8,10 +11,12 @@ User=myc3
 Group=myc3
 WorkingDirectory=/home/myc3/myc3lium/backend
 
-ExecStart=/home/myc3/myc3lium/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --ws-max-size 4096
+ExecStart=/home/myc3/myc3lium/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --ws-max-size 4096 --proxy-headers --forwarded-allow-ips 127.0.0.1
 
 Restart=always
 RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 # Environment
 Environment=PYTHONUNBUFFERED=1
@@ -20,23 +25,31 @@ EnvironmentFile=-/home/myc3/myc3lium/.env
 # Sandboxing
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=read-only
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
 RestrictSUIDSGID=true
 RestrictNamespaces=true
 RestrictRealtime=true
 LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @swap @reboot @raw-io @cpu-emulation @debug @obsolete
 
-# Filesystem access
+# Filesystem access (ReadWritePaths overrides ProtectHome=read-only for this path)
 ReadWritePaths=/home/myc3/myc3lium/backend
 ReadOnlyPaths=/home/myc3/myc3lium/backend/venv
 
-# Device access for serial radios (Meshtastic, LoRa, etc.)
+# Device access for serial radios (Meshtastic, LoRa, HaLow ESP32, etc.)
 # Wildcard allows any USB serial device — auto-detection handles the rest
 DeviceAllow=char-ttyUSB rw
+DeviceAllow=char-ttyACM rw
 
 # Resource limits
 LimitNOFILE=4096
