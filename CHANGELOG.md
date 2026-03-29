@@ -4,7 +4,7 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-03-28
 
 ### Added
 - TOML-based configuration system (Phase 6): Pydantic models for radio, mesh, display, system settings
@@ -28,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Systemd service: `/opt/myc3lium/config` added to ReadWritePaths for config persistence
 - Deployment scripts: config directory created during setup, service unit hardened
 - Renamed `deployment/config/reticulum-config.py` to `reticulum.conf` (correct file format)
-- Version synced to 0.3.0 across main.py, pyproject.toml, package.json
+- Version synced to 0.4.0 across main.py, pyproject.toml, package.json
 
 ### Removed
 - P600 satellite pass prediction scaffold (replaced by configuration hub)
