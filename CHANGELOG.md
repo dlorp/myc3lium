@@ -4,6 +4,36 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- TOML-based configuration system (Phase 6): Pydantic models for radio, mesh, display, system settings
+- Config REST API: GET/PATCH `/api/config/{section}`, first-boot detection, whitelisted service restart
+- P600 configuration hub: 4-section config page with per-section save, validation feedback
+- First-boot setup wizard at `/setup`: guided hostname, radio, mesh configuration
+- Teletext form components: TeletextInput, TeletextSelect, TeletextToggle
+- Meshtastic-to-MeshStore bridge: real radio nodes now appear in `/api/nodes` and P200 lattice map
+- Zod runtime validation on all WebSocket data before Zustand store ingestion (NodeSchema, ThreadSchema, MessageSchema, RemovalSchema)
+- `meshtastic_bridge.py`: maps MeshtasticNode to unified Node/Thread models with SNR-to-quality conversion
+- Multiple WS callback support on MeshtasticService (list pattern replaces single callback)
+- Pydantic mypy plugin enabled for proper Field default recognition
+
+### Fixed
+- ARCHITECTURE.md: full rewrite from fictional PyQt6 to actual React+FastAPI web stack
+- README.md: honest project status, correct hardware (ESP32 USB not HaLow), fixed page descriptions
+- `_on_node_info_updated` now sanitizes node_id, short_name, long_name (control char stripping, length truncation) and validates last_heard timestamp range
+- Callsign truncated to 32 chars in Meshtastic bridge (matches Pydantic model max_length)
+- Two-pass node seeding: all nodes added before synthetic threads (prevents ValueError on missing endpoints)
+- Config API: auth required on mutations, API key masked in responses, extra fields rejected, device path/hostname/timezone validated
+- Systemd service: `/opt/myc3lium/config` added to ReadWritePaths for config persistence
+- Deployment scripts: config directory created during setup, service unit hardened
+- Renamed `deployment/config/reticulum-config.py` to `reticulum.conf` (correct file format)
+- Version synced to 0.3.0 across main.py, pyproject.toml, package.json
+
+### Removed
+- P600 satellite pass prediction scaffold (replaced by configuration hub)
+- P600.utils.js mock radio config data (no longer needed)
+
 ## [0.3.0] - 2026-03-28
 
 ### Added
