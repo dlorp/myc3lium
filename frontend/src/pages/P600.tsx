@@ -17,6 +17,7 @@ interface RadioConfig {
 
 interface MeshConfig {
   batman_channel: number;
+  batman_band: string;
   batman_ssid: string;
   reticulum_transport: boolean;
   store_forward_enabled: boolean;
@@ -49,6 +50,7 @@ const RADIO_DEFAULTS: RadioConfig = {
 
 const MESH_DEFAULTS: MeshConfig = {
   batman_channel: 6,
+  batman_band: '2.4GHz',
   batman_ssid: 'myc3lium-mesh',
   reticulum_transport: true,
   store_forward_enabled: true,
@@ -204,11 +206,22 @@ const P600: React.FC = () => {
       {/* Mesh Section */}
       <div style={{ marginTop: '16px' }}>
         <TeletextPanel title="MESH CONFIGURATION" color="magenta">
+          <TeletextSelect
+            label="BATMAN WiFi Band"
+            value={mesh.batman_band}
+            onChange={(v) => setMesh((p) => ({ ...p, batman_band: v }))}
+            options={[
+              { label: '2.4 GHz', value: '2.4GHz' },
+              { label: '5 GHz', value: '5GHz' },
+            ]}
+          />
           <TeletextInput
-            label="BATMAN Channel (1-11)"
+            label={mesh.batman_band === '5GHz' ? 'BATMAN Channel (36-165)' : 'BATMAN Channel (1-11)'}
             value={mesh.batman_channel}
             onChange={(v) => {
-              const n = Math.max(1, Math.min(11, Number(v) || 1));
+              const max = mesh.batman_band === '5GHz' ? 165 : 11;
+              const min = mesh.batman_band === '5GHz' ? 36 : 1;
+              const n = Math.max(min, Math.min(max, Number(v) || min));
               setMesh((p) => ({ ...p, batman_channel: n }));
             }}
             type="number"

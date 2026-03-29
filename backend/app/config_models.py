@@ -45,7 +45,13 @@ class MeshConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     batman_channel: int = Field(
-        6, ge=1, le=11, description="WiFi channel for BATMAN mesh"
+        6,
+        ge=1,
+        le=165,
+        description="WiFi channel for BATMAN mesh (1-11 for 2.4GHz, 36-165 for 5GHz)",
+    )
+    batman_band: Literal["2.4GHz", "5GHz"] = Field(
+        "2.4GHz", description="WiFi band for BATMAN mesh"
     )
     batman_ssid: str = Field(
         "myc3lium-mesh", max_length=32, description="BATMAN mesh SSID"
