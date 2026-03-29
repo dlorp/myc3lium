@@ -41,7 +41,7 @@ class Node(BaseModel):
                 "rssi": -65,
                 "battery": 87,
                 "last_seen": "2026-03-16T12:00:00Z",
-                "position": {"lat": 61.2181, "lon": -149.9003},
+                "position": {"lat": 47.6062, "lon": -122.3321},
             }
         }
     )
