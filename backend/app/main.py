@@ -25,11 +25,7 @@ app = FastAPI(
 # Allow all origins for mesh network - nodes may access from different IPs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.40.15:3000",  # Mac dev server
-        "http://192.168.40.19:3000",  # Pi dev server
-        "http://localhost:3000",  # Local dev
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
