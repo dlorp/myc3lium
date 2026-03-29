@@ -1,6 +1,5 @@
 """Tests for the Meshtastic WebSocket endpoint and router security."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -51,11 +50,12 @@ def mock_service():
 
 
 @pytest.fixture(autouse=True)
-def clear_api_key_env():
-    """Ensure MESHTASTIC_API_KEY is not set unless a test explicitly sets it."""
-    with patch.dict(os.environ, {}, clear=False):
-        os.environ.pop("MESHTASTIC_API_KEY", None)
-        yield
+def clear_api_key():
+    """Ensure API_KEY is not set unless a test explicitly sets it."""
+    original = meshtastic.API_KEY
+    meshtastic.API_KEY = None
+    yield
+    meshtastic.API_KEY = original
 
 
 def test_ws_connect_returns_initial_status(client):
@@ -100,25 +100,26 @@ def test_ws_message_size_validation(client):
 
 def test_ws_auth_rejects_bad_token(client):
     """WebSocket rejects connections with invalid or missing token when key is set."""
-    with patch.dict(os.environ, {"MESHTASTIC_API_KEY": "secret123"}):
-        # No token provided
-        with pytest.raises(Exception):
-            with client.websocket_connect("/api/meshtastic/ws") as ws:
-                ws.receive_json()
+    meshtastic.API_KEY = "secret123"
 
-        # Wrong token
-        with pytest.raises(Exception):
-            with client.websocket_connect("/api/meshtastic/ws?token=wrong") as ws:
-                ws.receive_json()
+    # No token provided
+    with pytest.raises(Exception):
+        with client.websocket_connect("/api/meshtastic/ws") as ws:
+            ws.receive_json()
+
+    # Wrong token
+    with pytest.raises(Exception):
+        with client.websocket_connect("/api/meshtastic/ws?token=wrong") as ws:
+            ws.receive_json()
 
 
 def test_ws_auth_accepts_valid_token(client):
     """WebSocket accepts connection with correct token."""
-    with patch.dict(os.environ, {"MESHTASTIC_API_KEY": "secret123"}):
-        with client.websocket_connect("/api/meshtastic/ws?token=secret123") as ws:
-            data = ws.receive_json()
-            assert data["type"] == "status"
-            assert data["data"]["connected"] is True
+    meshtastic.API_KEY = "secret123"
+    with client.websocket_connect("/api/meshtastic/ws?token=secret123") as ws:
+        data = ws.receive_json()
+        assert data["type"] == "status"
+        assert data["data"]["connected"] is True
 
 
 def test_ws_auth_skipped_when_no_key(client):

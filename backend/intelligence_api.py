@@ -547,8 +547,8 @@ async def record_observation(
     # Validate metadata
     try:
         sanitized_metadata = security.validate_observation_metadata(metadata)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid observation metadata")
 
     # Validate coordinates
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -597,4 +597,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, ws_max_size=4096)
