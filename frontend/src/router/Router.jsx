@@ -6,6 +6,7 @@ import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
 import P600 from '../pages/P600'
+import Setup from '../pages/Setup'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -73,7 +74,7 @@ const PageRoute = ({ children }) => {
   
   useEffect(() => {
     const page = parseInt(pageNumber, 10)
-    if (page >= 100 && page <= 800) {
+    if (page >= 100 && page <= 999) {
       navigateTo(page)
     }
   }, [pageNumber, navigateTo])
@@ -163,6 +164,9 @@ const Router = () => {
           }
         />
         
+        {/* First-boot setup wizard */}
+        <Route path="/setup" element={<Setup />} />
+
         {/* Default redirect to index */}
         <Route path="/" element={<Navigate to="/p/100" replace />} />
         <Route path="*" element={<Navigate to="/p/100" replace />} />
