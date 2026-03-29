@@ -109,8 +109,17 @@ if config_svc.is_first_boot():
 # Setup gate: block non-config API access until first-boot setup is complete.
 # Skipped in dev mode (use_live_data=False) so local development isn't blocked.
 async def require_setup_complete() -> None:
-    """Dependency that rejects requests if setup wizard hasn't been completed."""
-    if settings.use_live_data and config_svc and not config_svc.is_setup_complete():
+    """Dependency that rejects requests if setup wizard hasn't been completed.
+
+    Skipped when: dev mode (use_live_data=False), no config service,
+    or no config file exists (test environments).
+    """
+    if (
+        settings.use_live_data
+        and config_svc
+        and not config_svc.is_first_boot()
+        and not config_svc.is_setup_complete()
+    ):
         raise HTTPException(
             status_code=403,
             detail="Setup not complete",
