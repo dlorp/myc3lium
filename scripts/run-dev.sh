@@ -25,7 +25,7 @@ trap cleanup SIGINT SIGTERM
 echo -e "\n${BLUE}Starting backend (FastAPI)...${NC}"
 cd backend
 source venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --ws-max-size 4096 &
 BACKEND_PID=$!
 deactivate
 cd ..

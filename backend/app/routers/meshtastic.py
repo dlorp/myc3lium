@@ -12,7 +12,6 @@ Provides:
 import asyncio
 import hmac
 import logging
-import os
 from asyncio import Queue
 from datetime import datetime, timezone
 from typing import Optional
@@ -27,7 +26,7 @@ from fastapi import (
 )
 from pydantic import BaseModel
 
-from app.auth import verify_api_key
+from app.auth import API_KEY, verify_api_key
 from app.rate_limit import send_limiter
 from app.websocket import ConnectionManager, manager as main_ws_manager
 
@@ -275,10 +274,9 @@ _meshtastic_ws_manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time Meshtastic updates."""
     # Optional token auth (skip if no API key configured, like REST endpoints)
-    api_key = os.getenv("MESHTASTIC_API_KEY")
-    if api_key:
+    if API_KEY:
         token = websocket.query_params.get("token")
-        if not hmac.compare_digest(token or "", api_key):
+        if not hmac.compare_digest(token or "", API_KEY):
             await websocket.close(code=1008, reason="Unauthorized")
             return
 

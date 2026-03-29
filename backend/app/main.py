@@ -98,6 +98,15 @@ async def start_mesh_monitor():
     else:
         logger.warning("Meshtastic service not available")
 
+    # Production safety: warn if API key is missing on live systems
+    from app.auth import API_KEY
+
+    if settings.use_live_data and not API_KEY:
+        logger.critical(
+            "MESHTASTIC_API_KEY is not set but live data mode is active. "
+            "The Meshtastic API is unprotected. Set this environment variable."
+        )
+
     if settings.use_live_data:
         logger.info("Starting mesh monitor (live data enabled)")
         ws.set_data_source(data_source)

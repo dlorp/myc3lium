@@ -109,8 +109,8 @@ async def create_node(node: Node):
     try:
         created_node = mesh_store.add_node(node)
         return created_node
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Node with this ID already exists")
 
 
 @router.patch("/{node_id}", response_model=Node)
