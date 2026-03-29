@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Pi auto-start: systemd service (`myc3lium.service`) with hardened sandbox, syscall filter, wildcard USB serial device access, memory limit, proxy-headers
+- Nginx reverse proxy: serves frontend, proxies API + WebSocket, SPA fallback, CSP header, rate limiting, WebSocket connection limiting (5/IP), security headers
+- mDNS hostname `myc3` — Pi accessible at `http://myc3.local` on any network without static IPs
+- Deployment config files tracked in `deployment/config/` for reproducible Pi setup
 - Device metrics tracking: battery level, voltage, channel utilization, air TX utilization extracted from Meshtastic node update packets with type/range validation
 - WebSocket event bridge: Meshtastic events now broadcast to both `/api/meshtastic/ws` and main `/ws` endpoint so P100 dashboard receives live updates
 - Optional WebSocket token auth via `?token=` query param (skipped in dev mode when `MESHTASTIC_API_KEY` unset)
@@ -24,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 12-test suite for MeshtasticService PyPubSub callback lifecycle (`test_meshtastic_service.py`)
 
 ### Fixed
+- Frontend Router: P600 route was importing P500 component, P500/P600 routes had tangled JSX
+- Hardcoded IPs removed: frontend uses relative URLs, CORS uses config-driven `settings.cors_origins`, SSH config uses mDNS
 - Error detail leaks: 4 endpoints no longer expose `str(e)` in HTTP responses (`messages.py` send/create, `nodes.py` create, `intelligence_api.py` observation)
 - API key caching: WebSocket endpoint uses module-level `API_KEY` from `auth.py` instead of per-connection `os.getenv()`
 - `except HTTPException: raise` in `messages.py` send endpoint prevents 400 being swallowed as 500
