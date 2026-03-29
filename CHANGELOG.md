@@ -6,7 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Device metrics tracking: battery level, voltage, channel utilization, air TX utilization extracted from Meshtastic node update packets with type/range validation
+- WebSocket event bridge: Meshtastic events now broadcast to both `/api/meshtastic/ws` and main `/ws` endpoint so P100 dashboard receives live updates
+- Optional WebSocket token auth via `?token=` query param (skipped in dev mode when `MESHTASTIC_API_KEY` unset)
+- WebSocket connection limits via `ConnectionManager` (MAX_CONNECTIONS=100, capacity rejection with code 1008)
+- WebSocket message size validation (1024-byte limit, byte-level check)
+- `reconnected` event type in frontend WS client, emitted on auto-reconnect for data refresh
+- 13 new tests: 5 device metrics + 8 WebSocket hardening (connection limits, auth, size validation, broadcast, error sanitization)
+- Protocol-level WebSocket frame size limit (`ws_max_size=4096`) on uvicorn startup
+- Production safety check: CRITICAL log warning when live data mode active but `MESHTASTIC_API_KEY` unset
+- 5 new security hardening tests for error detail leak prevention
+- Input validation on mesh radio packets: text capped at 237 chars, control chars stripped, timestamp/channel range validated
+- `_unsubscribe_all()` helper for clean PyPubSub lifecycle management
+- `_subscribed` state flag to guard unsubscribe without prior subscribe
+- `pypubsub>=4.0.3` and `meshtastic>=2.0.0` added to requirements.txt
+- 12-test suite for MeshtasticService PyPubSub callback lifecycle (`test_meshtastic_service.py`)
+
 ### Fixed
+- Error detail leaks: 4 endpoints no longer expose `str(e)` in HTTP responses (`messages.py` send/create, `nodes.py` create, `intelligence_api.py` observation)
+- API key caching: WebSocket endpoint uses module-level `API_KEY` from `auth.py` instead of per-connection `os.getenv()`
+- `except HTTPException: raise` in `messages.py` send endpoint prevents 400 being swallowed as 500
+- WebSocket endpoint replaced raw connection list with `ConnectionManager` for structured lifecycle management
+- Timing-safe token comparison via `hmac.compare_digest()` in both `auth.py` and `meshtastic.py`
+- Dict iteration race in `ConnectionManager.broadcast()` — snapshot prevents RuntimeError during concurrent connect/disconnect
+- `/api/meshtastic/send` error response no longer leaks internal exception details
+- `NaN` display in P100 when `channel_utilization` is null (added `?? 0` guard)
 - Meshtastic WebSocket broadcasts now work via PyPubSub (callbacks were silently ignored using dead instance attribute assignments)
 - Callbacks registered before `SerialInterface()` constructor to capture initial nodedb (52 nodes were missed)
 - `get_status()` crash: `interface.myInfo` is protobuf in Meshtastic 2.x, not a dict
@@ -16,12 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pub.unsubscribe()` separated from `interface.close()` in `stop()` to prevent error masking
 - Hardcoded `"dev-key-change-in-production"` API key removed — reads from env, warns if unset
 
-### Added
-- Input validation on mesh radio packets: text capped at 237 chars, control chars stripped, timestamp/channel range validated
-- `_unsubscribe_all()` helper for clean PyPubSub lifecycle management
-- `_subscribed` state flag to guard unsubscribe without prior subscribe
-- `pypubsub>=4.0.3` and `meshtastic>=2.0.0` added to requirements.txt
-- 12-test suite for MeshtasticService PyPubSub callback lifecycle (`test_meshtastic_service.py`)
+### Removed
+- 5-second polling interval from P100 dashboard (replaced by WebSocket-only live updates with reconnect refresh)
 
 ## [0.2.0] - 2026-03-28
 
