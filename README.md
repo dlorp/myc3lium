@@ -40,8 +40,6 @@ Access the mesh interface at:
 http://myc3.local
 ```
 
-On first boot, navigate to `http://myc3.local/setup` to configure your node.
-
 **Pages:**
 - **P100** - System overview
 - **P200** - Mesh topology map
@@ -52,6 +50,36 @@ On first boot, navigate to `http://myc3.local/setup` to configure your node.
 - **P700** - Network event log
 - **P800** - Command interface
 - **P900** - ARG / recovered logs
+
+---
+
+## First Boot / Field Deployment
+
+On first power-on with a USB WiFi adapter plugged in, the Pi automatically broadcasts an access point:
+
+| | |
+|---|---|
+| **SSID** | `myc3_m3sh` |
+| **Default Password** | `myc3m3sh` |
+| **URL** | `http://myc3.local` or `http://10.99.0.1` |
+
+**Setup flow:**
+1. Power on the Pi (headless, no monitor needed)
+2. Connect your phone/laptop to the `myc3_m3sh` WiFi network
+3. Open `http://myc3.local` (or `http://10.99.0.1` if mDNS doesn't resolve)
+4. The setup wizard walks through hostname, radio, mesh, and backhaul configuration
+5. **You must change the default AP password** before the system unlocks
+
+After setup, use **P600** (System Configuration) for ongoing changes.
+
+### Backhaul Modes
+
+The USB WiFi adapter (`wlan1`) supports two modes — the onboard `wlan0` is reserved for BATMAN mesh:
+
+- **AP mode** (default): Broadcasts a hotspot for operators to connect and access the mesh terminal. AP clients are bridged into the BATMAN mesh via `br0`.
+- **Client mode**: Joins an existing WiFi network for internet uplink. Traffic is NAT-forwarded so mesh nodes can reach the internet.
+
+Configure in P600 under "BACKHAUL / AP MODE" or via `POST /api/config/apply-backhaul`.
 
 ---
 

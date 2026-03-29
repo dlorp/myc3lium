@@ -86,6 +86,24 @@ class ConfigService:
         """Check if this is the first boot (no config file exists)."""
         return not self._config_path.exists()
 
+    def is_setup_complete(self) -> bool:
+        """Check if first-boot setup has been completed.
+
+        Returns True if setup_complete flag is set, OR if the AP password
+        differs from the default (handles pre-existing deployments).
+        """
+        from app.config_models import BACKHAUL_DEFAULT_PASSWORD
+
+        if self._config.system.setup_complete:
+            return True
+        # Treat as complete if user already changed the AP password
+        if (
+            self._config.backhaul.ap_password
+            and self._config.backhaul.ap_password != BACKHAUL_DEFAULT_PASSWORD
+        ):
+            return True
+        return False
+
     def get_section(self, section: str) -> dict:
         """
         Get a single config section as a dict.

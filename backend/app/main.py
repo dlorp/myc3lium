@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -105,14 +105,37 @@ if config_svc.is_first_boot():
     else:
         logger.info("First boot, no USB WiFi adapter — skipping auto-AP")
 
-# Include routers
-app.include_router(nodes.router)
-app.include_router(messages.router)
-app.include_router(threads.router)
-app.include_router(ws.router)
-app.include_router(mesh.router)
-app.include_router(meshtastic.router)
-app.include_router(config_router.router)
+
+# Setup gate: block non-config API access until first-boot setup is complete.
+# Skipped in dev mode (use_live_data=False) so local development isn't blocked.
+async def require_setup_complete() -> None:
+    """Dependency that rejects requests if setup wizard hasn't been completed.
+
+    Skipped when: dev mode (use_live_data=False), no config service,
+    or no config file exists (test environments).
+    """
+    if (
+        settings.use_live_data
+        and config_svc
+        and not config_svc.is_first_boot()
+        and not config_svc.is_setup_complete()
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Setup not complete",
+            headers={"X-Setup-Required": "true"},
+        )
+
+
+# Include routers — config router is ungated so the setup wizard can operate
+setup_gate = [Depends(require_setup_complete)]
+app.include_router(nodes.router, dependencies=setup_gate)
+app.include_router(messages.router, dependencies=setup_gate)
+app.include_router(threads.router, dependencies=setup_gate)
+app.include_router(ws.router)  # WebSocket — gated client-side
+app.include_router(mesh.router, dependencies=setup_gate)
+app.include_router(meshtastic.router, dependencies=setup_gate)
+app.include_router(config_router.router)  # Ungated — needed by setup wizard
 
 
 # Initialize Meshtastic service

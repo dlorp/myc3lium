@@ -254,6 +254,9 @@ class SystemConfig(BaseModel):
     api_key: str = Field(
         "", max_length=128, description="API key for protected endpoints"
     )
+    setup_complete: bool = Field(
+        False, description="Set to true after first-boot setup wizard completes"
+    )
 
     @field_validator("timezone")
     @classmethod
