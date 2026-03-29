@@ -112,7 +112,7 @@ log_step "Step 5/6: Deploying Reticulum & Backend"
 # Copy Reticulum config
 echo "Copying Reticulum configuration..."
 mkdir -p /home/myc3lium/.reticulum
-cp "$SCRIPT_DIR/config/reticulum-config.py" /home/myc3lium/.reticulum/config
+cp "$SCRIPT_DIR/config/reticulum.conf" /home/myc3lium/.reticulum/config
 chown -R myc3lium:myc3lium /home/myc3lium/.reticulum
 log_success "Reticulum config deployed"
 

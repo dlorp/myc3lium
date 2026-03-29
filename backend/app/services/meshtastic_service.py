@@ -147,7 +147,7 @@ class MeshtasticService:
         self._device_path = device_path
         self._messages: deque[MeshtasticMessage] = deque(maxlen=max_messages)
         self._nodes: dict[str, MeshtasticNode] = {}
-        self._ws_callback: Optional[Callable] = None
+        self._ws_callbacks: list[Callable] = []
         self._messages_lock = threading.Lock()
         self._nodes_lock = threading.Lock()
         self._my_node_id: Optional[str] = None
@@ -281,20 +281,22 @@ class MeshtasticService:
                     text[:50],
                 )
 
-            # Notify WebSocket clients (capture ref for thread safety)
-            callback = self._ws_callback
-            if callback:
-                callback(
-                    "meshtastic_message",
-                    {
-                        "sender": from_id,
-                        "text": text,
-                        "timestamp": timestamp,
-                        "channel": channel,
-                        "snr": snr,
-                        "rssi": rssi,
-                    },
-                )
+            # Notify WebSocket clients (snapshot list for thread safety)
+            for callback in list(self._ws_callbacks):
+                try:
+                    callback(
+                        "meshtastic_message",
+                        {
+                            "sender": from_id,
+                            "text": text,
+                            "timestamp": timestamp,
+                            "channel": channel,
+                            "snr": snr,
+                            "rssi": rssi,
+                        },
+                    )
+                except Exception as cb_err:
+                    logger.error("WS callback error (message): %s", cb_err)
 
         except Exception as e:
             logger.error("Error processing Meshtastic packet: %s", e)
@@ -389,25 +391,25 @@ class MeshtasticService:
                 nodes_count = len(self._nodes)
                 logger.debug("Updated node info: %s (%s)", short_name, node_id)
 
-            # Notify WebSocket clients (capture ref for thread safety)
-            callback = self._ws_callback
-            if callback:
-                callback(
-                    "meshtastic_node_updated",
-                    {
-                        "node_id": node_id,
-                        "short_name": short_name,
-                        "long_name": long_name,
-                        "last_heard": last_heard,
-                        "snr": snr,
-                        "position": position,
-                        "battery_level": battery_level,
-                        "voltage": voltage,
-                        "channel_utilization": channel_utilization,
-                        "air_util_tx": air_util_tx,
-                        "nodes_count": nodes_count,
-                    },
-                )
+            # Notify WebSocket clients (snapshot list for thread safety)
+            node_data = {
+                "node_id": node_id,
+                "short_name": short_name,
+                "long_name": long_name,
+                "last_heard": last_heard,
+                "snr": snr,
+                "position": position,
+                "battery_level": battery_level,
+                "voltage": voltage,
+                "channel_utilization": channel_utilization,
+                "air_util_tx": air_util_tx,
+                "nodes_count": nodes_count,
+            }
+            for callback in list(self._ws_callbacks):
+                try:
+                    callback("meshtastic_node_updated", node_data)
+                except Exception as cb_err:
+                    logger.error("WS callback error (node): %s", cb_err)
 
         except Exception as e:
             logger.error("Error processing node info: %s", e)
@@ -537,15 +539,32 @@ class MeshtasticService:
             nodes_count=nodes_count,
         )
 
-    def set_ws_callback(self, callback: Callable[[str, dict], None]):
+    def set_ws_callback(self, callback: Callable[[str, dict], None]) -> None:
         """
-        Register a WebSocket callback for real-time updates.
+        Register a WebSocket callback (replaces all existing callbacks).
+
+        Deprecated: Use add_ws_callback() for multiple listeners.
 
         Args:
             callback: Function(event_type: str, data: dict)
         """
-        self._ws_callback = callback
-        logger.debug("WebSocket callback registered for Meshtastic")
+        self._ws_callbacks = [callback]
+        logger.debug("WebSocket callback set for Meshtastic")
+
+    def add_ws_callback(self, callback: Callable[[str, dict], None]) -> None:
+        """
+        Add a WebSocket callback for real-time updates.
+
+        Multiple callbacks can be registered. Each is called with (event_type, data).
+
+        Args:
+            callback: Function(event_type: str, data: dict)
+        """
+        self._ws_callbacks.append(callback)
+        logger.debug(
+            "WebSocket callback added for Meshtastic (total: %d)",
+            len(self._ws_callbacks),
+        )
 
     def _unsubscribe_all(self) -> None:
         """Remove all PyPubSub subscriptions if registered."""

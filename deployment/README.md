@@ -46,7 +46,7 @@ sudo ./setup-all.sh
 
 | File | Purpose |
 |------|---------|
-| `reticulum-config.py` | Reticulum network stack configuration |
+| `reticulum.conf` | Reticulum network stack configuration |
 
 Configures:
 - LoRa interface (915 MHz)
@@ -129,7 +129,7 @@ sudo ./setup-halow.sh
 sudo ./setup-batman.sh
 
 # Deploy configs:
-sudo cp ../config/reticulum-config.py /home/myc3lium/.reticulum/config
+sudo cp ../config/reticulum.conf /home/myc3lium/.reticulum/config
 sudo cp ../backend/reticulum_bridge.py /opt/myc3lium/backend/
 sudo ./deploy-webui.sh
 
@@ -160,7 +160,7 @@ deployment/
 │   ├── setup-batman.sh
 │   └── deploy-webui.sh
 ├── config/                      # Configuration files
-│   └── reticulum-config.py
+│   └── reticulum.conf
 ├── backend/                     # Backend application
 │   └── reticulum_bridge.py
 └── tests/                       # Test scripts

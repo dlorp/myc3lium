@@ -191,7 +191,7 @@ PYEOF
 chmod +x /opt/myc3lium/test-lora.py
 chown myc3lium:myc3lium /opt/myc3lium/test-lora.py
 
-# Configure Reticulum to use LoRa (will be done in reticulum-config.py)
+# Configure Reticulum to use LoRa (will be done in reticulum.conf)
 log_info "LoRa configuration template ready for Reticulum"
 
 # Create systemd service monitor for LoRa

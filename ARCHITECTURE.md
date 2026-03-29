@@ -1,15 +1,15 @@
 # myc3lium - System Architecture
 
-**Version:** 1.0  
-**Target Platform:** Raspberry Pi 4 (4GB RAM)  
-**Display:** 7-10" touchscreen (800x480 or 1024x600)  
-**OS:** Raspberry Pi OS 64-bit (Debian-based)
+**Version:** 2.0
+**Target Platform:** Raspberry Pi 4 (4GB RAM)
+**Access:** Web browser via `http://myc3.local`
+**OS:** Raspberry Pi OS 64-bit (Debian Bookworm)
 
 ---
 
 ## Overview
 
-**myc3lium** - A portable mesh networking terminal with intelligence gathering capabilities, inspired by fungal mycelial networks. Unified teletext-style GUI with shader-rendered interface - no CLI required for normal operation.
+**myc3lium** is a portable mesh networking system with a web-based teletext-style UI served headless from a Raspberry Pi. The Pi runs backend services (FastAPI, Reticulum, Meshtastic) and serves a React frontend via nginx. Operators connect from any device on the mesh or local network.
 
 ---
 
@@ -17,32 +17,52 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     USER INTERFACE LAYER                     │
+│                    CLIENT (Any Browser)                       │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │   PyQt6 Application (main_window.py)                   │ │
-│  │   ├── Teletext Renderer (40×25 grid)                   │ │
-│  │   ├── Map Renderer (ATAK MBTiles)                      │ │
-│  │   ├── Shader Pipeline (OpenGL ES 3.0)                  │ │
-│  │   └── Page Manager (P100-P605)                         │ │
+│  │   React 18 + TypeScript + Vite                         │ │
+│  │   ├── Canvas2D Teletext Renderer (40x25 grid)          │ │
+│  │   ├── WebGL CRT Shader (scanlines, phosphor, vignette) │ │
+│  │   ├── Zustand Store (meshStore, navigationStore)       │ │
+│  │   ├── WebSocket Client (real-time mesh events)         │ │
+│  │   └── Page Router (P100-P900)                          │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
-                             ↕
+                         ↕ HTTP / WebSocket
 ┌─────────────────────────────────────────────────────────────┐
-│                     INTEGRATION LAYER                        │
-│  ┌──────────────┬──────────────┬──────────────┬──────────┐ │
-│  │ Mesh Manager │ Map Engine   │ SDR Engine   │ Config   │ │
-│  │ (Reticulum + │ (MBTiles +   │ (SoapySDR +  │ Manager  │ │
-│  │  Meshtastic) │  GPS)        │  Satellites) │          │ │
-│  └──────────────┴──────────────┴──────────────┴──────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                             ↕
-┌─────────────────────────────────────────────────────────────┐
-│                      HARDWARE LAYER                          │
-│  ┌──────────────┬──────────────┬──────────────┬──────────┐ │
-│  │ LoRa HAT     │ WiFi HaLow   │ WiFi Mesh    │ RTL-SDR  │ │
-│  │ (SX1262 +    │ (HT-HC01P)   │ (BCM43455)   │ (NESDR)  │ │
-│  │  GPS)        │              │              │          │ │
-│  └──────────────┴──────────────┴──────────────┴──────────┘ │
+│                    RASPBERRY PI 4                             │
+│                                                               │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │  nginx (port 80)                                  │       │
+│  │  ├── Static files: /var/www/myc3lium/             │       │
+│  │  ├── Proxy /api/* → localhost:8000                │       │
+│  │  └── Proxy /ws   → localhost:8000/ws              │       │
+│  └──────────────────────────────────────────────────┘       │
+│                         ↕                                    │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │  FastAPI + uvicorn (port 8000)                    │       │
+│  │  ├── REST API (/api/nodes, /api/messages, etc.)   │       │
+│  │  ├── WebSocket Server (/ws, /api/meshtastic/ws)   │       │
+│  │  ├── MeshStore (in-memory state + event bus)      │       │
+│  │  ├── MeshtasticService (serial radio integration) │       │
+│  │  ├── MeshtasticBridge (radio → MeshStore sync)    │       │
+│  │  ├── ReticulumBridge (RNS/LXMF messaging)        │       │
+│  │  ├── LiveDataSource (BATMAN + Reticulum polling)  │       │
+│  │  └── BatctlService (BATMAN-adv interface)         │       │
+│  └──────────────────────────────────────────────────┘       │
+│                         ↕                                    │
+│  ┌──────────────┬──────────────┬──────────────────┐         │
+│  │ rnsd         │ gpsd         │ Meshtastic       │         │
+│  │ (Reticulum   │ (GPS from    │ (in-process via  │         │
+│  │  daemon)     │  LoRa HAT)   │  SerialInterface)│         │
+│  └──────────────┴──────────────┴──────────────────┘         │
+│                         ↕                                    │
+│  ┌──────────────┬──────────────┬──────────────────┐         │
+│  │ LoRa HAT     │ ESP32 USB    │ WiFi Mesh        │         │
+│  │ (SX1262 +    │ (Meshtastic  │ (BCM43455 +      │         │
+│  │  GNSS)       │  radios)     │  BATMAN-adv)     │         │
+│  └──────────────┴──────────────┴──────────────────┘         │
+│     915 MHz        915 MHz        2.4 GHz                    │
+│     1-10+ km       1-10+ km       50-200m                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,45 +70,33 @@
 
 ## Process Model
 
-### Main GUI Process
-- **PyQt6 Application** (main process)
-- OpenGL ES 3.0 rendering via EGLFS (no X11/Wayland)
-- Event loop handles UI, touch input, page navigation
-- ~300-400 MB RAM
+### On the Raspberry Pi
 
-### Background Daemons (systemd services)
+**1. nginx** (systemd service)
+- Serves static frontend build from `/var/www/myc3lium/`
+- Reverse proxy for API and WebSocket traffic
+- ~20 MB RAM
 
-**1. Reticulum Daemon (`rnsd`)**
-- Multi-radio mesh routing
-- Interfaces: LoRa (RNode), WiFi HaLow (AutoInterface), WiFi mesh (AutoInterface)
-- Store-and-forward messaging
+**2. uvicorn + FastAPI** (systemd: `myc3lium-backend.service`)
+- REST API endpoints for nodes, threads, messages, mesh status, config
+- WebSocket server for real-time event broadcasting
+- MeshtasticService runs in-process (serial reader thread + PyPubSub)
+- MeshtasticBridge syncs radio nodes into MeshStore
+- ~150-200 MB RAM
+
+**3. Reticulum Daemon (`rnsd`)** (systemd: `reticulum.service`)
+- Multi-radio mesh routing (LoRa, WiFi, BATMAN)
+- Store-and-forward messaging via LXMF
 - ~200 MB RAM
 
-**2. GPS Daemon (`gpsd`)**
-- Reads GNSS from LoRa HAT
-- Provides position to GUI and ATAK
+**4. GPS Daemon (`gpsd`)** (systemd)
+- Reads GNSS from LoRa HAT serial
+- Provides position to backend
 - ~50 MB RAM
 
-**3. Meshtastic Bridge (`meshtastic-bridge`)**
-- Serial connection to LoRa radio for Meshtastic protocol
-- Translates Meshtastic ↔ internal message format
-- ~100 MB RAM
+### On the Client
 
-**4. SDR Manager (`sdr-manager`)**
-- SoapySDR control
-- Satellite pass scheduling
-- Auto-capture and decode
-- ~200 MB RAM (idle), ~800 MB (active)
-
-**5. Map Tile Cache (`tile-cache`)**
-- Pre-loads map tiles for offline use
-- LRU eviction policy
-- ~500 MB RAM
-
-**6. Battery Monitor (`battery-mon`)**
-- I2C communication with battery HAT
-- Power management policies
-- ~50 MB RAM
+The React frontend runs entirely in the user's browser. The Pi only serves the static build files. All rendering (Canvas2D teletext grid, WebGL CRT shaders) happens client-side.
 
 ---
 
@@ -96,67 +104,68 @@
 
 ```
 OS baseline:              ~500 MB
-GUI (PyQt6 + OpenGL):     ~400 MB
+nginx:                     ~20 MB
+uvicorn + FastAPI:        ~200 MB
 Reticulum daemon:         ~200 MB
 GPS daemon:                ~50 MB
-Meshtastic bridge:        ~100 MB
-SDR manager (idle):        ~50 MB
-Map tile cache:           ~500 MB
-Battery monitor:           ~50 MB
 System services:          ~150 MB
 ──────────────────────────────────
-Used:                    ~2000 MB
-Free headroom:           ~2000 MB
+Used:                    ~1120 MB
+Free headroom:           ~2880 MB
 ```
 
-**SDR active:** +750 MB (FFT buffers, decoding)  
-**Still fits:** ~1.25 GB free with everything running
+Plenty of headroom for future services (SDR, LLM agents).
 
 ---
 
 ## Data Flow
 
-### Messaging Flow
+### REST API Flow
 ```
-User → GUI → MessageRouter
-              ↓
-     ┌────────┴────────┐
-     ↓                 ↓
-Meshtastic         LXMF/Reticulum
-(LoRa only)        (auto-routes: LoRa/HaLow/WiFi)
-     ↓                 ↓
-Serial Bridge      RNS Daemon
-     ↓                 ↓
-   Radio            Radio(s)
-```
-
-### Map Rendering Flow
-```
-MBTiles (SQLite) → Tile Loader → GPU Texture Atlas
-                                      ↓
-GPS Position ──────────────────→ Overlay Renderer
-Mesh Nodes  ──────────────────→      ↓
-Waypoints   ──────────────────→ Fragment Shader
-                                 (Teletext Quantize)
-                                      ↓
-                                 CRT Post-FX
-                                      ↓
-                                  Framebuffer
+Browser ──[HTTP]──→ nginx ──[proxy]──→ FastAPI
+                                         │
+                                    ┌────┴────┐
+                                    │         │
+                              MeshStore   MeshtasticService
+                            (in-memory)   (serial radio)
+                                    │         │
+                                    └────┬────┘
+                                         │
+                                     Response
 ```
 
-### SDR Flow
+### WebSocket Event Flow
 ```
-RTL-SDR → SoapySDR → FFT Engine → Waterfall Shader → Display
-                          ↓
-                    Signal Detector → Alerts
-                          ↓
-         (On satellite pass) → APT/LRPT Decoder
-                                      ↓
-                              Georeferenced Image
-                                      ↓
-                               gdal2tiles.py
-                                      ↓
-                             Custom MBTiles → Map
+MeshtasticService                     MeshStore
+  │ (PyPubSub)                          │ (event handlers)
+  │                                     │
+  └──→ MeshtasticBridge ──→ add/update ─┘
+                                        │
+                                   emit event
+                                        │
+                                   WS Router
+                                        │
+                                   broadcast()
+                                        │
+                              ┌─────────┼─────────┐
+                              │         │         │
+                          Client 1  Client 2  Client N
+```
+
+### Meshtastic Integration Flow
+```
+LoRa Radio ──[serial]──→ meshtastic library
+                              │ (PyPubSub callbacks)
+                              ├── _on_receive()        → message events
+                              ├── _on_node_info()      → node discovery
+                              └── _on_connection()     → connection status
+                                        │
+                                  MeshtasticBridge
+                                        │
+                              ┌─────────┴─────────┐
+                              │                   │
+                         MeshStore            WS broadcast
+                       (add/update node)    (real-time to clients)
 ```
 
 ---
@@ -165,55 +174,99 @@ RTL-SDR → SoapySDR → FFT Engine → Waterfall Shader → Display
 
 ```
 myc3lium/
-├── src/
-│   ├── main.py                    # Entry point
-│   ├── ui/
-│   │   ├── main_window.py         # PyQt6 main window
-│   │   ├── page_manager.py        # Page navigation (P100-P605)
-│   │   ├── widgets/               # Custom widgets
-│   │   │   ├── teletext_text.py   # Character grid renderer
-│   │   │   ├── map_view.py        # Map widget
-│   │   │   └── waterfall.py       # SDR waterfall
-│   │   └── input_handler.py       # Touch + keyboard
-│   ├── shaders/
-│   │   ├── text.vert              # Text vertex shader
-│   │   ├── text.frag              # Text fragment shader
-│   │   ├── map.vert               # Map vertex shader
-│   │   ├── map.frag               # Map + teletext quantization
-│   │   ├── crt.frag               # CRT post-processing
-│   │   └── waterfall.frag         # SDR waterfall
-│   ├── core/
-│   │   ├── config.py              # TOML config loader
-│   │   ├── message_router.py     # Meshtastic + LXMF
-│   │   ├── mesh_manager.py       # Reticulum interface
-│   │   ├── map_engine.py         # MBTiles + GPS
-│   │   ├── sdr_engine.py         # SoapySDR control
-│   │   └── battery.py            # Power management
-│   ├── daemons/
-│   │   ├── meshtastic_bridge.py  # Serial → internal msgs
-│   │   ├── sdr_manager.py        # Background SDR control
-│   │   └── tile_cache.py         # Map pre-loader
-│   └── utils/
-│       ├── web_mercator.py       # Map projection math
-│       ├── gps.py                # gpsd interface
-│       └── satellite.py          # Pass prediction
-├── data/
-│   ├── maps/                      # MBTiles storage
+├── README.md
+├── ARCHITECTURE.md                  # This file
+├── MYC3LIUM_BIBLE_V3.md            # Full project specification
+├── NETWORK_TOPOLOGY.md             # Network design
+├── CHANGELOG.md
+│
+├── frontend/                        # React + TypeScript + Vite
+│   ├── src/
+│   │   ├── components/              # Reusable teletext UI components
+│   │   │   ├── TeletextPanel.tsx    # Bordered panel with header
+│   │   │   ├── TeletextText.tsx     # Colored text with optional blink
+│   │   │   ├── TeletextGrid.jsx     # Canvas2D 40x25 character renderer
+│   │   │   ├── StatusBar.tsx        # Percentage bar with block chars
+│   │   │   ├── ProgressBar.tsx      # Battery/signal indicator
+│   │   │   ├── Sparkline.tsx        # Mini line graph (canvas)
+│   │   │   ├── CommandInput.tsx     # Command bar with cursor
+│   │   │   ├── NodeBadge.tsx        # Node ID + callsign + status
+│   │   │   └── ThreadIndicator.tsx  # Signal quality dots
+│   │   ├── pages/                   # Teletext page components
+│   │   │   ├── P100.jsx            # System overview dashboard
+│   │   │   ├── P200.jsx            # Lattice topology map
+│   │   │   ├── P300.tsx            # Messages (LXMF + Meshtastic)
+│   │   │   ├── P400.tsx            # Tactical map (ATAK)
+│   │   │   ├── P500.tsx            # Camera streams / intelligence
+│   │   │   ├── P600.tsx            # System configuration
+│   │   │   ├── P700.tsx            # Network event log
+│   │   │   ├── P800.tsx            # Command interface
+│   │   │   └── P900.tsx            # ARG / recovered logs
+│   │   ├── store/                   # Zustand state management
+│   │   │   └── meshStore.ts        # Mesh network state + WS events
+│   │   ├── services/                # API + WebSocket clients
+│   │   │   ├── api.ts              # REST API fetch wrapper + types
+│   │   │   ├── ws.ts               # WebSocket client with reconnect
+│   │   │   └── validators.ts       # Zod schemas for WS data validation
+│   │   └── router/
+│   │       └── Router.jsx          # Page routing (/p/100, /p/200, etc.)
+│   ├── public/
+│   │   └── fonts/                   # IBM VGA teletext font
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/                         # FastAPI + Python 3.11+
+│   ├── app/
+│   │   ├── main.py                  # FastAPI app, service wiring, startup
+│   │   ├── config.py                # Pydantic Settings (env vars, .env)
+│   │   ├── models.py                # Pydantic models (Node, Thread, Message, etc.)
+│   │   ├── auth.py                  # API key authentication
+│   │   ├── websocket.py             # ConnectionManager (limits, broadcast)
+│   │   ├── routers/
+│   │   │   ├── nodes.py             # CRUD /api/nodes
+│   │   │   ├── threads.py           # CRUD /api/threads
+│   │   │   ├── messages.py          # CRUD /api/messages + Reticulum send
+│   │   │   ├── mesh.py              # /api/mesh/status, topology, radios
+│   │   │   ├── meshtastic.py        # /api/meshtastic/* + WS endpoint
+│   │   │   └── ws.py                # Main /ws endpoint + event broadcasting
+│   │   └── services/
+│   │       ├── mesh_store.py        # In-memory state store with event bus
+│   │       ├── meshtastic_service.py # Serial radio integration (PyPubSub)
+│   │       ├── meshtastic_bridge.py # Radio node → MeshStore sync
+│   │       ├── reticulum_service.py # RNS/LXMF bridge (graceful fallback)
+│   │       ├── live_data_source.py  # BATMAN + Reticulum data provider
+│   │       ├── batctl_service.py    # BATMAN-adv subprocess interface
+│   │       └── mock_data.py         # Development mock data generator
+│   ├── tests/
+│   ├── requirements.txt
+│   └── pyproject.toml
+│
+├── firmware/
+│   ├── lora-bridge/                 # C - LoRa TAP bridge for SX1262 HAT
+│   │   ├── lora-tap-bridge.c        # Main daemon (select loop)
+│   │   ├── sx1262.c                 # SPI driver
+│   │   ├── tap.c                    # TAP interface
+│   │   ├── fragment.c               # Ethernet frame fragmentation
+│   │   └── Makefile
+│   └── esp32_cam/                   # ESP32-S3 MJPEG camera node
+│       └── src/main.cpp
+│
+├── deployment/
+│   ├── setup-all.sh                 # Master Pi setup script
+│   ├── scripts/
+│   │   ├── setup-pi4.sh             # Base system + dependencies
+│   │   ├── setup-lora.sh            # LoRa HAT configuration
+│   │   ├── setup-halow.sh           # WiFi HaLow setup
+│   │   ├── setup-batman.sh          # BATMAN-adv mesh
+│   │   └── deploy-webui.sh          # nginx + frontend deployment
 │   ├── config/
-│   │   ├── default.toml           # Default settings
-│   │   └── user.toml              # User overrides
-│   ├── messages.db                # SQLite message store
-│   └── waypoints.geojson          # Saved waypoints
-├── assets/
-│   ├── fonts/
-│   │   └── teletext.ttf           # Monospace teletext font
-│   └── palettes/
-│       └── ceefax.json            # 8-color palette
-└── systemd/
-    ├── mesh-gui.service           # Main GUI
-    ├── meshtastic-bridge.service
-    ├── sdr-manager.service
-    └── tile-cache.service
+│   │   └── reticulum.conf           # Reticulum network stack config
+│   ├── backend/
+│   │   └── reticulum_bridge.py      # Standalone multi-protocol bridge
+│   └── tests/
+│       └── test-all.sh              # Integration test suite
+│
+└── skills/                          # OpenClaw skill extensions
 ```
 
 ---
@@ -221,191 +274,166 @@ myc3lium/
 ## Security Model
 
 **Mesh Communications:**
-- Reticulum: End-to-end encryption (built-in)
-- Meshtastic: Optional AES encryption (configurable per channel)
+- Reticulum: End-to-end encryption (Ed25519 identity keys)
+- Meshtastic: Optional AES encryption per channel
 - No plaintext by default
 
-**Map Data:**
-- Offline-first (no telemetry to tile providers)
-- Custom overlays stored locally
-- No cloud dependencies
+**API Security:**
+- API key authentication (`X-API-Key` header) for Meshtastic send endpoint
+- HMAC constant-time comparison to prevent timing attacks
+- CORS configured for mesh network access
+- WebSocket connection limits (MAX_CONNECTIONS=100)
+- WebSocket message size validation (1024 bytes application, 4096 bytes protocol)
+- Input validation on all radio packet data (control char stripping, range checks)
+- Error responses sanitized (no internal details leaked)
 
-**SDR:**
-- Receive-only (no TX unless HackRF added later)
-- Signal data stored locally
-- No external uploads
-
-**Configuration:**
-- Files: 0600 permissions (user-only)
-- No passwords in config (use key files)
-- Backup encrypted with GPG (optional)
+**Network:**
+- Firewall (ufw): only SSH, HTTP/S, Reticulum ports open
+- Reticulum identity key stored locally, backup recommended
+- No cloud dependencies, no telemetry
 
 ---
 
 ## Startup Sequence
 
-1. **Boot** → Systemd starts background services
-2. **rnsd** starts → Reticulum mesh comes online
-3. **gpsd** starts → GPS fix acquired
-4. **meshtastic-bridge** starts → LoRa channel opens
-5. **sdr-manager** starts → Satellite pass schedule loaded
-6. **tile-cache** starts → Pre-loads maps for offline use
-7. **GUI launches** (EGLFS, no desktop environment)
-8. **Page 100** displays (main menu)
-9. User interacts → Pages navigate via number keys / touch
+1. **Boot** - Raspberry Pi OS starts systemd services
+2. **rnsd** starts - Reticulum mesh routing comes online (LoRa, WiFi, BATMAN interfaces)
+3. **gpsd** starts - GPS fix acquired from LoRa HAT GNSS
+4. **myc3lium-backend** starts - uvicorn launches FastAPI app
+   - Chooses data source (LiveDataSource on Pi, MockDataSource on Mac)
+   - Initializes MeshStore with initial node/thread data
+   - Starts MeshtasticService (connects to serial radio)
+   - MeshtasticBridge seeds discovered nodes into MeshStore
+   - Registers WebSocket callbacks for real-time event broadcasting
+   - Starts mesh monitor loop (periodic BATMAN/Reticulum polling)
+5. **nginx** starts - Serves frontend at `http://myc3.local`
+6. **User opens browser** - React app loads, connects WebSocket, displays P100
 
 ---
 
 ## Performance Targets
 
-**GUI Responsiveness:**
-- 60 FPS rendering (shader pipeline)
-- <50ms touch → response latency
-- <100ms page transition
+**Frontend (client-side):**
+- <200ms initial page load (static files from nginx)
+- ~15 FPS Canvas2D teletext rendering (sufficient for text UI)
+- <100ms page navigation (client-side routing)
+
+**Backend:**
+- <50ms REST API response (in-memory MeshStore)
+- <100ms WebSocket event propagation (radio event to client)
+- <1s Meshtastic node discovery (PyPubSub callback)
 
 **Mesh:**
 - <1s message send latency (local)
-- <5s multi-hop latency (3 hops)
-
-**Maps:**
-- <200ms tile load (from cache)
-- <500ms zoom/pan response
-
-**SDR:**
-- Real-time waterfall (30 FPS minimum)
-- <2s satellite pass start-to-display
+- <5s multi-hop latency (3+ hops)
 
 **Battery:**
-- Idle: 10-12 hours (mesh only)
-- Active: 6-8 hours (map + messaging)
-- SDR: 4-6 hours (continuous RX)
+- Idle (mesh only): 10-12 hours
+- Active (map + messaging): 6-8 hours
 
 ---
 
 ## Failure Modes & Recovery
 
 **Radio Failure:**
-- GUI shows offline indicator
-- Messages queued until radio returns
-- Auto-retry connection every 30s
+- MeshtasticService logs warning, marks nodes as offline
+- MeshStore retains last known state
+- Auto-retry on service restart
 
 **GPS Loss:**
 - Last known position cached
-- Dead reckoning if moving (optional)
-- Manual position entry available
+- Nodes display without coordinates (position: null)
 
-**SDR Failure:**
-- Satellite pages show error
-- Auto-disable SDR to save power
-- Manual restart available
+**Backend Crash:**
+- systemd auto-restarts `myc3lium-backend.service`
+- MeshStore repopulates from data source on startup
+- WebSocket clients auto-reconnect (exponential backoff, max 10 attempts)
 
 **Low Battery:**
-- ECO mode auto-enables at 30%
-- ULTRA_SAVE at 15%
-- Graceful shutdown at 5%
-
-**Map Corruption:**
-- Tile cache rebuild on next boot
-- Fallback to basic OSM tiles
-- Re-download from config sources
+- Battery metrics tracked from Meshtastic device reports
+- Future: ECO mode at 30%, ULTRA_SAVE at 15%, graceful shutdown at 5%
 
 ---
 
 ## Future Expansion
 
-**Phase 2 Features:**
-- Camera integration (USB webcam)
-- ATAK COT messaging (FreeTAKServer)
-- Voice comms (codec2 over mesh)
+**Phase 6: Configuration System** (in progress)
+- TOML-based user configuration
+- Web UI config pages (P600 series)
+- First-boot setup wizard
 
-**Phase 3 Features:**
-- LLM agent (batch processing mode)
-- Kismet integration (WiFi/BT mapping)
-- HackRF TX (wideband monitoring → transmission)
+**Phase 7: SDR Integration** (deferred - no hardware)
+- SoapySDR waterfall shader
+- Satellite pass prediction + auto-capture
+- Custom map overlay pipeline
 
-**Phase 4 Features:**
-- Multi-device sync (share maps/waypoints)
-- Plugin system (community extensions)
-- Desktop companion app (cross-platform)
+**Phase 8-10: Expansion Nodes**
+- HYPHA handheld prototype (ESP32)
+- FROND camera node
+- RHIZOME environmental sensor pods
+
+**Phase 11: LLM Agents**
+- llama.cpp local inference
+- Natural language mesh queries (P800 series)
+- Sensor data analysis + report generation
 
 ---
 
 ## Dependencies
 
-See **TECH_STACK.md** for complete list.
+**Frontend:**
+- React 18, react-router-dom
+- Vite (build + dev server)
+- Zustand (state management)
+- Zod (runtime validation)
+- TypeScript (strict mode)
 
-**Key Libraries:**
-- PyQt6 (GUI framework)
-- ModernGL (OpenGL wrapper)
-- SoapySDR (SDR abstraction)
-- RNS (Reticulum Network Stack)
-- gpsd-py3 (GPS interface)
-- Pillow (image processing)
+**Backend:**
+- FastAPI, uvicorn
+- Pydantic (models + settings)
+- meshtastic (>=2.0.0, PyPubSub integration)
+- RNS (Reticulum Network Stack) - optional, graceful fallback
+- LXMF (messaging over Reticulum) - optional
 
-**System Packages:**
-- reticulum
-- gpsd
-- soapysdr
-- rtl-sdr
-- satdump (for decoding)
+**System:**
+- nginx (reverse proxy + static files)
+- rnsd (Reticulum daemon)
+- gpsd (GPS daemon)
+- BATMAN-adv (Layer 2 mesh routing)
+- ufw (firewall)
 
 ---
 
-## Configuration Files
+## Configuration
 
-**Primary:** `data/config/user.toml`
+**Current:**
+- Backend: Pydantic Settings loaded from environment variables + `.env` file
+- Key settings: `MYC3LIUM_USE_LIVE_DATA`, `MESHTASTIC_API_KEY`, `MYC3LIUM_CORS_ORIGINS`
+- Reticulum: Config file at `/home/myc3lium/.reticulum/config`
 
-See **CONFIG.md** for complete schema.
-
-**Key sections:**
-- `[display]` - Resolution, brightness, CRT effects
-- `[radios]` - LoRa, HaLow, WiFi settings
-- `[mesh]` - Reticulum interfaces
-- `[maps]` - Tile sources, cache size
-- `[sdr]` - Frequencies, gain, satellite list
-- `[power]` - Battery policies, ECO modes
+**Planned (Phase 6):**
+- TOML-based user config at `/opt/myc3lium/config/myc3lium.toml`
+- REST API for config read/write (`/api/config`)
+- Web UI configuration pages (P600 series)
+- First-boot setup wizard
 
 ---
 
 ## Development vs Production
 
-**Development (on desktop):**
-- Uses X11/Wayland (not EGLFS)
-- Mock GPS (fixed position)
-- Mock radios (simulated mesh)
-- Faster iteration
+**Development (on Mac):**
+- `MockMeshDataSource` with simulated Anchorage-area nodes
+- Meshtastic service starts if USB radio connected, otherwise skipped
+- Reticulum unavailable (graceful no-op)
+- Frontend dev server on `:5173`, backend on `:8000`
 
 **Production (Pi 4):**
-- EGLFS (direct framebuffer)
-- Real hardware
-- Systemd services
-- Optimized build
+- `LiveDataSource` with real BATMAN + Reticulum data
+- MeshtasticService connects to serial radio
+- nginx serves frontend, proxies API
+- systemd manages all services
+- Accessible at `http://myc3.local`
 
 ---
 
-## Build Process
-
-See **ROADMAP.md** Phase 1 for setup.
-
-**Quick start:**
-```bash
-# Install dependencies
-sudo apt install python3-pyqt6 python3-opengl reticulum gpsd soapysdr
-
-# Clone repo
-git clone <repo-url> mesh-terminal-gui
-cd mesh-terminal-gui
-
-# Install Python packages
-pip3 install -r requirements.txt
-
-# Run in dev mode
-python3 src/main.py --dev
-
-# Build for production
-./build.sh --pi4
-```
-
----
-
-**Next:** See **PAGES.md** for complete UI design.
+**Next:** See [MYC3LIUM_BIBLE_V3.md](MYC3LIUM_BIBLE_V3.md) for complete project specification.

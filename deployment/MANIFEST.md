@@ -33,7 +33,7 @@
 
 | File | Purpose | Critical |
 |------|---------|----------|
-| `config/reticulum-config.py` | Reticulum network config | ✅ |
+| `config/reticulum.conf` | Reticulum network config | ✅ |
 
 Configures:
 - ✅ LoRa interface (SX1262, 915 MHz)

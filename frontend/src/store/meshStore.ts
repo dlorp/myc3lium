@@ -22,6 +22,7 @@ import {
   getWebSocketClient,
   type WebSocketMessage,
 } from '../services/ws';
+import { NodeSchema, ThreadSchema, MessageSchema } from '../services/validators';
 
 interface MeshStore {
   // Data
@@ -179,16 +180,26 @@ const useMeshStore = create<MeshStore>((set, get) => ({
       console.log('[MeshStore] WebSocket connected');
     });
 
-    // Subscribe to node events
+    // Subscribe to node events (validated before adding to store)
     client.on('node_added', (msg: WebSocketMessage) => {
       if (msg.data) {
-        get().addNode(msg.data as Node);
+        const parsed = NodeSchema.safeParse(msg.data);
+        if (parsed.success) {
+          get().addNode(parsed.data as Node);
+        } else {
+          console.warn('[MeshStore] Rejected malformed node_added:', parsed.error.issues);
+        }
       }
     });
 
     client.on('node_updated', (msg: WebSocketMessage) => {
       if (msg.data) {
-        get().updateNode(msg.data as Node);
+        const parsed = NodeSchema.safeParse(msg.data);
+        if (parsed.success) {
+          get().updateNode(parsed.data as Node);
+        } else {
+          console.warn('[MeshStore] Rejected malformed node_updated:', parsed.error.issues);
+        }
       }
     });
 
@@ -198,16 +209,26 @@ const useMeshStore = create<MeshStore>((set, get) => ({
       }
     });
 
-    // Subscribe to thread events
+    // Subscribe to thread events (validated before adding to store)
     client.on('thread_added', (msg: WebSocketMessage) => {
       if (msg.data) {
-        get().addThread(msg.data as Thread);
+        const parsed = ThreadSchema.safeParse(msg.data);
+        if (parsed.success) {
+          get().addThread(parsed.data as Thread);
+        } else {
+          console.warn('[MeshStore] Rejected malformed thread_added:', parsed.error.issues);
+        }
       }
     });
 
     client.on('thread_updated', (msg: WebSocketMessage) => {
       if (msg.data) {
-        get().updateThread(msg.data as Thread);
+        const parsed = ThreadSchema.safeParse(msg.data);
+        if (parsed.success) {
+          get().updateThread(parsed.data as Thread);
+        } else {
+          console.warn('[MeshStore] Rejected malformed thread_updated:', parsed.error.issues);
+        }
       }
     });
 
@@ -217,10 +238,15 @@ const useMeshStore = create<MeshStore>((set, get) => ({
       }
     });
 
-    // Subscribe to message events
+    // Subscribe to message events (validated before adding to store)
     client.on('message_added', (msg: WebSocketMessage) => {
       if (msg.data) {
-        get().addMessage(msg.data as Message);
+        const parsed = MessageSchema.safeParse(msg.data);
+        if (parsed.success) {
+          get().addMessage(parsed.data as Message);
+        } else {
+          console.warn('[MeshStore] Rejected malformed message_added:', parsed.error.issues);
+        }
       }
     });
 

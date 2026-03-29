@@ -175,7 +175,7 @@ This guide will get your MYC3LIUM mesh node running in under 30 minutes.
 
 4. **Deploy Reticulum config:**
    ```bash
-   sudo cp ~/deployment/config/reticulum-config.py /home/myc3lium/.reticulum/config
+   sudo cp ~/deployment/config/reticulum.conf /home/myc3lium/.reticulum/config
    sudo chown myc3lium:myc3lium /home/myc3lium/.reticulum/config
    ```
 
