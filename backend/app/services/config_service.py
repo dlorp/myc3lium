@@ -29,7 +29,7 @@ VALID_SECTIONS = {"radio", "mesh", "display", "system"}
 # Services that can be restarted via API (whitelist)
 RESTARTABLE_SERVICES = {
     "reticulum",
-    "myc3lium-backend",
+    "myc3lium",
     "lora-bridge",
 }
 
