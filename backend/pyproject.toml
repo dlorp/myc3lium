@@ -36,6 +36,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["UP017", "UP045"]  # Don't suggest datetime.UTC (Python 3.11+)
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
