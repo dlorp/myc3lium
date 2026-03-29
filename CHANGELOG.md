@@ -4,6 +4,28 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-03-28
+
+### Added
+- 5GHz WiFi band selection for BATMAN mesh (`batman_band` field in MeshConfig)
+- Cross-field validation: `@model_validator` rejects invalid band/channel combinations (e.g., channel 165 on 2.4GHz)
+- Valid 5GHz channel whitelist (36, 40, 44, ... 165) — rejects non-standard channels like 37
+- P600 band selector with dynamic channel range (1-11 for 2.4GHz, 36-165 for 5GHz)
+- Channel auto-reset when switching bands (prevents stale values)
+- First-boot setup wizard documented in README and QUICKSTART
+
+### Fixed
+- WebUI URL: `http://<pi-ip>:8000` corrected to `http://myc3.local` across all docs
+- Version references: v1.0.0/v2.0.0 updated to v0.4.x across QUICKSTART, API.md, deployment README
+- Hardware references: Heltec HT-HC01P updated to ESP32 USB boards (actual hardware)
+- Service name: `myc3lium-backend` corrected to `myc3lium` (actual systemd unit) across all docs
+- Backend dev command: `python main.py` corrected to `uvicorn app.main:app`
+- Hardcoded IPs (10.13.0.1) replaced with `myc3.local` in API.md examples
+- `RESTARTABLE_SERVICES` whitelist: `"myc3lium-backend"` updated to `"myc3lium"`
+- P600 `batman_band` type narrowed from `string` to `'2.4GHz' | '5GHz'` literal
+- API.md health response format updated to match actual backend output
+- API.md auth section now documents actual API key auth on protected endpoints
+
 ## [0.4.0] - 2026-03-28
 
 ### Added

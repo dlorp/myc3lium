@@ -128,7 +128,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Project Status
 
-**v0.4.0** - Configuration system + live mesh integration
+**v0.4.1** - Documentation accuracy + 5GHz band config
 
 | Phase | Status | Details |
 |-------|--------|---------|
