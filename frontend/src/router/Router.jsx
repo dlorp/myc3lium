@@ -5,7 +5,7 @@ import P200 from '../pages/P200'
 import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
-import P600 from '../pages/P500'
+import P600 from '../pages/P600'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
@@ -138,18 +138,17 @@ const Router = () => {
           path="/p/500"
           element={
             <PageRoute>
-        
+              <P500 />
+            </PageRoute>
+          }
+        />
+
         {/* P600 - Radio Config */}
         <Route
           path="/p/600"
           element={
             <PageRoute>
               <P600 />
-            </PageRoute>
-          }
-        />
-
-              <P500 />
             </PageRoute>
           }
         />
