@@ -1,0 +1,51 @@
+[Unit]
+Description=MYC3LIUM Backend API
+After=network.target
+
+[Service]
+Type=simple
+User=myc3
+Group=myc3
+WorkingDirectory=/home/myc3/myc3lium/backend
+
+ExecStart=/home/myc3/myc3lium/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --ws-max-size 4096
+
+Restart=always
+RestartSec=5
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/home/myc3/myc3lium/.env
+
+# Sandboxing
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+
+# Filesystem access
+ReadWritePaths=/home/myc3/myc3lium/backend
+ReadOnlyPaths=/home/myc3/myc3lium/backend/venv
+
+# Device access for serial radios (Meshtastic, LoRa, etc.)
+# Wildcard allows any USB serial device — auto-detection handles the rest
+DeviceAllow=char-ttyUSB rw
+
+# Resource limits
+LimitNOFILE=4096
+LimitNPROC=64
+MemoryMax=512M
+
+# Capabilities
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
