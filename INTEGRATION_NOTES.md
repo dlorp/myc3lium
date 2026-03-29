@@ -115,7 +115,7 @@ frontend/src/pages/
 **Status:** VALIDATED
 
 ### ✅ Configuration
-- `reticulum-config.py` - Mesh network settings
+- `reticulum.conf` - Mesh network settings
 - `reticulum_bridge.py` - Mesh → API gateway
 
 **Status:** CONFIGURED FOR FRIDAY

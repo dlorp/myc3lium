@@ -9,6 +9,10 @@ from app.config import settings
 from app.routers import messages, mesh, meshtastic, nodes, threads, ws
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
+from app.services.meshtastic_bridge import (
+    create_store_sync_callback,
+    seed_meshtastic_nodes,
+)
 from app.services.meshtastic_service import MeshtasticService
 from app.services.mock_data import MeshDataSource, MockMeshDataSource
 from app.services.reticulum_service import ReticulumBridge
@@ -89,8 +93,20 @@ async def start_mesh_monitor():
     # Start Meshtastic service
     if meshtastic_service.start():
         logger.info("Meshtastic service started successfully")
-        # Register WebSocket callback for real-time updates
-        meshtastic_service.set_ws_callback(meshtastic.broadcast_to_websockets)
+
+        # Register WebSocket broadcast callback for real-time frontend updates
+        meshtastic_service.add_ws_callback(meshtastic.broadcast_to_websockets)
+
+        # Register MeshStore sync callback so Meshtastic nodes appear in /api/nodes
+        local_node_id = meshtastic_service.my_node_id
+        sync_cb = create_store_sync_callback(mesh_store, local_node_id)
+        meshtastic_service.add_ws_callback(sync_cb)
+
+        # Seed initial Meshtastic nodes into MeshStore
+        initial_nodes = meshtastic_service.get_nodes()
+        if initial_nodes:
+            seeded = seed_meshtastic_nodes(mesh_store, initial_nodes, local_node_id)
+            logger.info("Seeded %d Meshtastic nodes into MeshStore", seeded)
     else:
         logger.warning("Meshtastic service not available")
 

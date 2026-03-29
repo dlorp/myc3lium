@@ -46,9 +46,10 @@ http://<pi-ip>:8000
 - **P300** - Messages (LXMF + Meshtastic)
 - **P400** - Sensor telemetry
 - **P500** - Camera streams
-- **P600** - Satellite tracking
+- **P600** - System configuration
 - **P700** - Network event log
 - **P800** - Command interface
+- **P900** - ARG / recovered logs
 
 ---
 
@@ -69,10 +70,10 @@ http://<pi-ip>:8000
 
 **SPORE (Main Node):**
 - Raspberry Pi 4 (4GB RAM)
-- Waveshare SX1262 LoRa HAT (915 MHz)
-- Heltec HT-HC01P WiFi HaLow (902-928 MHz)
+- Waveshare SX1262 LoRa HAT (915 MHz, with GNSS)
+- 2x ESP32 USB boards (Meshtastic integration)
 - Battery HAT (UPS or PiSugar 3 Plus)
-- 7-10" touchscreen
+- WiFi HaLow (Heltec HT-HC01P) - planned, not yet deployed
 
 See [MYC3LIUM_BIBLE_V3.md](MYC3LIUM_BIBLE_V3.md) for full hardware specifications.
 
@@ -81,20 +82,23 @@ See [MYC3LIUM_BIBLE_V3.md](MYC3LIUM_BIBLE_V3.md) for full hardware specification
 ## Tech Stack
 
 **Backend:**
+- FastAPI + uvicorn (REST + WebSocket API)
+- Pydantic (data validation + settings)
 - Reticulum Network Stack (mesh routing)
-- FastAPI (REST + WebSocket API)
-- Python 3.9+
+- Meshtastic (PyPubSub integration)
+- Python 3.11+
 
 **Frontend:**
-- React + TypeScript
-- Three.js (teletext renderer)
+- React 18 + TypeScript
+- Canvas2D teletext renderer + WebGL CRT shaders
+- Zustand (state management)
 - Vite (build system)
 
 **Networking:**
 - BATMAN-adv (Layer 2 mesh)
 - Reticulum (encrypted overlay)
 - LXMF (messaging)
-- Meshtastic bridge
+- Meshtastic bridge (LoRa mesh)
 
 ---
 
@@ -122,12 +126,16 @@ python main.py  # API server on :8000
 
 ## Project Status
 
-**Phase 4 Complete:** All core pages implemented with production polish
-- ✅ WebUI (9 pages)
-- ✅ Component library (8 components)
-- ✅ Deployment automation
-- ✅ Multi-protocol bridge (Reticulum + Meshtastic + ATAK)
-- ✅ Hardware configuration scripts
+**v0.2.0** - Live mesh integration
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Core WebUI | Complete | 9 teletext pages (P100-P900), 8 reusable components, CRT shader pipeline |
+| Deployment | Complete | Pi 4 auto-start (systemd), nginx reverse proxy, mDNS (`myc3.local`) |
+| Live Integration | Complete | BATMAN + Reticulum + Meshtastic connected; 55+ real mesh nodes on lattice map |
+| Security | Complete | API key auth, WS connection limits, input validation on radio packets, error sanitization |
+| Configuration | In progress | TOML-based config system, headless setup via browser |
+| SDR | Deferred | No hardware yet - satellite/spectrum features are UI scaffolds |
 
 ---
 
