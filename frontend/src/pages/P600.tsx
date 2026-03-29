@@ -17,7 +17,7 @@ interface RadioConfig {
 
 interface MeshConfig {
   batman_channel: number;
-  batman_band: string;
+  batman_band: '2.4GHz' | '5GHz';
   batman_ssid: string;
   reticulum_transport: boolean;
   store_forward_enabled: boolean;
@@ -209,7 +209,11 @@ const P600: React.FC = () => {
           <TeletextSelect
             label="BATMAN WiFi Band"
             value={mesh.batman_band}
-            onChange={(v) => setMesh((p) => ({ ...p, batman_band: v }))}
+            onChange={(v) => setMesh((p) => ({
+              ...p,
+              batman_band: v as '2.4GHz' | '5GHz',
+              batman_channel: v === '5GHz' ? 36 : 6,
+            }))}
             options={[
               { label: '2.4 GHz', value: '2.4GHz' },
               { label: '5 GHz', value: '5GHz' },
