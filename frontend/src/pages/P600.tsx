@@ -19,8 +19,8 @@ interface MeshConfig {
   batman_channel: number;
   batman_ssid: string;
   reticulum_transport: boolean;
-  store_and_forward: boolean;
-  max_messages: number;
+  store_forward_enabled: boolean;
+  store_forward_max_messages: number;
 }
 
 interface DisplayConfig {
@@ -42,32 +42,32 @@ const RADIO_DEFAULTS: RadioConfig = {
   lora_frequency: 915000000,
   lora_bandwidth: 125000,
   lora_spreading_factor: 7,
-  lora_tx_power: 17,
-  meshtastic_device: '/dev/ttyUSB0',
-  meshtastic_enabled: false,
+  lora_tx_power: 22,
+  meshtastic_device: '/dev/ttyUSB1',
+  meshtastic_enabled: true,
 };
 
 const MESH_DEFAULTS: MeshConfig = {
-  batman_channel: 1,
+  batman_channel: 6,
   batman_ssid: 'myc3lium-mesh',
-  reticulum_transport: false,
-  store_and_forward: false,
-  max_messages: 1000,
+  reticulum_transport: true,
+  store_forward_enabled: true,
+  store_forward_max_messages: 1000,
 };
 
 const DISPLAY_DEFAULTS: DisplayConfig = {
   crt_effects: true,
   scanlines: true,
   phosphor_glow: true,
-  brightness: 80,
+  brightness: 100,
   color_scheme: 'classic',
 };
 
 const SYSTEM_DEFAULTS: SystemConfig = {
-  hostname: 'myc3lium-node',
+  hostname: 'myc3',
   timezone: 'UTC',
   log_level: 'INFO',
-  auto_start_meshtastic: false,
+  auto_start_meshtastic: true,
 };
 
 const SaveButton: React.FC<{ onClick: () => void; saving: boolean }> = ({ onClick, saving }) => (
@@ -225,15 +225,15 @@ const P600: React.FC = () => {
           />
           <TeletextToggle
             label="Store & Forward"
-            value={mesh.store_and_forward}
-            onChange={(v) => setMesh((p) => ({ ...p, store_and_forward: v }))}
+            value={mesh.store_forward_enabled}
+            onChange={(v) => setMesh((p) => ({ ...p, store_forward_enabled: v }))}
           />
           <TeletextInput
             label="Max Messages (100-10000)"
-            value={mesh.max_messages}
+            value={mesh.store_forward_max_messages}
             onChange={(v) => {
               const n = Math.max(100, Math.min(10000, Number(v) || 100));
-              setMesh((p) => ({ ...p, max_messages: n }));
+              setMesh((p) => ({ ...p, store_forward_max_messages: n }));
             }}
             type="number"
           />

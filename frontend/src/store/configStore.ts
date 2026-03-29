@@ -104,13 +104,15 @@ const useConfigStore = create<ConfigState>((set) => ({
   updateSection: async (section: string, updates: Record<string, unknown>) => {
     set({ saving: true, error: null, saveSuccess: false });
     try {
-      const updated = await updateConfigSection(section, updates);
+      const response = await updateConfigSection(section, updates);
+      // Backend returns { status, section, config: {...} } — extract the config data
+      const sectionData = (response as Record<string, unknown>).config ?? response;
       set((state) => {
         if (!state.config) return { saving: false, saveSuccess: true };
         return {
           config: {
             ...state.config,
-            [section]: updated,
+            [section]: sectionData,
           },
           saving: false,
           saveSuccess: true,
@@ -125,9 +127,11 @@ const useConfigStore = create<ConfigState>((set) => ({
   saveDefaults: async () => {
     set({ saving: true, error: null, saveSuccess: false });
     try {
-      const data = await saveConfigDefaults();
+      await saveConfigDefaults();
+      // Reload full config after creating defaults (response is just {status})
+      const config = await fetchConfig();
       set({
-        config: data as unknown as Myc3liumConfig,
+        config: config as unknown as Myc3liumConfig,
         saving: false,
         saveSuccess: true,
       });
