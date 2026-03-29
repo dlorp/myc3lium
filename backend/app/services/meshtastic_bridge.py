@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Literal
 
 from app.models import Node, Thread
 
@@ -28,7 +28,9 @@ _ONLINE_THRESHOLD = 300  # 5 minutes
 _DEGRADED_THRESHOLD = 3600  # 1 hour
 
 
-def _last_heard_to_status(last_heard: float) -> str:
+def _last_heard_to_status(
+    last_heard: float,
+) -> Literal["online", "offline", "degraded"]:
     """Convert last_heard timestamp to node status."""
     age = time.time() - last_heard
     if age < _ONLINE_THRESHOLD:
@@ -182,7 +184,7 @@ def seed_meshtastic_nodes(
 
 def create_store_sync_callback(
     mesh_store: MeshStore, local_node_id: str | None
-) -> callable:
+) -> Callable[[str, dict], None]:
     """
     Create a callback function that syncs Meshtastic events to MeshStore.
 
