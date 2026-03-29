@@ -34,10 +34,13 @@ async def get_config() -> dict:
 
 @router.get("/first-boot")
 async def check_first_boot() -> dict:
-    """Check if this is a first boot (no config file exists)."""
+    """Check if this is a first boot or setup is incomplete."""
     if not config_service:
         raise HTTPException(status_code=503, detail="Config service unavailable")
-    return {"first_boot": config_service.is_first_boot()}
+    return {
+        "first_boot": config_service.is_first_boot(),
+        "setup_complete": config_service.is_setup_complete(),
+    }
 
 
 @router.get("/backhaul/adapters")

@@ -57,8 +57,8 @@ const Setup: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    checkFirstBoot().then((result) => {
-      if (!result.first_boot) {
+    checkFirstBoot().then((result: { first_boot: boolean; setup_complete?: boolean }) => {
+      if (result.setup_complete) {
         navigate('/p/100', { replace: true });
       }
     }).catch(() => {
@@ -68,7 +68,17 @@ const Setup: React.FC = () => {
 
   const stepIndex = STEPS.indexOf(step);
 
+  const DEFAULT_AP_PASSWORD = 'myc3m3sh';
+
   const nextStep = () => {
+    // Block progression past BACKHAUL if AP password hasn't been changed
+    if (step === 'BACKHAUL' && backhaulEnabled && backhaulMode === 'ap') {
+      if (apPassword === DEFAULT_AP_PASSWORD || apPassword.length < 8) {
+        setError('Change the AP password from the default before continuing');
+        return;
+      }
+    }
+    setError(null);
     const next = STEPS[stepIndex + 1];
     if (next) setStep(next);
   };
@@ -106,6 +116,8 @@ const Setup: React.FC = () => {
           ap_password: apPassword,
         });
       }
+      // Mark setup as complete — must be last so partial saves don't unlock
+      await updateConfigSection('system', { setup_complete: true });
       navigate('/p/100', { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save configuration');

@@ -26,6 +26,13 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+    // Setup gate: redirect to setup wizard if setup isn't complete
+    if (response.status === 403 && response.headers.get('X-Setup-Required') === 'true') {
+      window.location.href = '/setup';
+      throw new Error('Setup required');
+    }
+
     throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
   }
 
