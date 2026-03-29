@@ -172,7 +172,10 @@ async def create_message(payload: MessageCreate):
         created_message = mesh_store.add_message(message)
         return created_message
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e)
+        if "does not exist" in error_msg:
+            raise HTTPException(status_code=400, detail=error_msg)
+        raise HTTPException(status_code=400, detail="Failed to create message")
 
 
 @router.delete("/{message_id}", status_code=204)
@@ -242,6 +245,8 @@ async def send_message(payload: MessageSend):
             "note": "Message queued for delivery via LXMF",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to send message: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        logger.error("Failed to send message: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to send message")
