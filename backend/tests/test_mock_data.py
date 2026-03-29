@@ -43,8 +43,8 @@ def test_mock_data_node_callsigns():
         assert node.callsign.startswith("MYC3LIUM-")
 
 
-def test_mock_data_anchorage_coordinates():
-    """Test that nodes have Anchorage GPS coordinates"""
+def test_mock_data_valid_coordinates():
+    """Test that mock nodes have valid GPS coordinates"""
     source = MockMeshDataSource(seed=42)
     nodes = source.get_nodes()
 
@@ -53,11 +53,9 @@ def test_mock_data_anchorage_coordinates():
         lat = node.position["lat"]
         lon = node.position["lon"]
 
-        # Anchorage latitude: ~61.0° to 61.3°
-        assert 61.0 <= lat <= 61.3
-
-        # Anchorage longitude: ~-150.0° to -149.6° (wider range for Eagle River, JBER)
-        assert -150.0 <= lon <= -149.6
+        # Mock coordinates should be valid GPS
+        assert -90.0 <= lat <= 90.0
+        assert -180.0 <= lon <= 180.0
 
 
 def test_mock_data_node_types():

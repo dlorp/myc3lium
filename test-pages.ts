@@ -159,8 +159,8 @@ export function generateP400(): PageContent {
   
   drawBox(page, 0, 0, COLS, ROWS);
   writeText(page, 0, 2, 'PRIMARY MAP VIEW');
-  writeText(page, 0, COLS - 30, 'LAT: 61.2181° N');
-  writeText(page, 0, COLS - 15, 'LON: 149.9003° W');
+  writeText(page, 0, COLS - 30, 'LAT: 47.6062° N');
+  writeText(page, 0, COLS - 15, 'LON: 122.3321° W');
   
   // Simplified map placeholder
   for (let row = 2; row < ROWS - 2; row++) {

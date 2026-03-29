@@ -253,7 +253,7 @@ export const getMockMeshData = () => {
         callsign: 'ROOT',
         type: 'SPORE', 
         x: 15, y: 10, 
-        gps: { lat: 61.2181, lng: -149.9003 },
+        gps: { lat: 47.6062, lng: -122.3321 },
         battery: 74, 
         status: 'active',
         uptime: 15240 
