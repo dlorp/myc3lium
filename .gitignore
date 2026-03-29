@@ -68,6 +68,7 @@ coverage/
 plans/
 SESSION_NOTES.md
 *_REWORK.md
+*_PLAN.md
 
 # Firmware (ESP32)
 firmware/.pio/

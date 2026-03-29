@@ -1,12 +1,17 @@
 import { create } from 'zustand';
 
 import {
+  applyBackhaul as apiApplyBackhaul,
+  applyNetwork as apiApplyNetwork,
   checkFirstBoot as apiCheckFirstBoot,
+  fetchBackhaulAdapters as apiFetchBackhaulAdapters,
+  fetchBackhaulStatus as apiFetchBackhaulStatus,
   fetchConfig,
   restartService as apiRestartService,
   saveConfigDefaults,
   updateConfigSection,
 } from '../services/api';
+import type { BackhaulAdapter } from '../services/api';
 
 // ============================================================================
 // Config Interfaces (mirrors backend Pydantic models)
@@ -38,6 +43,20 @@ export interface DisplayConfig {
   color_scheme: string;
 }
 
+export interface BackhaulConfig {
+  enabled: boolean;
+  interface: string;
+  mode: 'client' | 'ap' | 'disabled';
+  client_ssid: string;
+  client_password: string;
+  ap_ssid: string;
+  ap_password: string;
+  ap_channel: number;
+  ap_band: '2.4GHz' | '5GHz';
+  ap_hidden: boolean;
+  nat_enabled: boolean;
+}
+
 export interface SystemConfig {
   hostname: string;
   timezone: string;
@@ -49,6 +68,7 @@ export interface SystemConfig {
 export interface Myc3liumConfig {
   radio: RadioConfig;
   mesh: MeshConfig;
+  backhaul: BackhaulConfig;
   display: DisplayConfig;
   system: SystemConfig;
 }
@@ -64,12 +84,18 @@ interface ConfigState {
   error: string | null;
   saveSuccess: boolean;
   isFirstBoot: boolean;
+  backhaulAdapters: BackhaulAdapter[];
+  backhaulStatus: Record<string, unknown> | null;
 
   loadConfig: () => Promise<void>;
   checkFirstBoot: () => Promise<void>;
   updateSection: (section: string, updates: Record<string, unknown>) => Promise<void>;
   saveDefaults: () => Promise<void>;
   restartService: (name: string) => Promise<void>;
+  loadBackhaulAdapters: () => Promise<void>;
+  loadBackhaulStatus: () => Promise<void>;
+  applyBackhaul: () => Promise<void>;
+  applyNetwork: () => Promise<void>;
   clearSaveStatus: () => void;
 }
 
@@ -80,6 +106,8 @@ const useConfigStore = create<ConfigState>((set) => ({
   error: null,
   saveSuccess: false,
   isFirstBoot: false,
+  backhaulAdapters: [],
+  backhaulStatus: null,
 
   loadConfig: async () => {
     set({ loading: true, error: null });
@@ -150,6 +178,48 @@ const useConfigStore = create<ConfigState>((set) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : `Failed to restart ${name}`;
       set({ error: message, saving: false });
+    }
+  },
+
+  loadBackhaulAdapters: async () => {
+    try {
+      const data = await apiFetchBackhaulAdapters();
+      set({ backhaulAdapters: data.adapters });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load adapters';
+      set({ error: message });
+    }
+  },
+
+  loadBackhaulStatus: async () => {
+    try {
+      const data = await apiFetchBackhaulStatus();
+      set({ backhaulStatus: data });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load backhaul status';
+      set({ error: message });
+    }
+  },
+
+  applyBackhaul: async () => {
+    set({ saving: true, error: null, saveSuccess: false });
+    try {
+      await apiApplyBackhaul();
+      set({ saving: false, saveSuccess: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to apply backhaul';
+      set({ error: message, saving: false, saveSuccess: false });
+    }
+  },
+
+  applyNetwork: async () => {
+    set({ saving: true, error: null, saveSuccess: false });
+    try {
+      await apiApplyNetwork();
+      set({ saving: false, saveSuccess: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to apply network config';
+      set({ error: message, saving: false, saveSuccess: false });
     }
   },
 

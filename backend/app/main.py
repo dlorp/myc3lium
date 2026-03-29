@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MYC3LIUM API",
     description="Backend for MYC3LIUM - Mycelial Network Visualization",
-    version="0.4.1",
+    version="0.5.0",
 )
 
 # CORS middleware for frontend communication
@@ -76,6 +76,31 @@ mesh_store.load_from_source(
 config_svc = ConfigService()
 config_router.config_service = config_svc
 
+# Auto-AP on first boot: if no config file exists and a USB WiFi adapter
+# is detected, automatically enable AP mode so headless field deployments
+# are reachable via myc3_m3sh hotspot.
+if config_svc.is_first_boot():
+    from app.config_models import BACKHAUL_DEFAULT_PASSWORD, BACKHAUL_DEFAULT_SSID
+    from app.services.backhaul_service import get_available_interface
+
+    usb_iface = get_available_interface()
+    if usb_iface:
+        logger.info(
+            "First boot with USB WiFi adapter %s — enabling auto-AP (SSID: %s)",
+            usb_iface, BACKHAUL_DEFAULT_SSID,
+        )
+        config_svc.create_default_config()
+        config_svc.update_section("backhaul", {
+            "enabled": True,
+            "mode": "ap",
+            "ap_ssid": BACKHAUL_DEFAULT_SSID,
+            "ap_password": BACKHAUL_DEFAULT_PASSWORD,
+            "ap_band": "2.4GHz",
+            "ap_channel": 1,
+        })
+    else:
+        logger.info("First boot, no USB WiFi adapter — skipping auto-AP")
+
 # Include routers
 app.include_router(nodes.router)
 app.include_router(messages.router)
@@ -94,6 +119,26 @@ meshtastic.set_service(meshtastic_service)  # Inject service into router
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
+    # Apply backhaul config if enabled (auto-AP on first boot, or persisted config)
+    backhaul = config_svc.config.backhaul
+    if backhaul.enabled and backhaul.mode != "disabled":
+        from app.services import backhaul_service
+
+        logger.info("Applying backhaul config at startup (mode: %s)", backhaul.mode)
+        if backhaul.mode == "ap":
+            ok, msg, iface = backhaul_service.apply_ap_mode(backhaul)
+        elif backhaul.mode == "client":
+            ok, msg, iface = backhaul_service.apply_client_mode(backhaul)
+        else:
+            ok, msg, iface = False, "Unknown mode", None
+
+        if ok and iface and backhaul.nat_enabled:
+            backhaul_service.apply_nat(iface)
+        if ok:
+            logger.info("Backhaul active: %s", msg)
+        else:
+            logger.warning("Backhaul failed at startup: %s", msg)
+
     # Start event processor (needs running event loop)
     await meshtastic.start_event_processor()
 
@@ -152,7 +197,7 @@ async def shutdown_services():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "MYC3LIUM API", "version": "0.4.1"}
+    return {"message": "MYC3LIUM API", "version": "0.5.0"}
 
 
 @app.get("/health")

@@ -24,6 +24,20 @@ interface MeshConfig {
   store_forward_max_messages: number;
 }
 
+interface BackhaulConfig {
+  enabled: boolean;
+  interface: string;
+  mode: 'client' | 'ap' | 'disabled';
+  client_ssid: string;
+  client_password: string;
+  ap_ssid: string;
+  ap_password: string;
+  ap_channel: number;
+  ap_band: '2.4GHz' | '5GHz';
+  ap_hidden: boolean;
+  nat_enabled: boolean;
+}
+
 interface DisplayConfig {
   crt_effects: boolean;
   scanlines: boolean;
@@ -57,6 +71,20 @@ const MESH_DEFAULTS: MeshConfig = {
   store_forward_max_messages: 1000,
 };
 
+const BACKHAUL_DEFAULTS: BackhaulConfig = {
+  enabled: false,
+  interface: '',
+  mode: 'disabled',
+  client_ssid: '',
+  client_password: '',
+  ap_ssid: 'myc3_m3sh',
+  ap_password: '',
+  ap_channel: 1,
+  ap_band: '2.4GHz',
+  ap_hidden: false,
+  nat_enabled: true,
+};
+
 const DISPLAY_DEFAULTS: DisplayConfig = {
   crt_effects: true,
   scanlines: true,
@@ -72,43 +100,60 @@ const SYSTEM_DEFAULTS: SystemConfig = {
   auto_start_meshtastic: true,
 };
 
-const SaveButton: React.FC<{ onClick: () => void; saving: boolean }> = ({ onClick, saving }) => (
+const ActionButton: React.FC<{
+  onClick: () => void;
+  saving: boolean;
+  label: string;
+  activeLabel: string;
+  color?: string;
+}> = ({ onClick, saving, label, activeLabel, color = '#00FF00' }) => (
   <button
     onClick={onClick}
     disabled={saving}
     style={{
       backgroundColor: '#000',
-      color: saving ? '#808080' : '#00FF00',
-      border: '1px solid #00FF00',
+      color: saving ? '#808080' : color,
+      border: `1px solid ${color}`,
       fontFamily: 'IBM VGA, monospace',
       fontSize: '14px',
       padding: '4px 16px',
       cursor: saving ? 'not-allowed' : 'pointer',
       marginTop: '8px',
+      marginRight: '8px',
     }}
   >
-    {saving ? 'SAVING...' : '[ SAVE ]'}
+    {saving ? activeLabel : label}
   </button>
 );
 
+const SaveButton: React.FC<{ onClick: () => void; saving: boolean }> = ({ onClick, saving }) => (
+  <ActionButton onClick={onClick} saving={saving} label="[ SAVE ]" activeLabel="SAVING..." />
+);
+
 const P600: React.FC = () => {
-  const { config, loading, saving, error, saveSuccess, loadConfig, updateSection, clearSaveStatus } =
-    useConfigStore();
+  const {
+    config, loading, saving, error, saveSuccess,
+    loadConfig, updateSection, clearSaveStatus,
+    backhaulAdapters, loadBackhaulAdapters, applyBackhaul, applyNetwork,
+  } = useConfigStore();
 
   const [radio, setRadio] = useState<RadioConfig>(RADIO_DEFAULTS);
   const [mesh, setMesh] = useState<MeshConfig>(MESH_DEFAULTS);
+  const [backhaul, setBackhaul] = useState<BackhaulConfig>(BACKHAUL_DEFAULTS);
   const [display, setDisplay] = useState<DisplayConfig>(DISPLAY_DEFAULTS);
   const [system, setSystem] = useState<SystemConfig>(SYSTEM_DEFAULTS);
 
   useEffect(() => {
     loadConfig();
-  }, [loadConfig]);
+    loadBackhaulAdapters();
+  }, [loadConfig, loadBackhaulAdapters]);
 
   // Sync local state when config loads
   useEffect(() => {
     if (!config) return;
     if (config.radio) setRadio((prev) => ({ ...prev, ...config.radio }));
     if (config.mesh) setMesh((prev) => ({ ...prev, ...config.mesh }));
+    if (config.backhaul) setBackhaul((prev) => ({ ...prev, ...config.backhaul }));
     if (config.display) setDisplay((prev) => ({ ...prev, ...config.display }));
     if (config.system) setSystem((prev) => ({ ...prev, ...config.system }));
   }, [config]);
@@ -122,7 +167,7 @@ const P600: React.FC = () => {
 
   const handleSave = useCallback(
     (section: string, data: Record<string, unknown>) => {
-      updateSection(section, data);
+      return updateSection(section, data);
     },
     [updateSection]
   );
@@ -199,7 +244,16 @@ const P600: React.FC = () => {
             value={radio.meshtastic_enabled}
             onChange={(v) => setRadio((p) => ({ ...p, meshtastic_enabled: v }))}
           />
-          <SaveButton onClick={() => handleSave('radio', radio)} saving={saving} />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <SaveButton onClick={() => handleSave('radio', radio)} saving={saving} />
+            <ActionButton
+              onClick={applyNetwork}
+              saving={saving}
+              label="[ APPLY TO SYSTEM ]"
+              activeLabel="APPLYING..."
+              color="#FF9500"
+            />
+          </div>
         </TeletextPanel>
       </div>
 
@@ -254,7 +308,169 @@ const P600: React.FC = () => {
             }}
             type="number"
           />
-          <SaveButton onClick={() => handleSave('mesh', mesh)} saving={saving} />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <SaveButton onClick={() => handleSave('mesh', mesh)} saving={saving} />
+            <ActionButton
+              onClick={applyNetwork}
+              saving={saving}
+              label="[ APPLY TO SYSTEM ]"
+              activeLabel="APPLYING..."
+              color="#FF9500"
+            />
+          </div>
+        </TeletextPanel>
+      </div>
+
+      {/* Backhaul Section */}
+      <div style={{ marginTop: '16px' }}>
+        <TeletextPanel title="BACKHAUL / AP MODE" color="cyan">
+          {backhaulAdapters.length === 0 ? (
+            <TeletextText color="red">NO USB WIFI ADAPTER DETECTED</TeletextText>
+          ) : (
+            <TeletextText color="green">
+              ADAPTER: {backhaulAdapters[0].name} ({backhaulAdapters[0].driver})
+            </TeletextText>
+          )}
+
+          <TeletextToggle
+            label="Backhaul Enabled"
+            value={backhaul.enabled}
+            onChange={(v) => setBackhaul((p) => ({ ...p, enabled: v }))}
+          />
+
+          {backhaul.enabled && (
+            <>
+              {backhaulAdapters.length > 1 && (
+                <TeletextSelect
+                  label="Interface"
+                  value={backhaul.interface || backhaulAdapters[0]?.name || ''}
+                  onChange={(v) => setBackhaul((p) => ({ ...p, interface: v }))}
+                  options={backhaulAdapters.map((a) => ({
+                    label: `${a.name} (${a.driver})`,
+                    value: a.name,
+                  }))}
+                />
+              )}
+
+              <TeletextSelect
+                label="Mode"
+                value={backhaul.mode}
+                onChange={(v) => setBackhaul((p) => ({
+                  ...p,
+                  mode: v as 'client' | 'ap' | 'disabled',
+                }))}
+                options={[
+                  { label: 'DISABLED', value: 'disabled' },
+                  { label: 'CLIENT (join WiFi)', value: 'client' },
+                  { label: 'AP (broadcast hotspot)', value: 'ap' },
+                ]}
+              />
+
+              {backhaul.mode === 'client' && (
+                <>
+                  <TeletextInput
+                    label="WiFi SSID"
+                    value={backhaul.client_ssid}
+                    onChange={(v) => setBackhaul((p) => ({ ...p, client_ssid: v }))}
+                    placeholder="Network name"
+                  />
+                  <TeletextInput
+                    label="WiFi Password"
+                    value={backhaul.client_password === '***' ? '' : backhaul.client_password}
+                    onChange={(v) => setBackhaul((p) => ({ ...p, client_password: v }))}
+                    placeholder="Network password"
+                  />
+                </>
+              )}
+
+              {backhaul.mode === 'ap' && (
+                <>
+                  <TeletextInput
+                    label="AP SSID"
+                    value={backhaul.ap_ssid}
+                    onChange={(v) => setBackhaul((p) => ({ ...p, ap_ssid: v }))}
+                    placeholder="myc3_m3sh"
+                  />
+                  <TeletextInput
+                    label="AP Password (min 8 chars)"
+                    value={backhaul.ap_password === '***' ? '' : backhaul.ap_password}
+                    onChange={(v) => setBackhaul((p) => ({ ...p, ap_password: v }))}
+                    placeholder="WPA2 password"
+                  />
+                  <TeletextSelect
+                    label="AP Band"
+                    value={backhaul.ap_band}
+                    onChange={(v) => setBackhaul((p) => ({
+                      ...p,
+                      ap_band: v as '2.4GHz' | '5GHz',
+                      ap_channel: v === '5GHz' ? 36 : 6,
+                    }))}
+                    options={[
+                      { label: '2.4 GHz', value: '2.4GHz' },
+                      { label: '5 GHz (recommended)', value: '5GHz' },
+                    ]}
+                  />
+                  <TeletextInput
+                    label={backhaul.ap_band === '5GHz' ? 'AP Channel (36-165)' : 'AP Channel (1-11)'}
+                    value={backhaul.ap_channel}
+                    onChange={(v) => {
+                      const max = backhaul.ap_band === '5GHz' ? 165 : 11;
+                      const min = backhaul.ap_band === '5GHz' ? 36 : 1;
+                      const n = Math.max(min, Math.min(max, Number(v) || min));
+                      setBackhaul((p) => ({ ...p, ap_channel: n }));
+                    }}
+                    type="number"
+                  />
+                  <TeletextToggle
+                    label="Hidden SSID"
+                    value={backhaul.ap_hidden}
+                    onChange={(v) => setBackhaul((p) => ({ ...p, ap_hidden: v }))}
+                  />
+                </>
+              )}
+
+              {backhaul.mode !== 'disabled' && (
+                <TeletextToggle
+                  label="NAT (Internet Sharing)"
+                  value={backhaul.nat_enabled}
+                  onChange={(v) => setBackhaul((p) => ({ ...p, nat_enabled: v }))}
+                />
+              )}
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <SaveButton onClick={() => {
+              // Strip masked passwords so we don't overwrite stored values
+              const payload = { ...backhaul };
+              if (payload.client_password === '***' || payload.client_password === '') {
+                delete (payload as Record<string, unknown>).client_password;
+              }
+              if (payload.ap_password === '***' || payload.ap_password === '') {
+                delete (payload as Record<string, unknown>).ap_password;
+              }
+              handleSave('backhaul', payload);
+            }} saving={saving} />
+            {backhaul.enabled && backhaul.mode !== 'disabled' && (
+              <ActionButton
+                onClick={async () => {
+                  const payload = { ...backhaul };
+                  if (payload.client_password === '***' || payload.client_password === '') {
+                    delete (payload as Record<string, unknown>).client_password;
+                  }
+                  if (payload.ap_password === '***' || payload.ap_password === '') {
+                    delete (payload as Record<string, unknown>).ap_password;
+                  }
+                  await handleSave('backhaul', payload);
+                  await applyBackhaul();
+                }}
+                saving={saving}
+                label="[ APPLY BACKHAUL ]"
+                activeLabel="APPLYING..."
+                color="#FF9500"
+              />
+            )}
+          </div>
         </TeletextPanel>
       </div>
 

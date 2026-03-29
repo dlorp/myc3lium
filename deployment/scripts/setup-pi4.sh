@@ -47,6 +47,8 @@ apt-get install -y \
     rfkill \
     bluez bluez-tools \
     hostapd \
+    dnsmasq \
+    iptables-persistent \
     bridge-utils \
     batctl alfred \
     nginx \

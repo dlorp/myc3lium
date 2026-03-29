@@ -24,13 +24,15 @@ _PROD_CONFIG_PATH = Path("/opt/myc3lium/config/myc3lium.toml")
 _DEV_CONFIG_PATH = Path("./myc3lium.toml")
 
 # Valid config section names
-VALID_SECTIONS = {"radio", "mesh", "display", "system"}
+VALID_SECTIONS = {"radio", "mesh", "backhaul", "display", "system"}
 
 # Services that can be restarted via API (whitelist)
 RESTARTABLE_SERVICES = {
     "reticulum",
     "myc3lium",
     "lora-bridge",
+    "hostapd",
+    "dnsmasq",
 }
 
 
@@ -143,12 +145,22 @@ class ConfigService:
         logger.info("Created default config at %s", self._config_path)
 
     def _save(self) -> None:
-        """Persist current config to TOML file."""
+        """Persist current config to TOML file with restricted permissions."""
+        import os
+
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = self._config.model_dump()
-        with open(self._config_path, "wb") as f:
-            tomli_w.dump(data, f)
+        # Write atomically with 0600 permissions (file contains passwords)
+        tmp_path = self._config_path.with_suffix(".tmp")
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                tomli_w.dump(data, f)
+            tmp_path.rename(self._config_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
 
         logger.debug("Saved config to %s", self._config_path)
 

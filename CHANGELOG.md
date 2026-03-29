@@ -4,6 +4,41 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-03-29
+
+### Added
+- Backhaul / AP mode: USB WiFi adapter auto-detection, client mode (join WiFi), AP mode (broadcast myc3_m3sh hotspot)
+- `BackhaulConfig` Pydantic model with validators: interface (wlanN only), password (min 8 chars, no control chars/quotes), SSID, AP channel/band cross-validation
+- `backhaul_service.py`: USB adapter detection via `/sys/class/net`, AP/client mode apply, NAT management, bridge setup, status reporting
+- `network_apply_service.py`: wires P600 config changes to BATMAN (iw commands), Reticulum (ConfigObj format), Meshtastic (start/stop)
+- `myc3lium-netctl` privileged helper script: all root-level operations (hostapd, iptables, bridge, wpa_supplicant) via sudo with interface validation
+- Linux bridge (br0) connecting AP clients to BATMAN mesh: `hostapd bridge=br0` + `bat0` in bridge
+- Auto-AP on first boot: detects USB WiFi adapter, starts AP with default creds (myc3_m3sh / myc3m3sh), user changes via Setup wizard
+- API endpoints: `GET /backhaul/adapters`, `GET /backhaul/status` (auth), `POST /apply-backhaul` (auth), `POST /apply-network` (auth)
+- P600 backhaul panel: adapter display, mode selector (disabled/client/AP), conditional fields, NAT toggle, APPLY BACKHAUL button
+- "APPLY TO SYSTEM" buttons on Radio and Mesh sections in P600
+- Setup wizard backhaul step (5th step before confirm): adapter detection, mode/SSID/password, pre-populated with auto-AP defaults
+- dnsmasq `address=/myc3.local/10.99.0.1` for iOS DNS resolution (mDNS alone insufficient on "no internet" networks)
+- `setup-backhaul.sh` deployment script: package install, hostapd/dnsmasq templates, NetworkManager exclusion, IP forwarding
+- Systemd override `myc3lium-backhaul.conf`: relaxes sandbox for sudo netctl operations
+
+### Fixed
+- TOML config file now written atomically with `0o600` permissions (contains passwords)
+- Password masking in GET responses for both `client_password` and `ap_password`
+- iptables rules idempotent (check before add via `-C`) and targeted cleanup (no chain flush)
+- `subprocess.TimeoutExpired` caught in `_run()` helpers (returns rc=1 instead of crashing)
+- Sync endpoint handlers for blocking subprocess calls (FastAPI threadpool, not event loop)
+- NAT masquerade through default route interface (wlan0/internet), not AP interface (wlan1)
+- AP defaults changed from 5GHz ch36 to 2.4GHz ch1 (avoids co-channel interference with 5GHz home network uplink)
+- `hostapd_cli` called via full path `/usr/sbin/hostapd_cli` (not in service user PATH)
+
+### Security
+- Password injection prevention: control characters and double quotes rejected in `client_password`/`ap_password`
+- Interface name validation: must match `wlanN` regex (prevents argument injection)
+- Config files written via privileged helper with `chmod 600` (hostapd.conf, wpa_supplicant.conf)
+- WPA2 enforced: AP mode requires password, `wpa_passphrase` tool used for hashed PSK storage
+- Backhaul status endpoint requires API key auth
+
 ## [0.4.1] - 2026-03-28
 
 ### Added

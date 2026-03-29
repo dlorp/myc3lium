@@ -117,6 +117,95 @@ class MeshConfig(BaseModel):
         return v
 
 
+# Default AP credentials for first-boot auto-AP mode.
+# User is expected to change these via the Setup wizard.
+BACKHAUL_DEFAULT_SSID = "myc3_m3sh"
+BACKHAUL_DEFAULT_PASSWORD = "myc3m3sh"
+
+
+class BackhaulConfig(BaseModel):
+    """Backhaul / AP mode configuration for USB WiFi adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False, description="Enable backhaul networking")
+    interface: str = Field("", description="USB WiFi interface (auto-detected if empty)")
+    mode: Literal["client", "ap", "disabled"] = Field(
+        "disabled", description="Backhaul mode"
+    )
+
+    # Client mode
+    client_ssid: str = Field("", max_length=32, description="WiFi network SSID to connect to")
+    client_password: str = Field("", max_length=63, description="WiFi network password")
+
+    # AP mode
+    ap_ssid: str = Field(
+        "myc3_m3sh", max_length=32, description="Access point SSID to broadcast"
+    )
+    ap_password: str = Field("", max_length=63, description="AP password (min 8 chars if set)")
+    ap_channel: int = Field(1, ge=1, le=165, description="AP WiFi channel (ch1 avoids mesh on ch6)")
+    ap_band: Literal["2.4GHz", "5GHz"] = Field(
+        "2.4GHz", description="AP WiFi band (2.4GHz avoids 5GHz uplink interference)"
+    )
+    ap_hidden: bool = Field(False, description="Hide AP SSID from broadcast")
+
+    # NAT
+    nat_enabled: bool = Field(True, description="Enable NAT for internet sharing")
+
+    @field_validator("interface")
+    @classmethod
+    def validate_interface(cls, v: str) -> str:
+        if v and not re.match(r"^wlan[0-9]{1,2}$", v):
+            raise ValueError(f"Invalid interface name: {v}. Must match wlanN format.")
+        return v
+
+    @field_validator("client_password", "ap_password")
+    @classmethod
+    def validate_password_chars(cls, v: str) -> str:
+        if v and len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if v and re.search(r"[\x00-\x1f\x7f]", v):
+            raise ValueError("Password must not contain control characters")
+        if v and '"' in v:
+            raise ValueError("Password must not contain double quotes")
+        return v
+
+    @field_validator("client_ssid", "ap_ssid")
+    @classmethod
+    def validate_backhaul_ssid(cls, v: str) -> str:
+        if v and not re.match(r"^[A-Za-z0-9_ -]{1,32}$", v):
+            raise ValueError("SSID must be alphanumeric, spaces, hyphens, or underscores")
+        return v
+
+    @model_validator(mode="after")
+    def validate_ap_channel_for_band(self) -> BackhaulConfig:
+        if self.mode == "ap" and self.enabled:
+            if self.ap_band == "2.4GHz" and not (1 <= self.ap_channel <= 11):
+                raise ValueError(
+                    f"AP channel {self.ap_channel} invalid for 2.4GHz (must be 1-11)"
+                )
+            if self.ap_band == "5GHz" and self.ap_channel not in MeshConfig._VALID_5GHZ_CHANNELS:
+                raise ValueError(
+                    f"AP channel {self.ap_channel} is not a valid 5GHz channel"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_ap_has_password(self) -> BackhaulConfig:
+        if self.mode == "ap" and self.enabled and not self.ap_password:
+            raise ValueError("AP mode requires a password (WPA2, min 8 chars)")
+        return self
+
+    @model_validator(mode="after")
+    def validate_client_has_credentials(self) -> BackhaulConfig:
+        if self.mode == "client" and self.enabled:
+            if not self.client_ssid:
+                raise ValueError("Client mode requires an SSID")
+            if not self.client_password:
+                raise ValueError("Client mode requires a password")
+        return self
+
+
 class DisplayConfig(BaseModel):
     """UI display settings."""
 
@@ -166,15 +255,17 @@ class Myc3liumConfig(BaseModel):
 
     radio: RadioConfig = Field(default_factory=lambda: RadioConfig())
     mesh: MeshConfig = Field(default_factory=lambda: MeshConfig())
+    backhaul: BackhaulConfig = Field(default_factory=lambda: BackhaulConfig())
     display: DisplayConfig = Field(default_factory=lambda: DisplayConfig())
     system: SystemConfig = Field(default_factory=lambda: SystemConfig())
 
 
 class Myc3liumConfigPublic(BaseModel):
-    """Config response model that masks the API key."""
+    """Config response model that masks sensitive fields."""
 
     radio: RadioConfig
     mesh: MeshConfig
+    backhaul: dict
     display: DisplayConfig
     system: dict
 
@@ -182,9 +273,15 @@ class Myc3liumConfigPublic(BaseModel):
     def from_config(config: Myc3liumConfig) -> Myc3liumConfigPublic:
         system_data = config.system.model_dump()
         system_data["api_key"] = "***" if system_data.get("api_key") else ""
+
+        backhaul_data = config.backhaul.model_dump()
+        backhaul_data["client_password"] = "***" if backhaul_data.get("client_password") else ""
+        backhaul_data["ap_password"] = "***" if backhaul_data.get("ap_password") else ""
+
         return Myc3liumConfigPublic(
             radio=config.radio,
             mesh=config.mesh,
+            backhaul=backhaul_data,
             display=config.display,
             system=system_data,
         )
