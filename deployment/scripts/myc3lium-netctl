@@ -256,12 +256,27 @@ case "${1:-}" in
 
         netfilter-persistent save 2>/dev/null || true
 
-        # Remove config files
+        # Remove config files and captive portal flag
         rm -f "$HOSTAPD_CONF" "$DNSMASQ_CONF" "$WPA_CONF"
+        rm -f /opt/myc3lium/run/captive-portal
         ;;
 
     sysctl-forward)
         sysctl -w net.ipv4.ip_forward=1 > /dev/null
+        ;;
+
+    set-captive-portal)
+        mkdir -p /opt/myc3lium/run
+        touch /opt/myc3lium/run/captive-portal
+        chown myc3:myc3 /opt/myc3lium/run/captive-portal 2>/dev/null || true
+        ;;
+
+    clear-captive-portal)
+        rm -f /opt/myc3lium/run/captive-portal
+        ;;
+
+    restart-dnsmasq)
+        systemctl restart dnsmasq
         ;;
 
     *)
@@ -269,7 +284,8 @@ case "${1:-}" in
         echo "Commands: write-hostapd write-dnsmasq write-wpa start-ap stop-ap" >&2
         echo "          start-client stop-client setup-bridge teardown-bridge" >&2
         echo "          setup-nat remove-nat set-ip flush-ip iface-up iface-down" >&2
-        echo "          cleanup sysctl-forward" >&2
+        echo "          cleanup sysctl-forward set-captive-portal" >&2
+        echo "          clear-captive-portal restart-dnsmasq" >&2
         exit 1
         ;;
 esac

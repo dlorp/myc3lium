@@ -428,18 +428,63 @@ cat > "$NGINX_CONF" <<'NGINXEOF'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    
+
     server_name _;
-    
+
     root /var/www/myc3lium;
     index index.html;
-    
-    # Frontend
-    location / {
-        try_files $uri $uri/ =404;
+
+    # ---- Captive portal probe handlers ----
+    # When /opt/myc3lium/run/captive-portal exists (setup incomplete),
+    # return redirects to trigger the OS captive portal UI.
+    # When absent (setup complete), return expected responses so the OS
+    # marks the network as having internet access.
+
+    # iOS: expects text/html containing "Success"
+    location = /hotspot-detect.html {
+        default_type text/html;
+        if (-f /opt/myc3lium/run/captive-portal) {
+            return 302 http://10.99.0.1/setup;
+        }
+        return 200 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>";
     }
-    
-    # API proxy
+
+    # Android: expects HTTP 204
+    location = /generate_204 {
+        if (-f /opt/myc3lium/run/captive-portal) {
+            return 302 http://10.99.0.1/setup;
+        }
+        return 204;
+    }
+
+    # Windows: expects text/plain "Microsoft Connect Test"
+    location = /connecttest.txt {
+        default_type text/plain;
+        if (-f /opt/myc3lium/run/captive-portal) {
+            return 302 http://10.99.0.1/setup;
+        }
+        return 200 "Microsoft Connect Test";
+    }
+
+    # Windows secondary probe
+    location = /redirect {
+        default_type text/plain;
+        if (-f /opt/myc3lium/run/captive-portal) {
+            return 302 http://10.99.0.1/setup;
+        }
+        return 200 "Microsoft NCSI";
+    }
+
+    # Firefox: expects text/html
+    location = /canonical.html {
+        default_type text/html;
+        if (-f /opt/myc3lium/run/captive-portal) {
+            return 302 http://10.99.0.1/setup;
+        }
+        return 200 "<html><head><title>success</title></head><body>success</body></html>";
+    }
+
+    # API proxy (always available -- setup wizard needs it)
     location /api/ {
         proxy_pass http://localhost:8000/;
         proxy_http_version 1.1;
@@ -450,8 +495,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
-    
-    # WebSocket proxy
+
+    # WebSocket proxy (always available)
     location /ws {
         proxy_pass http://localhost:8000/ws;
         proxy_http_version 1.1;
@@ -462,12 +507,17 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_read_timeout 86400;
     }
-    
+
+    # Frontend SPA -- fallback to index.html for client-side routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
-    
+
     # Gzip compression
     gzip on;
     gzip_vary on;

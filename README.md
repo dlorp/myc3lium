@@ -156,7 +156,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Project Status
 
-**v0.5.0** - Backhaul / AP mode with auto-AP first boot
+**v0.6.0** - Captive portal for seamless first-boot setup
 
 | Phase | Status | Details |
 |-------|--------|---------|

@@ -118,7 +118,9 @@ const Setup: React.FC = () => {
       }
       // Mark setup as complete — must be last so partial saves don't unlock
       await updateConfigSection('system', { setup_complete: true });
-      navigate('/p/100', { replace: true });
+      // Full page load (not SPA navigate) so iOS/Android captive portal
+      // detection re-probes and closes the portal sheet
+      window.location.href = '/p/100';
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save configuration');
     } finally {

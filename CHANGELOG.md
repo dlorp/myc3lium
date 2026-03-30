@@ -4,9 +4,20 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.5.0] - 2026-03-29
+## [0.6.0] - 2026-03-29
 
 ### Added
+- Captive portal for first-boot UX: phones connecting to myc3_m3sh AP automatically see the setup wizard via OS captive portal sheet (iOS/Android/Windows/Firefox)
+- dnsmasq wildcard DNS (`address=/#/10.99.0.1`) redirects all domains to Pi when setup incomplete; removed after setup completes
+- nginx probe handlers: per-OS exact-match locations return 302 to `/setup` when captive flag exists, expected responses (Success/204/etc.) when absent
+- `enable_captive_portal()` / `disable_captive_portal()` lifecycle functions in `backhaul_service.py`
+- `set-captive-portal`, `clear-captive-portal`, `restart-dnsmasq` commands in myc3lium-netctl
+- Setup gate: blocks all non-config API endpoints (403) until first-boot setup wizard completes and AP password is changed from default
+- `setup_complete` field in SystemConfig — persisted to TOML, checked by `is_setup_complete()` (also treats changed AP password as complete for existing deployments)
+- Frontend 403 handler: `X-Setup-Required` header triggers automatic redirect to `/setup`
+- README "First Boot / Field Deployment" section: SSID, default password, URL, setup flow, backhaul modes
+- Auto band selection: `detect_uplink_band()` reads connected network frequency via nmcli IN-USE filter, `detect_optimal_ap_band()` picks opposite band to avoid co-channel interference
+- USB reset recovery in `myc3lium-netctl`: unbind/rebind USB adapter on hostapd/wpa_supplicant failure, NM re-exclusion after reset
 - Backhaul / AP mode: USB WiFi adapter auto-detection, client mode (join WiFi), AP mode (broadcast myc3_m3sh hotspot)
 - `BackhaulConfig` Pydantic model with validators: interface (wlanN only), password (min 8 chars, no control chars/quotes), SSID, AP channel/band cross-validation
 - `backhaul_service.py`: USB adapter detection via `/sys/class/net`, AP/client mode apply, NAT management, bridge setup, status reporting
@@ -23,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Systemd override `myc3lium-backhaul.conf`: relaxes sandbox for sudo netctl operations
 
 ### Fixed
+- nginx SPA routing: `try_files $uri $uri/ /index.html` (was `=404`, broke direct navigation to `/setup`, `/p/200`, etc.)
+- Setup wizard CNA close: full page load (`window.location.href`) instead of SPA navigate, so iOS/Android captive portal sheet re-probes and closes
 - TOML config file now written atomically with `0o600` permissions (contains passwords)
 - Password masking in GET responses for both `client_password` and `ap_password`
 - iptables rules idempotent (check before add via `-C`) and targeted cleanup (no chain flush)

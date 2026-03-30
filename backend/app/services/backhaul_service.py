@@ -97,6 +97,101 @@ def _read_active_interface() -> str | None:
     return None
 
 
+def _get_safe_hostname() -> str:
+    """Get sanitized hostname for DNS config (alphanumeric + hyphens, max 63 chars)."""
+    hostname = "myc3"
+    try:
+        import socket
+
+        raw = socket.gethostname().split(".")[0]  # Strip FQDN to short name
+        if (
+            raw.replace("-", "").isalnum()
+            and 1 <= len(raw) <= 63
+            and not raw.startswith("-")
+            and not raw.endswith("-")
+        ):
+            hostname = raw
+    except OSError:
+        pass
+    return hostname
+
+
+def _build_dnsmasq_config(hostname: str, captive: bool = False) -> str:
+    """Build dnsmasq config string for AP mode DHCP/DNS.
+
+    Args:
+        hostname: Sanitized hostname for local DNS entry.
+        captive: If True, add wildcard DNS to redirect all domains to the Pi
+            (triggers captive portal detection on phones).
+    """
+    config = (
+        f"interface={BRIDGE_INTERFACE}\n"
+        f"bind-dynamic\n"
+        f"dhcp-range=10.99.0.10,10.99.0.200,255.255.255.0,24h\n"
+        f"dhcp-option=3,10.99.0.1\n"
+        f"dhcp-option=6,10.99.0.1\n"
+        f"server=8.8.8.8\n"
+        f"server=1.1.1.1\n"
+        f"stop-dns-rebind\n"
+        f"rebind-localhost-ok\n"
+        f"address=/{hostname}.local/10.99.0.1\n"
+    )
+    if captive:
+        # Resolve ALL domains to this Pi — triggers OS captive portal detection
+        config += "address=/#/10.99.0.1\n"
+        # DHCP Option 114 (RFC 8910) — modern captive portal advertisement
+        config += "dhcp-option=114,http://10.99.0.1/setup\n"
+    return config
+
+
+def enable_captive_portal() -> bool:
+    """Create nginx flag file to activate captive portal redirects.
+
+    Called when AP starts with setup incomplete. nginx checks for the flag
+    file and redirects OS captive-portal probe URLs to /setup.
+    """
+    if not _IS_LINUX:
+        return True
+    result = _netctl("set-captive-portal")
+    if result.returncode == 0:
+        logger.info("Captive portal flag set")
+    else:
+        logger.error("Failed to set captive portal flag: %s", result.stderr)
+    return result.returncode == 0
+
+
+def disable_captive_portal() -> bool:
+    """Rewrite dnsmasq config without wildcard DNS and remove nginx flag.
+
+    Called after setup wizard completes to restore normal DNS resolution
+    and stop captive portal redirects.
+    """
+    if not _IS_LINUX:
+        return True
+
+    hostname = _get_safe_hostname()
+    dnsmasq_config = _build_dnsmasq_config(hostname, captive=False)
+
+    # Clear flag first — brief window with wildcard DNS but no nginx redirect
+    # is less harmful than normal DNS but stale nginx redirects
+    result = _netctl("clear-captive-portal")
+    if result.returncode != 0:
+        logger.error("Failed to clear captive portal flag: %s", result.stderr)
+
+    result = _netctl("write-dnsmasq", stdin=dnsmasq_config)
+    if result.returncode != 0:
+        logger.error("Failed to rewrite dnsmasq config: %s", result.stderr)
+        return False
+
+    result = _netctl("restart-dnsmasq")
+    if result.returncode != 0:
+        logger.error("Failed to restart dnsmasq: %s", result.stderr)
+        return False
+
+    logger.info("Captive portal disabled, DNS restored to normal")
+    return True
+
+
 def detect_uplink_band() -> tuple[str, int]:
     """Detect the WiFi band/channel of the Pi's internet uplink.
 
@@ -321,10 +416,17 @@ def apply_client_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
     return True, f"Connected to {config.client_ssid} on {interface}", interface
 
 
-def apply_ap_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
+def apply_ap_mode(
+    config: BackhaulConfig, captive: bool = False
+) -> tuple[bool, str, str | None]:
     """Configure USB WiFi adapter as an access point.
 
     Creates a Linux bridge (br0) connecting AP clients to BATMAN mesh.
+
+    Args:
+        config: Backhaul configuration with AP settings.
+        captive: If True, dnsmasq resolves all domains to the Pi IP
+            (captive portal mode for first-boot setup wizard).
 
     Returns:
         Tuple of (success, message, interface_used)
@@ -363,27 +465,9 @@ def apply_ap_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         f"country_code=US\n"
     )
 
-    # Get hostname for local DNS resolution (myc3.local -> AP IP)
-    hostname = "myc3"
-    try:
-        import socket
-
-        raw = socket.gethostname()
-        if raw.replace("-", "").isalnum() and len(raw) <= 63:
-            hostname = raw
-    except OSError:
-        pass
-
-    dnsmasq_config = (
-        f"interface={BRIDGE_INTERFACE}\n"
-        f"bind-dynamic\n"
-        f"dhcp-range=10.99.0.10,10.99.0.200,255.255.255.0,24h\n"
-        f"dhcp-option=3,10.99.0.1\n"
-        f"dhcp-option=6,10.99.0.1\n"
-        f"server=8.8.8.8\n"
-        f"server=1.1.1.1\n"
-        f"address=/{hostname}.local/10.99.0.1\n"
-    )
+    # Build dnsmasq config for DHCP/DNS on bridge
+    hostname = _get_safe_hostname()
+    dnsmasq_config = _build_dnsmasq_config(hostname, captive=captive)
 
     # Write configs via privileged helper
     result = _netctl("write-hostapd", stdin=hostapd_config)
