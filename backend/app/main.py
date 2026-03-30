@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.middleware.auth import get_current_user
 from app.routers import config as config_router
 from app.routers import auth_router, messages, mesh, meshtastic, nodes, threads, ws
 from app.services.config_service import ConfigService
@@ -139,15 +140,13 @@ async def require_setup_complete() -> None:
 
 
 # Include routers — config and auth routers are ungated so setup wizard and login work
-from app.middleware.auth import get_current_user
-
 auth_and_setup_gate = [Depends(get_current_user), Depends(require_setup_complete)]
 app.include_router(nodes.router, dependencies=auth_and_setup_gate)
 app.include_router(messages.router, dependencies=auth_and_setup_gate)
 app.include_router(threads.router, dependencies=auth_and_setup_gate)
 app.include_router(ws.router)  # WebSocket — auth validated in handler (C3)
 app.include_router(mesh.router, dependencies=auth_and_setup_gate)
-app.include_router(meshtastic.router, dependencies=setup_gate)
+app.include_router(meshtastic.router, dependencies=auth_and_setup_gate)
 app.include_router(config_router.router)  # Ungated — needed by setup wizard
 app.include_router(auth_router.router)  # Ungated — login must work before auth
 

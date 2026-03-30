@@ -89,6 +89,7 @@ const PageRoute = ({ children }) => {
  * Passes through when auth is disabled (authRequired=false).
  * Does NOT call checkAuth — that's done once in AuthProvider at the app root (M8).
  */
+// eslint-disable-next-line react/prop-types
 const AuthGuard = ({ children }) => {
   const { isAuthenticated, authRequired, loading } = useAuthStore()
 
@@ -106,6 +107,7 @@ const AuthGuard = ({ children }) => {
 /**
  * AuthProvider - Calls checkAuth once at app root, shared via Zustand (M8).
  */
+// eslint-disable-next-line react/prop-types
 const AuthProvider = ({ children }) => {
   const checkAuth = useAuthStore((state) => state.checkAuth)
 
