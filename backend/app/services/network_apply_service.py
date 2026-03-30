@@ -113,11 +113,9 @@ def _derive_mesh_ip(interface: str = "wlan0") -> str | None:
     if not re.match(r"^[a-zA-Z0-9]{1,15}$", interface):
         logger.error("Invalid interface name for mesh IP derivation: %s", interface)
         return None
-    sysfs_root = Path("/sys/class/net")
-    mac_path = (sysfs_root / interface / "address").resolve()
-    if not mac_path.is_relative_to(sysfs_root.resolve()):
-        logger.error("Path traversal attempt in interface name: %s", interface)
-        return None
+    # Read without resolve() — sysfs symlinks resolve to /sys/devices/...
+    # which breaks is_relative_to checks. The regex above prevents traversal.
+    mac_path = Path(f"/sys/class/net/{interface}/address")
     try:
         mac = mac_path.read_text().strip()  # e.g. "dc:a6:32:xx:ab:2a"
         parts = mac.split(":")

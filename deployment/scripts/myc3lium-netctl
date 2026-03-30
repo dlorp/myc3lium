@@ -332,7 +332,7 @@ case "${1:-}" in
             # 5. Set IBSS mode and MTU (sleep for brcmfmac firmware disassociation)
             sleep 1
             iw dev wlan0 set type ibss
-            ip link set wlan0 mtu 1532
+            ip link set wlan0 mtu 1532 2>/dev/null || true  # brcmfmac caps at 1500
             ip link set wlan0 up
 
             # 6. Join IBSS cell (no HT20 — brcmfmac has channel width bugs in IBSS)
@@ -351,7 +351,11 @@ case "${1:-}" in
 
             # 9. Bring up bat0, assign IP
             ip link set bat0 up
-            ip link set bat0 mtu 1500
+            # bat0 MTU = wlan0 MTU minus 32B batman header
+            # brcmfmac caps wlan0 at 1500, so bat0 max is 1468
+            WLAN_MTU=$(cat /sys/class/net/wlan0/mtu 2>/dev/null || echo 1500)
+            BAT_MTU=$((WLAN_MTU - 32))
+            ip link set bat0 mtu "$BAT_MTU"
             ip addr flush dev bat0 2>/dev/null || true
             ip addr add "$MESH_IP" dev bat0
 
