@@ -80,7 +80,7 @@ def apply_backhaul() -> dict:
             backhaul_config
         )
     elif backhaul_config.mode == "ap":
-        captive = config_service and not config_service.is_setup_complete()
+        captive = bool(config_service and not config_service.is_setup_complete())
         success, message, used_iface = backhaul_service.apply_ap_mode(
             backhaul_config, captive=captive
         )
