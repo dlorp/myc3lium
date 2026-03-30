@@ -142,9 +142,14 @@ case "${1:-}" in
         # hostapd with bridge=br0 tears down and recreates the bridge,
         # ejecting any existing ports (including bat0). Re-add bat0 after
         # hostapd stabilizes so mesh traffic can reach AP clients.
-        sleep 1
         if ip link show bat0 > /dev/null 2>&1; then
-            ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+            for i in $(seq 1 5); do
+                sleep 1
+                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+                if ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
+                    break
+                fi
+            done
         fi
         ;;
 
@@ -372,12 +377,8 @@ case "${1:-}" in
             # 10. Set batman parameters
             batctl meshif bat0 hop_penalty 15
             batctl meshif bat0 orig_interval 5000
-
-            # 11. Add bat0 to br0 if bridge exists (AP mode)
-            # Done here because the service sandbox blocks bridge ops via sudo
-            if ip link show "$BRIDGE" > /dev/null 2>&1; then
-                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
-            fi
+            # Prevent L2 loops when multiple mesh nodes bridge AP clients
+            batctl meshif bat0 bridge_loop_avoidance 1 2>/dev/null || true
 
             echo "OK: mesh-up ssid=$SSID freq=$FREQ ip=$MESH_IP"
         ) || {
