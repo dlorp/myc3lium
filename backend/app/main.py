@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import config as config_router
-from app.routers import messages, mesh, meshtastic, nodes, threads, ws
+from app.routers import auth_router, messages, mesh, meshtastic, nodes, threads, ws
 from app.services.config_service import ConfigService
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
@@ -138,15 +138,18 @@ async def require_setup_complete() -> None:
         )
 
 
-# Include routers — config router is ungated so the setup wizard can operate
-setup_gate = [Depends(require_setup_complete)]
-app.include_router(nodes.router, dependencies=setup_gate)
-app.include_router(messages.router, dependencies=setup_gate)
-app.include_router(threads.router, dependencies=setup_gate)
-app.include_router(ws.router)  # WebSocket — gated client-side
-app.include_router(mesh.router, dependencies=setup_gate)
+# Include routers — config and auth routers are ungated so setup wizard and login work
+from app.middleware.auth import get_current_user
+
+auth_and_setup_gate = [Depends(get_current_user), Depends(require_setup_complete)]
+app.include_router(nodes.router, dependencies=auth_and_setup_gate)
+app.include_router(messages.router, dependencies=auth_and_setup_gate)
+app.include_router(threads.router, dependencies=auth_and_setup_gate)
+app.include_router(ws.router)  # WebSocket — auth validated in handler (C3)
+app.include_router(mesh.router, dependencies=auth_and_setup_gate)
 app.include_router(meshtastic.router, dependencies=setup_gate)
 app.include_router(config_router.router)  # Ungated — needed by setup wizard
+app.include_router(auth_router.router)  # Ungated — login must work before auth
 
 
 # Initialize Meshtastic service
@@ -154,9 +157,27 @@ meshtastic_service = MeshtasticService()
 meshtastic.set_service(meshtastic_service)  # Inject service into router
 
 
+# M2: Security headers middleware
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
+    # M4: Initialize auth database at startup, not import time
+    from app.db import init_db
+
+    try:
+        init_db()
+    except Exception:
+        logger.exception("Auth database initialization failed — auth features unavailable")
+
     # Start BATMAN mesh before backhaul — bat0 must exist before br0 bridge setup
     if settings.use_live_data:
         from app.services import network_apply_service
@@ -247,11 +268,39 @@ async def start_mesh_monitor():
             "The Meshtastic API is unprotected. Set this environment variable."
         )
 
+    # Apply HaLow config if enabled
+    halow_cfg = config_svc.config.halow
+    if halow_cfg.enabled and settings.use_live_data:
+        from app.services import network_apply_service
+
+        logger.info("Applying HaLow config at startup (transport: %s)", halow_cfg.transport)
+        halow_result = network_apply_service.apply_halow(halow_cfg)
+        if halow_result["success"]:
+            logger.info("HaLow transport active: %s", halow_result["details"])
+        else:
+            logger.warning("HaLow transport failed: %s", halow_result["message"])
+
+    # Start session cleanup background task
+    async def session_cleanup_loop() -> None:
+        """Purge expired auth sessions every hour."""
+        import asyncio
+
+        from app.services.auth_service import cleanup_expired_sessions
+
+        while True:
+            await asyncio.sleep(3600)
+            try:
+                cleanup_expired_sessions()
+            except Exception:
+                logger.exception("Session cleanup failed")
+
+    import asyncio
+
+    asyncio.create_task(session_cleanup_loop())
+
     if settings.use_live_data:
         logger.info("Starting mesh monitor (live data enabled)")
         ws.set_data_source(data_source)
-        import asyncio
-
         asyncio.create_task(ws.mesh_monitor_loop())
     else:
         logger.info("Mesh monitor disabled (using mock data)")

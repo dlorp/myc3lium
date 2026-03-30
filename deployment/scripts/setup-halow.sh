@@ -85,7 +85,9 @@ HALOW_SSID=myc3lium-halow
 HALOW_KEY=$(openssl rand -hex 32)
 EOF
 
-log_info "Configuration saved to /opt/myc3lium/halow-config.conf"
+chmod 600 /opt/myc3lium/halow-config.conf
+chown root:root /opt/myc3lium/halow-config.conf
+log_info "Configuration saved to /opt/myc3lium/halow-config.conf (mode 600)"
 
 # Create network configuration
 log_info "Creating network configuration..."
@@ -101,8 +103,9 @@ iface $HALOW_IFACE inet static
     wireless-mode ad-hoc
 EOF
 
-# Create WPA supplicant config for managed mode (if needed)
-cat > /etc/wpa_supplicant/wpa_supplicant-halow.conf <<'EOF'
+# Create WPA supplicant config using the generated key
+HALOW_PSK=$(grep HALOW_KEY /opt/myc3lium/halow-config.conf | cut -d= -f2)
+cat > /etc/wpa_supplicant/wpa_supplicant-halow.conf <<EOF
 ctrl_interface=/var/run/wpa_supplicant
 update_config=1
 country=US
@@ -112,7 +115,7 @@ network={
     mode=1
     frequency=915
     key_mgmt=WPA-PSK
-    psk="myc3lium-halow-mesh"
+    psk="$HALOW_PSK"
     scan_ssid=1
 }
 EOF

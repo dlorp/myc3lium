@@ -8,24 +8,39 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
- * Generic fetch wrapper with error handling
+ * Generic fetch wrapper with error handling and auth token injection
  */
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
+  // Inject auth token from localStorage
+  const token = localStorage.getItem('myc3_token');
+  const authHeaders: Record<string, string> = {};
+  if (token) {
+    authHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options.headers,
     },
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+    // Auth required: redirect to login
+    if (response.status === 401) {
+      localStorage.removeItem('myc3_token');
+      window.location.href = '/login';
+      throw new Error('Authentication required');
+    }
 
     // Setup gate: redirect to setup wizard if setup isn't complete
     if (response.status === 403 && response.headers.get('X-Setup-Required') === 'true') {
@@ -142,9 +157,7 @@ export async function updateThread(
  * Delete a thread
  */
 export async function deleteThread(threadId: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/threads/${threadId}`, {
-    method: 'DELETE',
-  });
+  await apiFetch<void>(`/api/threads/${threadId}`, { method: 'DELETE' });
 }
 
 // ============================================================================
@@ -204,9 +217,7 @@ export async function postMessage(data: MessageCreate): Promise<Message> {
  * Delete a message
  */
 export async function deleteMessage(messageId: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/messages/${messageId}`, {
-    method: 'DELETE',
-  });
+  await apiFetch<void>(`/api/messages/${messageId}`, { method: 'DELETE' });
 }
 
 // ============================================================================

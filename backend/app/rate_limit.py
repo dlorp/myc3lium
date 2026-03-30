@@ -38,3 +38,6 @@ class RateLimiter:
 
 # 10 messages per minute for send endpoint
 send_limiter = RateLimiter(calls=10, period=60)
+
+# 5 login attempts per 5 minutes per IP
+login_limiter = RateLimiter(calls=5, period=300)

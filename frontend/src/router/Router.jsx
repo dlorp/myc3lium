@@ -6,10 +6,12 @@ import P300 from '../pages/P300'
 import P400 from '../pages/P400'
 import P500 from '../pages/P500'
 import P600 from '../pages/P600'
+import Login from '../pages/Login'
 import Setup from '../pages/Setup'
 import PageInput from '../components/PageInput'
 import NavigationBar from '../components/NavigationBar'
 import useNavigationStore from '../store/navigationStore'
+import useAuthStore from '../store/authStore'
 import TeletextGrid, { COLUMNS, ROWS } from '../components/TeletextGrid'
 
 /**
@@ -83,22 +85,60 @@ const PageRoute = ({ children }) => {
 }
 
 /**
+ * AuthGuard - Redirects to /login when auth is required and user is not authenticated.
+ * Passes through when auth is disabled (authRequired=false).
+ * Does NOT call checkAuth — that's done once in AuthProvider at the app root (M8).
+ */
+const AuthGuard = ({ children }) => {
+  const { isAuthenticated, authRequired, loading } = useAuthStore()
+
+  if (loading) {
+    return null
+  }
+
+  if (authRequired && !isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children
+}
+
+/**
+ * AuthProvider - Calls checkAuth once at app root, shared via Zustand (M8).
+ */
+const AuthProvider = ({ children }) => {
+  const checkAuth = useAuthStore((state) => state.checkAuth)
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
+  return children
+}
+
+/**
  * Router - Main router component with page-number URL scheme
  */
 const Router = () => {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <PageInput />
       <NavigationBar />
-      
+
       <Routes>
+        {/* Login page — always accessible */}
+        <Route path="/login" element={<Login />} />
+
         {/* Index page */}
         <Route
           path="/p/100"
           element={
-            <PageRoute>
-              <P100 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P100 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
         
@@ -106,41 +146,47 @@ const Router = () => {
         <Route
           path="/p/200"
           element={
-            <PageRoute>
-              <P200 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P200 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
-        
-        
+
         {/* P300 - Messaging Inbox */}
         <Route
           path="/p/300"
           element={
-            <PageRoute>
-              <P300 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P300 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
 
-        
         {/* P400 - Tactical Map */}
         <Route
           path="/p/400"
           element={
-            <PageRoute>
-              <P400 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P400 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
-        
+
         {/* P500 - Intelligence Hub */}
         <Route
           path="/p/500"
           element={
-            <PageRoute>
-              <P500 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P500 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
 
@@ -148,19 +194,23 @@ const Router = () => {
         <Route
           path="/p/600"
           element={
-            <PageRoute>
-              <P600 />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <P600 />
+              </PageRoute>
+            </AuthGuard>
           }
         />
-        
+
         {/* Generic page route (100-800) */}
         <Route
           path="/p/:pageNumber"
           element={
-            <PageRoute>
-              <PagePlaceholder />
-            </PageRoute>
+            <AuthGuard>
+              <PageRoute>
+                <PagePlaceholder />
+              </PageRoute>
+            </AuthGuard>
           }
         />
         
@@ -171,6 +221,7 @@ const Router = () => {
         <Route path="/" element={<Navigate to="/p/100" replace />} />
         <Route path="*" element={<Navigate to="/p/100" replace />} />
       </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

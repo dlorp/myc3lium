@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from app.config_models import MeshConfig, Myc3liumConfig
+from app.config_models import HaLowConfig, MeshConfig, Myc3liumConfig
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +209,74 @@ def teardown_batman() -> dict[str, Any]:
     else:
         logger.warning("BATMAN mesh-down failed: %s", msg)
     return {"success": success, "message": msg, "details": []}
+
+
+def apply_halow(halow_config: HaLowConfig) -> dict[str, Any]:
+    """Add or remove HaLow interface as a BATMAN transport on bat0.
+
+    Calls myc3lium-netctl halow-up/halow-down which handles:
+    - Auto-detecting usb0 (USB-ECM) or halow0 (TAP/SLIP bridge)
+    - Adding/removing the interface from bat0
+    - Setting MTU to 1560 for BATMAN overhead headroom
+
+    Returns:
+        Dict with 'success', 'message', and 'details' keys.
+    """
+    if not _IS_LINUX:
+        return {
+            "success": False,
+            "message": "HaLow apply only available on Linux (Pi)",
+            "details": [],
+        }
+
+    if not halow_config.enabled:
+        result = _netctl("halow-down")
+        success = result.returncode == 0
+        msg = "HaLow transport removed from bat0" if success else result.stderr.strip()
+        logger.info("apply_halow: disabled, halow-down result=%s", msg)
+        return {"success": success, "message": msg, "details": []}
+
+    # Determine interface to pass (empty = auto-detect in netctl)
+    iface_arg = halow_config.interface or ""
+    args = ["halow-up"]
+    if iface_arg:
+        args.append(iface_arg)
+
+    result = _netctl(*args)
+
+    if result.returncode == 0:
+        output = result.stdout.strip()
+        logger.info("apply_halow: success: %s", output)
+        return {
+            "success": True,
+            "message": "HaLow transport active on bat0",
+            "details": [output],
+        }
+
+    error = result.stderr.strip() or result.stdout.strip()
+    logger.error("apply_halow: halow-up failed: %s", error)
+    return {
+        "success": False,
+        "message": f"HaLow halow-up failed: {error}",
+        "details": [f"Error: {error}"],
+    }
+
+
+def halow_status() -> dict[str, Any]:
+    """Get current HaLow interface status."""
+    if not _IS_LINUX:
+        return {"status": "unavailable", "interface": "none"}
+
+    result = _netctl("halow-status")
+    if result.returncode == 0:
+        # Parse "halow=active interface=halow0"
+        output = result.stdout.strip()
+        parts = dict(item.split("=", 1) for item in output.split() if "=" in item)
+        return {
+            "status": parts.get("halow", "unknown"),
+            "interface": parts.get("interface", "none"),
+        }
+    return {"status": "error", "interface": "none"}
 
 
 def apply_reticulum(config: Myc3liumConfig) -> dict[str, Any]:
