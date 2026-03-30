@@ -64,7 +64,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     hostapd \
     dnsmasq \
     iptables-persistent \
-    bridge-utils
+    bridge-utils \
+    isc-dhcp-client
 
 # Stop services until configured
 systemctl stop hostapd 2>/dev/null || true

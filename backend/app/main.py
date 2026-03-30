@@ -80,30 +80,41 @@ config_router.config_service = config_svc
 # is detected, automatically enable AP mode so headless field deployments
 # are reachable via myc3_m3sh hotspot.
 if config_svc.is_first_boot():
-    from app.config_models import BACKHAUL_DEFAULT_PASSWORD, BACKHAUL_DEFAULT_SSID
-    from app.services.backhaul_service import get_available_interface
+    try:
+        from app.config_models import BACKHAUL_DEFAULT_PASSWORD, BACKHAUL_DEFAULT_SSID
+        from app.services.backhaul_service import (
+            detect_optimal_ap_band,
+            get_available_interface,
+        )
 
-    usb_iface = get_available_interface()
-    if usb_iface:
-        logger.info(
-            "First boot with USB WiFi adapter %s — enabling auto-AP (SSID: %s)",
-            usb_iface,
-            BACKHAUL_DEFAULT_SSID,
-        )
-        config_svc.create_default_config()
-        config_svc.update_section(
-            "backhaul",
-            {
-                "enabled": True,
-                "mode": "ap",
-                "ap_ssid": BACKHAUL_DEFAULT_SSID,
-                "ap_password": BACKHAUL_DEFAULT_PASSWORD,
-                "ap_band": "2.4GHz",
-                "ap_channel": 1,
-            },
-        )
-    else:
-        logger.info("First boot, no USB WiFi adapter — skipping auto-AP")
+        usb_iface = get_available_interface()
+        if usb_iface:
+            ap_band, ap_channel = detect_optimal_ap_band()
+
+            logger.info(
+                "First boot with USB WiFi adapter %s — enabling auto-AP "
+                "(SSID: %s, band: %s, ch: %d)",
+                usb_iface,
+                BACKHAUL_DEFAULT_SSID,
+                ap_band,
+                ap_channel,
+            )
+            config_svc.create_default_config()
+            config_svc.update_section(
+                "backhaul",
+                {
+                    "enabled": True,
+                    "mode": "ap",
+                    "ap_ssid": BACKHAUL_DEFAULT_SSID,
+                    "ap_password": BACKHAUL_DEFAULT_PASSWORD,
+                    "ap_band": ap_band,
+                    "ap_channel": ap_channel,
+                },
+            )
+        else:
+            logger.info("First boot, no USB WiFi adapter — skipping auto-AP")
+    except Exception:
+        logger.exception("Auto-AP setup failed — API starting without AP mode")
 
 
 # Setup gate: block non-config API access until first-boot setup is complete.
