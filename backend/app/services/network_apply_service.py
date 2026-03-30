@@ -87,14 +87,66 @@ def _channel_to_freq(channel: int, band: str) -> int | None:
     return _FREQ_5GHZ.get(channel)
 
 
-def apply_batman(mesh_config: MeshConfig) -> dict[str, Any]:
-    """Apply BATMAN-adv mesh settings to running system.
+def _netctl(
+    command: str, *args: str, timeout: int = 30
+) -> subprocess.CompletedProcess[str]:
+    """Call myc3lium-netctl privileged helper via sudo."""
+    cmd = ["sudo", "myc3lium-netctl", command, *args]
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        logger.warning("netctl %s timed out after %ds", command, timeout)
+        return subprocess.CompletedProcess(
+            cmd, returncode=1, stdout="", stderr="timeout"
+        )
 
-    - Joins mesh with configured SSID
-    - Sets channel/frequency for band
+
+def _derive_mesh_ip(interface: str = "wlan0") -> str | None:
+    """Derive a deterministic mesh IP from the MAC address of an interface.
+
+    Uses last two octets of MAC -> 10.13.<octet5>.<octet6>/16.
+    Avoids .0 and .255 for the host octet.
+    Returns None if MAC cannot be read (caller should abort).
+    """
+    import re
+
+    if not re.match(r"^[a-zA-Z0-9]{1,15}$", interface):
+        logger.error("Invalid interface name for mesh IP derivation: %s", interface)
+        return None
+    # Read without resolve() — sysfs symlinks resolve to /sys/devices/...
+    # which breaks is_relative_to checks. The regex above prevents traversal.
+    mac_path = Path(f"/sys/class/net/{interface}/address")
+    try:
+        mac = mac_path.read_text().strip()  # e.g. "dc:a6:32:xx:ab:2a"
+        parts = mac.split(":")
+        if len(parts) != 6:
+            logger.error("Malformed MAC address for %s: %s", interface, mac)
+            return None
+        octet5 = int(parts[4], 16)
+        octet6 = int(parts[5], 16)
+        if octet6 == 0:
+            octet6 = 1
+        elif octet6 == 255:
+            octet6 = 254
+        return f"10.13.{octet5}.{octet6}/16"
+    except (OSError, IndexError, ValueError) as exc:
+        logger.error("Failed to read MAC from %s: %s", interface, exc)
+        return None
+
+
+def apply_batman(mesh_config: MeshConfig) -> dict[str, Any]:
+    """Apply BATMAN-adv mesh over IBSS on wlan0.
+
+    Calls myc3lium-netctl mesh-up which handles:
+    - Loading batman-adv kernel module
+    - Unmanaging wlan0 from NetworkManager
+    - Setting wlan0 to IBSS mode with correct MTU
+    - Joining the IBSS cell at configured frequency
+    - Creating bat0 and adding wlan0
+    - Assigning deterministic mesh IP to bat0
 
     Returns:
-        Dict with 'success', 'message', and 'details' keys
+        Dict with 'success', 'message', and 'details' keys.
     """
     if not _IS_LINUX:
         return {
@@ -104,62 +156,59 @@ def apply_batman(mesh_config: MeshConfig) -> dict[str, Any]:
         }
 
     details: list[str] = []
-    errors: list[str] = []
 
-    # Leave current mesh (if any) before rejoining
-    _run(["sudo", "iw", "dev", "wlan0", "mesh", "leave"])
-
-    # Set frequency
     freq = _channel_to_freq(mesh_config.batman_channel, mesh_config.batman_band)
-    if freq:
-        result = _run(["sudo", "iw", "dev", "wlan0", "set", "freq", str(freq)])
-        if result.returncode == 0:
-            details.append(
-                f"Set wlan0 frequency to {freq} MHz (ch {mesh_config.batman_channel})"
-            )
-        else:
-            errors.append(f"Failed to set frequency: {result.stderr.strip()}")
+    if not freq:
+        return {
+            "success": False,
+            "message": (
+                f"Invalid channel {mesh_config.batman_channel} "
+                f"for {mesh_config.batman_band}"
+            ),
+            "details": [],
+        }
 
-    # Join mesh
-    result = _run(
-        [
-            "sudo",
-            "iw",
-            "dev",
-            "wlan0",
-            "mesh",
-            "join",
-            mesh_config.batman_ssid,
-            "freq",
-            str(freq or 2437),
-        ]
-    )
+    mesh_ip = _derive_mesh_ip("wlan0")
+    if not mesh_ip:
+        return {
+            "success": False,
+            "message": "Could not derive mesh IP from wlan0 MAC",
+            "details": [],
+        }
+    details.append(f"Mesh IP: {mesh_ip}")
+
+    result = _netctl("mesh-up", mesh_config.batman_ssid, str(freq), mesh_ip)
+
     if result.returncode == 0:
-        details.append(f"Joined mesh '{mesh_config.batman_ssid}'")
+        details.append(
+            f"IBSS joined: {mesh_config.batman_ssid} @ {freq} MHz "
+            f"(ch {mesh_config.batman_channel})"
+        )
+        details.append(f"bat0 up with IP {mesh_ip}")
+        logger.info("apply_batman: success, details=%s", details)
+        return {"success": True, "message": "BATMAN mesh active", "details": details}
+
+    error = result.stderr.strip() or result.stdout.strip()
+    logger.error("apply_batman: mesh-up failed: %s", error)
+    return {
+        "success": False,
+        "message": f"BATMAN mesh-up failed: {error}",
+        "details": details + [f"Error: {error}"],
+    }
+
+
+def teardown_batman() -> dict[str, Any]:
+    """Tear down BATMAN-adv mesh cleanly."""
+    if not _IS_LINUX:
+        return {"success": True, "message": "Not on Linux", "details": []}
+    result = _netctl("mesh-down")
+    success = result.returncode == 0
+    msg = "BATMAN mesh torn down" if success else result.stderr.strip()
+    if success:
+        logger.info("BATMAN mesh torn down")
     else:
-        errors.append(f"Failed to join mesh: {result.stderr.strip()}")
-
-    # Restart BATMAN service
-    result = _run(["sudo", "systemctl", "restart", "batman-adv"])
-    if result.returncode == 0:
-        details.append("Restarted batman-adv service")
-    else:
-        # batman-adv may not be a service, try modprobe
-        modprobe_result = _run(["sudo", "modprobe", "batman-adv"])
-        if modprobe_result.returncode == 0:
-            details.append("Loaded batman-adv kernel module")
-        else:
-            errors.append(f"batman-adv not available: {modprobe_result.stderr.strip()}")
-
-    success = len(errors) == 0
-    message = (
-        "BATMAN config applied" if success else f"BATMAN errors: {'; '.join(errors)}"
-    )
-
-    logger.info(
-        "apply_batman: success=%s details=%s errors=%s", success, details, errors
-    )
-    return {"success": success, "message": message, "details": details + errors}
+        logger.warning("BATMAN mesh-down failed: %s", msg)
+    return {"success": success, "message": msg, "details": []}
 
 
 def apply_reticulum(config: Myc3liumConfig) -> dict[str, Any]:

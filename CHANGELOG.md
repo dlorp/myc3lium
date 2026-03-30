@@ -4,6 +4,29 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] - 2026-03-29
+
+### Added
+- IBSS (ad-hoc) mode mesh bringup via `mesh-up` command in myc3lium-netctl — replaces broken 802.11s mesh join commands that fail on brcmfmac (Pi's FullMAC WiFi driver has no mesh point support)
+- `mesh-up <ssid> <freq> <ip/cidr>` command: modprobes batman-adv, unmanages wlan0+bat0 in NetworkManager, joins IBSS cell, creates bat0 over-the-air interface, assigns deterministic IP
+- `mesh-down` command: clean teardown in reverse order (bat0 del, wlan0 down, NM restore)
+- `mesh-status` command: quick state check (IBSS association, bat0 existence, IP)
+- `ensure_nm_unmanaged_mesh()` helper in netctl for persistent NM unmanage of mesh interfaces
+- `_derive_mesh_ip()` in `network_apply_service.py`: deterministic `10.13.<mac[4]>.<mac[5]>/16` IP from wlan0 MAC last two octets — no DHCP on mesh
+- `_netctl()` helper in `network_apply_service.py` for clean privileged helper invocation via sudo
+- BATMAN mesh startup before backhaul in `start_mesh_monitor()` (bat0 must exist before br0 bridge attempts to add it)
+- BATMAN mesh teardown in `shutdown_services()` for clean shutdown sequencing
+
+### Fixed
+- `apply_batman()` completely rewritten: was calling `iw dev wlan0 mesh join` (802.11s, unsupported on brcmfmac) — now delegates to `netctl mesh-up` which uses IBSS mode that brcmfmac supports
+- Startup order: mesh brought up before backhaul bridge so bat0 exists when br0 tries to include it
+- `setup-batman.sh` stripped of embedded `setup-mesh.sh` and broken systemd `batman-adv.service` creation; now install-only (apt, module autoload, NM config)
+- `batctl` commands updated to modern `batctl meshif bat0` syntax (old positional syntax deprecated)
+
+### Removed
+- Raw `sudo iw` / `sudo systemctl` calls from `network_apply_service.py` — all mesh operations now route through netctl privileged helper
+- Embedded `setup-mesh.sh` and systemd unit creation from `setup-batman.sh` (mesh lifecycle managed by app, not systemd)
+
 ## [0.6.0] - 2026-03-29
 
 ### Added
