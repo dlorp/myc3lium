@@ -138,6 +138,14 @@ case "${1:-}" in
             systemctl start hostapd
         }
         systemctl restart dnsmasq
+
+        # hostapd with bridge=br0 tears down and recreates the bridge,
+        # ejecting any existing ports (including bat0). Re-add bat0 after
+        # hostapd stabilizes so mesh traffic can reach AP clients.
+        sleep 1
+        if ip link show bat0 > /dev/null 2>&1; then
+            ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+        fi
         ;;
 
     stop-ap)
@@ -178,7 +186,9 @@ case "${1:-}" in
         ;;
 
     setup-bridge)
-        # Create br0 and add bat0
+        # Create br0 and add bat0.
+        # Note: hostapd with bridge=br0 will eject bat0 when it starts.
+        # The start-ap command re-adds bat0 after hostapd stabilizes.
         ip link show "$BRIDGE" > /dev/null 2>&1 || ip link add name "$BRIDGE" type bridge
         ip link set bat0 master "$BRIDGE" 2>/dev/null || true
         ip link set "$BRIDGE" up
@@ -363,6 +373,12 @@ case "${1:-}" in
             batctl meshif bat0 hop_penalty 15
             batctl meshif bat0 orig_interval 5000
 
+            # 11. Add bat0 to br0 if bridge exists (AP mode)
+            # Done here because the service sandbox blocks bridge ops via sudo
+            if ip link show "$BRIDGE" > /dev/null 2>&1; then
+                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+            fi
+
             echo "OK: mesh-up ssid=$SSID freq=$FREQ ip=$MESH_IP"
         ) || {
             echo "ERROR: mesh-up failed, rolling back" >&2
@@ -394,6 +410,22 @@ case "${1:-}" in
         else
             echo "bat0=absent"
         fi
+        ;;
+
+    batctl-originators)
+        batctl meshif bat0 originators 2>/dev/null
+        ;;
+
+    batctl-neighbors)
+        batctl meshif bat0 neighbors 2>/dev/null
+        ;;
+
+    batctl-statistics)
+        batctl meshif bat0 statistics 2>/dev/null
+        ;;
+
+    batctl-interface)
+        batctl meshif bat0 interface 2>/dev/null
         ;;
 
     set-captive-portal)
