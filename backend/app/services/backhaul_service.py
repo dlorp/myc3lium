@@ -97,6 +97,72 @@ def _read_active_interface() -> str | None:
     return None
 
 
+def detect_uplink_band() -> tuple[str, int]:
+    """Detect the WiFi band/channel of the Pi's internet uplink (wlan0).
+
+    Returns:
+        Tuple of (band, channel). E.g., ("5GHz", 44) or ("2.4GHz", 6).
+        Returns ("unknown", 0) if detection fails.
+    """
+    if not _IS_LINUX:
+        return "unknown", 0
+
+    # nmcli shows all visible networks — filter for the connected one (IN-USE: *)
+    result = _run(
+        [
+            "nmcli",
+            "-t",
+            "-f",
+            "FREQ,CHAN,IN-USE",
+            "dev",
+            "wifi",
+            "list",
+            "ifname",
+            "wlan0",
+        ]
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        for line in result.stdout.strip().splitlines():
+            # Format: "5220 MHz:44:*" — the * marks the connected network
+            if not line.endswith("*"):
+                continue
+            parts = line.split(":")
+            if len(parts) >= 2:
+                try:
+                    freq = int(parts[0].replace(" MHz", "").strip())
+                    channel = int(parts[1].strip())
+                    band = "5GHz" if freq > 3000 else "2.4GHz"
+                    logger.info("Uplink wlan0: %s ch%d (%d MHz)", band, channel, freq)
+                    return band, channel
+                except (ValueError, IndexError):
+                    continue
+
+    return "unknown", 0
+
+
+def detect_optimal_ap_band() -> tuple[str, int]:
+    """Pick the best AP band/channel to avoid interfering with the uplink.
+
+    - If uplink is 5GHz → AP on 2.4GHz ch1 (non-overlapping with mesh ch6)
+    - If uplink is 2.4GHz → AP on 5GHz ch36
+    - If unknown → default to 2.4GHz ch1 (safe fallback)
+
+    Returns:
+        Tuple of (band, channel) for AP configuration.
+    """
+    uplink_band, _ = detect_uplink_band()
+
+    if uplink_band == "5GHz":
+        logger.info("Uplink on 5GHz — AP will use 2.4GHz ch1")
+        return "2.4GHz", 1
+    elif uplink_band == "2.4GHz":
+        logger.info("Uplink on 2.4GHz — AP will use 5GHz ch36")
+        return "5GHz", 36
+    else:
+        logger.info("Uplink band unknown — AP defaulting to 2.4GHz ch1")
+        return "2.4GHz", 1
+
+
 def detect_usb_wifi_adapters() -> list[dict[str, str]]:
     """Scan for USB-backed wireless interfaces, excluding wlan0 (mesh).
 
@@ -209,11 +275,12 @@ def apply_client_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         logger.error("Failed to write wpa_supplicant config: %s", result.stderr)
         return False, "Failed to write wpa_supplicant config", None
 
-    # Stop AP services if switching modes
+    # Stop AP services and teardown bridge if switching modes
     _netctl("stop-ap")
+    _netctl("teardown-bridge")
 
-    # Start client mode
-    result = _netctl("start-client", interface, timeout=30)
+    # Start client mode (netctl handles USB reset on failure)
+    result = _netctl("start-client", interface, timeout=45)
     if result.returncode != 0:
         logger.error("Client mode failed on %s: %s", interface, result.stderr)
         return False, f"Failed to connect on {interface}", interface

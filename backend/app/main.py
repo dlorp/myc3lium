@@ -81,14 +81,23 @@ config_router.config_service = config_svc
 # are reachable via myc3_m3sh hotspot.
 if config_svc.is_first_boot():
     from app.config_models import BACKHAUL_DEFAULT_PASSWORD, BACKHAUL_DEFAULT_SSID
-    from app.services.backhaul_service import get_available_interface
+    from app.services.backhaul_service import (
+        detect_optimal_ap_band,
+        get_available_interface,
+    )
 
     usb_iface = get_available_interface()
     if usb_iface:
+        # Pick AP band/channel to avoid interfering with the uplink
+        ap_band, ap_channel = detect_optimal_ap_band()
+
         logger.info(
-            "First boot with USB WiFi adapter %s — enabling auto-AP (SSID: %s)",
+            "First boot with USB WiFi adapter %s — enabling auto-AP "
+            "(SSID: %s, band: %s, ch: %d)",
             usb_iface,
             BACKHAUL_DEFAULT_SSID,
+            ap_band,
+            ap_channel,
         )
         config_svc.create_default_config()
         config_svc.update_section(
@@ -98,8 +107,8 @@ if config_svc.is_first_boot():
                 "mode": "ap",
                 "ap_ssid": BACKHAUL_DEFAULT_SSID,
                 "ap_password": BACKHAUL_DEFAULT_PASSWORD,
-                "ap_band": "2.4GHz",
-                "ap_channel": 1,
+                "ap_band": ap_band,
+                "ap_channel": ap_channel,
             },
         )
     else:

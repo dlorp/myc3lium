@@ -41,6 +41,39 @@ validate_iface() {
     fi
 }
 
+# Reset a USB WiFi adapter by unbinding/rebinding the USB device.
+# Fixes rtw_8822bu driver stuck in bad state after mode switches.
+reset_usb_adapter() {
+    local IFACE="$1"
+    local DEV_PATH
+    DEV_PATH=$(readlink -f "/sys/class/net/${IFACE}/device" 2>/dev/null) || return 0
+
+    # Only reset USB-backed adapters
+    echo "$DEV_PATH" | grep -q "/usb" || return 0
+
+    local USB_ID
+    USB_ID=$(basename "$(dirname "$DEV_PATH")")
+    if [ -n "$USB_ID" ] && [ -e "/sys/bus/usb/drivers/usb/${USB_ID}" ]; then
+        echo "$USB_ID" > /sys/bus/usb/drivers/usb/unbind 2>/dev/null || true
+        sleep 2
+        echo "$USB_ID" > /sys/bus/usb/drivers/usb/bind 2>/dev/null || true
+        sleep 2
+    fi
+}
+
+# Ensure NetworkManager is not managing the backhaul interface
+ensure_nm_unmanaged() {
+    local IFACE="$1"
+    local NM_CONF="/etc/NetworkManager/conf.d/99-myc3lium-backhaul.conf"
+    if ! grep -q "$IFACE" "$NM_CONF" 2>/dev/null; then
+        mkdir -p "$(dirname "$NM_CONF")"
+        echo "[keyfile]" > "$NM_CONF"
+        echo "unmanaged-devices=interface-name:${IFACE}" >> "$NM_CONF"
+        systemctl reload NetworkManager 2>/dev/null || true
+        sleep 1
+    fi
+}
+
 case "${1:-}" in
     write-hostapd)
         # Read content from stdin
@@ -62,7 +95,22 @@ case "${1:-}" in
         ;;
 
     start-ap)
-        systemctl restart hostapd
+        # Extract interface from hostapd.conf
+        AP_IFACE=$(grep '^interface=' "$HOSTAPD_CONF" 2>/dev/null | cut -d= -f2 || echo "wlan1")
+        ensure_nm_unmanaged "$AP_IFACE"
+
+        # Reset USB adapter if hostapd fails on first attempt
+        systemctl stop hostapd 2>/dev/null || true
+        ip link set "$AP_IFACE" down 2>/dev/null || true
+        sleep 1
+
+        systemctl start hostapd 2>&1 || {
+            # Driver stuck — USB reset and retry
+            echo "hostapd failed, resetting USB adapter..."
+            reset_usb_adapter "$AP_IFACE"
+            systemctl reset-failed hostapd 2>/dev/null || true
+            systemctl start hostapd
+        }
         systemctl restart dnsmasq
         ;;
 
@@ -74,10 +122,22 @@ case "${1:-}" in
     start-client)
         validate_iface "${2:?interface required}"
         IFACE="$2"
+        ensure_nm_unmanaged "$IFACE"
         pkill -f "wpa_supplicant.*${IFACE}" 2>/dev/null || true
-        ip link set "$IFACE" down
+        ip link set "$IFACE" down 2>/dev/null || true
+        sleep 1
         ip link set "$IFACE" up
-        wpa_supplicant -B -i "$IFACE" -c "$WPA_CONF"
+        wpa_supplicant -B -i "$IFACE" -c "$WPA_CONF" || {
+            echo "wpa_supplicant failed, resetting USB adapter..."
+            reset_usb_adapter "$IFACE"
+            # NM re-grabs after USB reset — exclude again
+            ensure_nm_unmanaged "$IFACE"
+            sleep 1
+            ip link set "$IFACE" up 2>/dev/null || true
+            wpa_supplicant -B -i "$IFACE" -c "$WPA_CONF"
+        }
+        # Wait for association before requesting DHCP
+        sleep 5
         dhclient "$IFACE"
         ;;
 
