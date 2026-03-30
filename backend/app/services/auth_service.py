@@ -132,12 +132,13 @@ def verify_token(token: str) -> dict[str, Any]:
         if row["revoked"]:
             raise AuthError("Session revoked")
     finally:
-            conn.close()
+        conn.close()
 
     return payload
 
 
 # ---- Password hashing ----
+
 
 def _hash_password(password: str) -> str:
     return _hasher.hash(password)
@@ -159,8 +160,12 @@ _DUMMY_HASH = _hasher.hash("dummy-password-timing-defense")
 
 # ---- User CRUD ----
 
+
 def _validate_user_input(
-    username: str, callsign: str, password: str, role: str,
+    username: str,
+    callsign: str,
+    password: str,
+    role: str,
 ) -> None:
     """Validate user creation/update inputs."""
     if role not in ("admin", "operator", "observer"):
@@ -168,11 +173,17 @@ def _validate_user_input(
     if len(username) < 3 or len(username) > 32:
         raise AuthError("Username must be 3-32 characters", status_code=400)
     if not re.match(r"^[a-zA-Z0-9_.-]+$", username):
-        raise AuthError("Username must be alphanumeric, dots, hyphens, or underscores", status_code=400)
+        raise AuthError(
+            "Username must be alphanumeric, dots, hyphens, or underscores",
+            status_code=400,
+        )
     if len(callsign) < 2 or len(callsign) > 16:
         raise AuthError("Callsign must be 2-16 characters", status_code=400)
     if not re.match(r"^[a-zA-Z0-9/_-]+$", callsign):
-        raise AuthError("Callsign must be alphanumeric, slashes, hyphens, or underscores", status_code=400)
+        raise AuthError(
+            "Callsign must be alphanumeric, slashes, hyphens, or underscores",
+            status_code=400,
+        )
     if len(password) < 8:
         raise AuthError("Password must be at least 8 characters", status_code=400)
 
@@ -210,7 +221,9 @@ def create_bootstrap_user(
     finally:
         conn.close()
 
-    logger.info("Bootstrap: created first admin user %s (callsign=%s)", username, callsign)
+    logger.info(
+        "Bootstrap: created first admin user %s (callsign=%s)", username, callsign
+    )
     return {
         "id": user_id,
         "username": username,
@@ -325,9 +338,7 @@ def revoke_session(session_id: str) -> None:
     """Revoke a session (logout)."""
     conn = get_connection()
     try:
-        conn.execute(
-            "UPDATE sessions SET revoked = 1 WHERE id = ?", (session_id,)
-        )
+        conn.execute("UPDATE sessions SET revoked = 1 WHERE id = ?", (session_id,))
         conn.commit()
     finally:
         conn.close()
@@ -436,12 +447,8 @@ def deactivate_user(user_id: str) -> bool:
     conn = get_connection()
     try:
         # H3: Revoke all sessions so existing tokens become invalid immediately
-        conn.execute(
-            "UPDATE sessions SET revoked = 1 WHERE user_id = ?", (user_id,)
-        )
-        cursor = conn.execute(
-            "UPDATE users SET active = 0 WHERE id = ?", (user_id,)
-        )
+        conn.execute("UPDATE sessions SET revoked = 1 WHERE user_id = ?", (user_id,))
+        cursor = conn.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
         conn.commit()
         return cursor.rowcount > 0
     finally:
@@ -460,6 +467,7 @@ def user_count() -> int:
 
 # ---- Node bindings ----
 
+
 def bind_node(user_id: str, node_id: str, binding_type: str = "manual") -> None:
     """Bind a mesh node to a user."""
     conn = get_connection()
@@ -474,9 +482,7 @@ def bind_node(user_id: str, node_id: str, binding_type: str = "manual") -> None:
             "UPDATE users SET node_id = NULL WHERE node_id = ? AND id != ?",
             (node_id, user_id),
         )
-        conn.execute(
-            "UPDATE users SET node_id = ? WHERE id = ?", (node_id, user_id)
-        )
+        conn.execute("UPDATE users SET node_id = ? WHERE id = ?", (node_id, user_id))
         conn.commit()
     finally:
         conn.close()

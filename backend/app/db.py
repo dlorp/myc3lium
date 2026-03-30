@@ -85,16 +85,16 @@ def init_db() -> None:
         conn.executescript(_SCHEMA_SQL)
 
         # Check/set schema version
-        row = conn.execute(
-            "SELECT version FROM schema_version LIMIT 1"
-        ).fetchone()
+        row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if row is None:
             conn.execute(
                 "INSERT INTO schema_version (version) VALUES (?)",
                 (_SCHEMA_VERSION,),
             )
         conn.commit()
-        logger.info("Auth database initialized at %s (v%d)", _db_path(), _SCHEMA_VERSION)
+        logger.info(
+            "Auth database initialized at %s (v%d)", _db_path(), _SCHEMA_VERSION
+        )
     except Exception:
         logger.exception("Failed to initialize auth database")
         raise

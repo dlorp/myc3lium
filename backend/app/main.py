@@ -175,7 +175,9 @@ async def start_mesh_monitor():
     try:
         init_db()
     except Exception:
-        logger.exception("Auth database initialization failed — auth features unavailable")
+        logger.exception(
+            "Auth database initialization failed — auth features unavailable"
+        )
 
     # Start BATMAN mesh before backhaul — bat0 must exist before br0 bridge setup
     if settings.use_live_data:
@@ -272,7 +274,9 @@ async def start_mesh_monitor():
     if halow_cfg.enabled and settings.use_live_data:
         from app.services import network_apply_service
 
-        logger.info("Applying HaLow config at startup (transport: %s)", halow_cfg.transport)
+        logger.info(
+            "Applying HaLow config at startup (transport: %s)", halow_cfg.transport
+        )
         halow_result = network_apply_service.apply_halow(halow_cfg)
         if halow_result["success"]:
             logger.info("HaLow transport active: %s", halow_result["details"])

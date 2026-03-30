@@ -234,7 +234,8 @@ class HaLowConfig(BaseModel):
 
     enabled: bool = Field(False, description="Enable HaLow as BATMAN transport")
     transport: Literal["usb-ecm", "serial"] = Field(
-        "serial", description="Transport mode: usb-ecm (native USB Ethernet) or serial (SLIP bridge)"
+        "serial",
+        description="Transport mode: usb-ecm (native USB Ethernet) or serial (SLIP bridge)",
     )
     serial_device: str = Field(
         "/dev/ttyUSB0", description="Serial device for SLIP bridge (serial mode only)"

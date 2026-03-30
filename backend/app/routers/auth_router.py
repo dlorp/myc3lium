@@ -26,10 +26,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ---- Request/Response models ----
 
+
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=32)
     password: str = Field(..., min_length=8)
-    handheld: bool = Field(False, description="Request long-lived token for handheld device")
+    handheld: bool = Field(
+        False, description="Request long-lived token for handheld device"
+    )
 
 
 class LoginResponse(BaseModel):
@@ -61,6 +64,7 @@ class RefreshRequest(BaseModel):
 
 
 # ---- Endpoints ----
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
@@ -200,8 +204,7 @@ async def delete_user(
     # H5: Prevent removing the last active admin
     users = auth_service.list_users()
     active_admins = [
-        u for u in users
-        if u["role"] == "admin" and u["active"] and u["id"] != user_id
+        u for u in users if u["role"] == "admin" and u["active"] and u["id"] != user_id
     ]
     if not active_admins:
         raise HTTPException(status_code=400, detail="Cannot deactivate the last admin")
