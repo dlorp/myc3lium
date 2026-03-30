@@ -80,7 +80,12 @@ def apply_backhaul() -> dict:
             backhaul_config
         )
     elif backhaul_config.mode == "ap":
-        success, message, used_iface = backhaul_service.apply_ap_mode(backhaul_config)
+        captive = bool(config_service and not config_service.is_setup_complete())
+        success, message, used_iface = backhaul_service.apply_ap_mode(
+            backhaul_config, captive=captive
+        )
+        if success and captive:
+            backhaul_service.enable_captive_portal()
     else:
         raise HTTPException(
             status_code=400, detail=f"Unknown mode: {backhaul_config.mode}"
@@ -146,7 +151,19 @@ async def update_config_section(section: SectionName, updates: dict) -> dict:
     if not config_service:
         raise HTTPException(status_code=503, detail="Config service unavailable")
     try:
+        # Detect setup_complete transition to disable captive portal
+        was_setup_complete = config_service.is_setup_complete()
+
         updated = config_service.update_section(section, updates)
+
+        completing_setup = (
+            section == "system"
+            and updates.get("setup_complete") is True
+            and not was_setup_complete
+        )
+        if completing_setup:
+            _disable_captive_portal()
+
         return {"status": "saved", "section": section, "config": updated}
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
@@ -154,6 +171,20 @@ async def update_config_section(section: SectionName, updates: dict) -> dict:
         raise HTTPException(
             status_code=500, detail="Failed to update configuration"
         ) from None
+
+
+def _disable_captive_portal() -> None:
+    """Transition from captive portal to normal operation after setup completes."""
+    try:
+        from app.services import backhaul_service
+
+        ok = backhaul_service.disable_captive_portal()
+        if ok:
+            logger.info("Captive portal disabled after setup completion")
+        else:
+            logger.error("Captive portal disable failed — portal may remain active")
+    except OSError:
+        logger.exception("Failed to disable captive portal")
 
 
 @router.post("/restart-service/{service_name}", dependencies=[Depends(verify_api_key)])

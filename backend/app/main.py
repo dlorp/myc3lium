@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MYC3LIUM API",
     description="Backend for MYC3LIUM - Mycelial Network Visualization",
-    version="0.5.0",
+    version="0.6.0",
 )
 
 # CORS middleware for frontend communication
@@ -163,8 +163,21 @@ async def start_mesh_monitor():
         from app.services import backhaul_service
 
         logger.info("Applying backhaul config at startup (mode: %s)", backhaul.mode)
+        captive = not config_svc.is_setup_complete()
+
+        # Set captive portal flag BEFORE AP start so nginx is ready
+        # when dnsmasq begins redirecting DNS
+        if backhaul.mode == "ap" and captive:
+            if backhaul_service.enable_captive_portal():
+                logger.info("Captive portal flag set before AP start")
+            else:
+                logger.warning(
+                    "Could not set captive portal flag — starting AP without captive"
+                )
+                captive = False
+
         if backhaul.mode == "ap":
-            ok, msg, iface = backhaul_service.apply_ap_mode(backhaul)
+            ok, msg, iface = backhaul_service.apply_ap_mode(backhaul, captive=captive)
         elif backhaul.mode == "client":
             ok, msg, iface = backhaul_service.apply_client_mode(backhaul)
         else:
@@ -176,6 +189,14 @@ async def start_mesh_monitor():
             logger.info("Backhaul active: %s", msg)
         else:
             logger.warning("Backhaul failed at startup: %s", msg)
+
+        # Clean up stale captive portal flag if setup already complete
+        if config_svc.is_setup_complete():
+            from pathlib import Path
+
+            if Path("/opt/myc3lium/run/captive-portal").exists():
+                backhaul_service.disable_captive_portal()
+                logger.warning("Cleaned up stale captive portal flag file")
 
     # Start event processor (needs running event loop)
     await meshtastic.start_event_processor()
@@ -235,7 +256,7 @@ async def shutdown_services():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "MYC3LIUM API", "version": "0.5.0"}
+    return {"message": "MYC3LIUM API", "version": "0.6.0"}
 
 
 @app.get("/health")
