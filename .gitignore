@@ -70,6 +70,22 @@ SESSION_NOTES.md
 *_REWORK.md
 *_PLAN.md
 
+# OpenClaw (external tool state)
+.openclaw/
+
+# Session work directories (superseded by ~/.claude memory)
+memory/
+workspace/
+handoff/
+reviews/
+skills/
+
+# Empty branch placeholders (legacy)
+fix-*/
+pr*-fresh/
+quick-*/
+repos/
+
 # Firmware (ESP32)
 firmware/.pio/
 firmware/.vscode/
