@@ -17,6 +17,8 @@
 #   myc3lium-netctl stop-client <interface>
 #   myc3lium-netctl setup-bridge
 #   myc3lium-netctl teardown-bridge
+#   myc3lium-netctl bridge-mesh
+#   myc3lium-netctl isolate-mesh
 #   myc3lium-netctl setup-nat <interface>
 #   myc3lium-netctl remove-nat <interface>
 #   myc3lium-netctl set-ip <interface> <ip/mask>
@@ -137,25 +139,22 @@ case "${1:-}" in
             systemctl reset-failed hostapd 2>/dev/null || true
             systemctl start hostapd
         }
+        # hostapd with bridge=br0 destroys/recreates the bridge — bring it back up
+        ip link set "$BRIDGE" up 2>/dev/null || true
         systemctl restart dnsmasq
-
-        # hostapd with bridge=br0 tears down and recreates the bridge,
-        # ejecting any existing ports (including bat0). Re-add bat0 after
-        # hostapd stabilizes so mesh traffic can reach AP clients.
-        if ip link show bat0 > /dev/null 2>&1; then
-            for i in $(seq 1 5); do
-                sleep 1
-                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
-                if ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
-                    break
-                fi
-            done
-        fi
+        # Mesh bridge/isolation applied separately via bridge-mesh or isolate-mesh
         ;;
 
     stop-ap)
         systemctl stop hostapd 2>/dev/null || true
         systemctl stop dnsmasq 2>/dev/null || true
+        # Clean up mesh bridge/isolation state
+        ip link set bat0 nomaster 2>/dev/null || true
+        iptables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        iptables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        netfilter-persistent save 2>/dev/null || true
         ;;
 
     start-client)
@@ -191,11 +190,10 @@ case "${1:-}" in
         ;;
 
     setup-bridge)
-        # Create br0 and add bat0.
-        # Note: hostapd with bridge=br0 will eject bat0 when it starts.
-        # The start-ap command re-adds bat0 after hostapd stabilizes.
+        # Create br0 for AP only. bat0 (mesh) is NOT added here.
+        # Mesh bridging is conditional — applied via bridge-mesh or isolate-mesh
+        # after hostapd starts, based on the mesh_bridged config flag.
         ip link show "$BRIDGE" > /dev/null 2>&1 || ip link add name "$BRIDGE" type bridge
-        ip link set bat0 master "$BRIDGE" 2>/dev/null || true
         ip link set "$BRIDGE" up
         ;;
 
@@ -235,6 +233,55 @@ case "${1:-}" in
             iptables -D FORWARD -i "$SRC" -o "$IFACE" -j ACCEPT 2>/dev/null || true
             iptables -D FORWARD -i "$IFACE" -o "$SRC" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
         done
+        netfilter-persistent save 2>/dev/null || true
+        ;;
+
+    bridge-mesh)
+        # Add bat0 to br0 — flat bridge, AP clients get L2 mesh access.
+        # Includes retry loop because hostapd recreates br0, ejecting ports.
+        if ip link show bat0 > /dev/null 2>&1; then
+            ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+            for i in $(seq 1 5); do
+                if ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
+                    break
+                fi
+                sleep 1
+                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+            done
+            # Verify bat0 was actually added
+            if ! ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
+                echo "ERROR: Failed to add bat0 to $BRIDGE after 5 retries" >&2
+                exit 1
+            fi
+        fi
+        # Remove any stale isolation rules (IPv4 + IPv6)
+        iptables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        iptables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        netfilter-persistent save 2>/dev/null || true
+        ;;
+
+    isolate-mesh)
+        # Remove bat0 from br0 and block FORWARD between AP bridge and mesh.
+        # AP clients can reach the Pi (10.99.0.1) but not other mesh nodes.
+        ip link set bat0 nomaster 2>/dev/null || true
+        # Verify detach — if bat0 is still enslaved, isolation is broken
+        if ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
+            echo "ERROR: bat0 still enslaved to $BRIDGE after nomaster" >&2
+            exit 1
+        fi
+        # Insert at top of FORWARD chain so DROP precedes any NAT ACCEPT rules
+        # IPv4
+        iptables -C FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || \
+            iptables -I FORWARD 1 -i "$BRIDGE" -o bat0 -j DROP
+        iptables -C FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || \
+            iptables -I FORWARD 1 -i bat0 -o "$BRIDGE" -j DROP
+        # IPv6
+        ip6tables -C FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || \
+            ip6tables -I FORWARD 1 -i "$BRIDGE" -o bat0 -j DROP
+        ip6tables -C FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || \
+            ip6tables -I FORWARD 1 -i bat0 -o "$BRIDGE" -j DROP
         netfilter-persistent save 2>/dev/null || true
         ;;
 
@@ -279,6 +326,16 @@ case "${1:-}" in
             # No interface known — kill any backhaul wpa_supplicant
             pkill -f "wpa_supplicant.*backhaul" 2>/dev/null || true
         fi
+
+        # Remove mesh isolation rules (IPv4 + IPv6, delete twice to catch stacked duplicates)
+        iptables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        iptables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        iptables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        iptables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i "$BRIDGE" -o bat0 -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
+        ip6tables -D FORWARD -i bat0 -o "$BRIDGE" -j DROP 2>/dev/null || true
 
         # Teardown mesh (same logic as mesh-down)
         ip addr flush dev bat0 2>/dev/null || true
@@ -447,6 +504,7 @@ case "${1:-}" in
         echo "Usage: myc3lium-netctl <command> [args...]" >&2
         echo "Commands: write-hostapd write-dnsmasq write-wpa start-ap stop-ap" >&2
         echo "          start-client stop-client setup-bridge teardown-bridge" >&2
+        echo "          bridge-mesh isolate-mesh" >&2
         echo "          setup-nat remove-nat set-ip flush-ip iface-up iface-down" >&2
         echo "          mesh-up mesh-down mesh-status" >&2
         echo "          cleanup sysctl-forward set-captive-portal" >&2

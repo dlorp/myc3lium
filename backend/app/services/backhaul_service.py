@@ -4,8 +4,11 @@ Backhaul / AP mode service for MYC3LIUM.
 Manages USB WiFi adapter detection, client mode (internet backhaul),
 AP mode (myc3_m3sh hotspot), NAT, and mesh bridging.
 
-AP clients are bridged into the BATMAN mesh via a Linux bridge (br0):
-  AP clients -> wlan1 (hostapd, bridge=br0) -> br0 <- bat0 (BATMAN mesh)
+AP clients connect via wlan1 (hostapd, bridge=br0) -> br0 (isolated, 10.99.0.0/24).
+bat0 (BATMAN mesh, 10.13.0.0/16) is standalone by default — not bridged to br0.
+AP clients can reach local Pi services (10.99.0.1) but NOT other mesh nodes.
+Isolation enforced by iptables FORWARD DROP (IPv4+IPv6) between br0 and bat0.
+Optional: mesh_bridged=true re-adds bat0 to br0 for full L2 mesh access.
 
 System-level operations (iptables, hostapd, bridge) are performed via
 the myc3lium-netctl privileged helper script, which the backend calls
@@ -421,7 +424,8 @@ def apply_ap_mode(
 ) -> tuple[bool, str, str | None]:
     """Configure USB WiFi adapter as an access point.
 
-    Creates a Linux bridge (br0) connecting AP clients to BATMAN mesh.
+    Creates a Linux bridge (br0) for AP clients. Mesh is isolated by default;
+    bridge-mesh mode (mesh_bridged=true) optionally connects AP to BATMAN mesh.
 
     Args:
         config: Backhaul configuration with AP settings.
@@ -438,7 +442,7 @@ def apply_ap_mode(
     if not interface:
         return False, "No USB WiFi adapter detected", None
 
-    # Set up br0 bridge with bat0
+    # Set up br0 bridge (AP only — mesh bridging applied after hostapd start)
     _netctl("setup-bridge")
 
     # Build hostapd config
@@ -482,10 +486,20 @@ def apply_ap_mode(
 
     # Stop client mode if switching
     _netctl("stop-client", interface)
-
-    # Set static IP on bridge
-    _netctl("set-ip", BRIDGE_INTERFACE, "10.99.0.1/24")
     _netctl("iface-up", interface)
+
+    # Apply isolation BEFORE starting hostapd to close the race window.
+    # If isolation fails, abort — fail-closed, never run AP without isolation.
+    if not config.mesh_bridged:
+        iso_result = _netctl("isolate-mesh")
+        if iso_result.returncode != 0:
+            logger.error(
+                "Mesh isolation failed, aborting AP start to prevent "
+                "unrestricted mesh access: %s",
+                iso_result.stderr,
+            )
+            return False, "AP aborted: mesh isolation could not be applied", interface
+        logger.info("Mesh isolated: AP clients reach local node only")
 
     # Start hostapd and dnsmasq
     result = _netctl("start-ap")
@@ -493,12 +507,27 @@ def apply_ap_mode(
         logger.error("AP start failed: %s", result.stderr)
         return False, "AP failed to start (check system logs)", interface
 
+    # Set bridge IP AFTER hostapd — hostapd with bridge=br0 destroys/recreates
+    # the bridge on start, wiping any previously assigned IP and state.
+    _netctl("set-ip", BRIDGE_INTERFACE, "10.99.0.1/24")
+    _netctl("iface-up", BRIDGE_INTERFACE)
+
+    # If bridging, add bat0 AFTER hostapd starts (needs retry for bridge recreation)
+    if config.mesh_bridged:
+        logger.warning(
+            "mesh_bridged=true: AP clients will have unrestricted L2 mesh access"
+        )
+        bridge_result = _netctl("bridge-mesh")
+        if bridge_result.returncode != 0:
+            logger.warning("Mesh bridge failed: %s", bridge_result.stderr)
+
     _save_active_interface(interface)
     logger.info(
-        "AP mode active on %s: SSID=%s, bridge=%s",
+        "AP mode active on %s: SSID=%s, bridge=%s, mesh_bridged=%s",
         interface,
         config.ap_ssid,
         BRIDGE_INTERFACE,
+        config.mesh_bridged,
     )
     return True, f"AP '{config.ap_ssid}' active on {interface}", interface
 

@@ -156,7 +156,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Project Status
 
-**v0.7.0** - BATMAN-adv mesh via IBSS (ad-hoc) mode for brcmfmac compatibility
+**v0.7.1** - Mesh isolation: AP clients isolated from BATMAN mesh by default
 
 | Phase | Status | Details |
 |-------|--------|---------|
