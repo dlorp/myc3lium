@@ -64,14 +64,21 @@ reset_usb_adapter() {
 # Ensure NetworkManager is not managing the backhaul interface
 ensure_nm_unmanaged() {
     local IFACE="$1"
+    validate_iface "$IFACE"
     local NM_CONF="/etc/NetworkManager/conf.d/99-myc3lium-backhaul.conf"
-    if ! grep -q "$IFACE" "$NM_CONF" 2>/dev/null; then
-        mkdir -p "$(dirname "$NM_CONF")"
-        echo "[keyfile]" > "$NM_CONF"
-        echo "unmanaged-devices=interface-name:${IFACE}" >> "$NM_CONF"
-        systemctl reload NetworkManager 2>/dev/null || true
-        sleep 1
+    # Anchored match to avoid wlan1 matching wlan10
+    if grep -qE "(^|;)interface-name:${IFACE}($|;|$)" "$NM_CONF" 2>/dev/null; then
+        return 0
     fi
+    mkdir -p "$(dirname "$NM_CONF")"
+    # Append to existing unmanaged list, or create new
+    if grep -q "^unmanaged-devices=" "$NM_CONF" 2>/dev/null; then
+        sed -i "s/^unmanaged-devices=.*/&;interface-name:${IFACE}/" "$NM_CONF"
+    else
+        printf '[keyfile]\nunmanaged-devices=interface-name:%s\n' "$IFACE" > "$NM_CONF"
+    fi
+    systemctl reload NetworkManager 2>/dev/null || true
+    sleep 1
 }
 
 case "${1:-}" in
@@ -95,8 +102,9 @@ case "${1:-}" in
         ;;
 
     start-ap)
-        # Extract interface from hostapd.conf
+        # Extract interface from hostapd.conf and validate
         AP_IFACE=$(grep '^interface=' "$HOSTAPD_CONF" 2>/dev/null | cut -d= -f2 || echo "wlan1")
+        validate_iface "$AP_IFACE"
         ensure_nm_unmanaged "$AP_IFACE"
 
         # Reset USB adapter if hostapd fails on first attempt
@@ -108,6 +116,9 @@ case "${1:-}" in
             # Driver stuck — USB reset and retry
             echo "hostapd failed, resetting USB adapter..."
             reset_usb_adapter "$AP_IFACE"
+            # NM re-grabs after USB reset
+            ensure_nm_unmanaged "$AP_IFACE"
+            sleep 1
             systemctl reset-failed hostapd 2>/dev/null || true
             systemctl start hostapd
         }
@@ -124,6 +135,7 @@ case "${1:-}" in
         IFACE="$2"
         ensure_nm_unmanaged "$IFACE"
         pkill -f "wpa_supplicant.*${IFACE}" 2>/dev/null || true
+        pkill -f "dhclient.*${IFACE}" 2>/dev/null || true
         ip link set "$IFACE" down 2>/dev/null || true
         sleep 1
         ip link set "$IFACE" up
@@ -145,6 +157,7 @@ case "${1:-}" in
         validate_iface "${2:?interface required}"
         IFACE="$2"
         pkill -f "wpa_supplicant.*${IFACE}" 2>/dev/null || true
+        pkill -f "dhclient.*${IFACE}" 2>/dev/null || true
         ip addr flush dev "$IFACE" 2>/dev/null || true
         ip link set "$IFACE" down 2>/dev/null || true
         ;;

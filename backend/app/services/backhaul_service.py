@@ -98,17 +98,26 @@ def _read_active_interface() -> str | None:
 
 
 def detect_uplink_band() -> tuple[str, int]:
-    """Detect the WiFi band/channel of the Pi's internet uplink (wlan0).
+    """Detect the WiFi band/channel of the Pi's internet uplink.
+
+    Uses the default route interface (not hardcoded wlan0) so this works
+    regardless of which interface carries internet traffic. Returns
+    ("unknown", 0) if no WiFi uplink is detected (e.g., ethernet, or
+    first boot with no upstream connection).
 
     Returns:
         Tuple of (band, channel). E.g., ("5GHz", 44) or ("2.4GHz", 6).
-        Returns ("unknown", 0) if detection fails.
     """
     if not _IS_LINUX:
         return "unknown", 0
 
-    # nmcli shows all visible networks — filter for the connected one (IN-USE: *)
-    result = _run(
+    # Only check WiFi uplink if the default route goes through a wlan interface
+    uplink_iface = _get_default_route_interface()
+    if not uplink_iface or not uplink_iface.startswith("wlan"):
+        return "unknown", 0
+
+    # LC_ALL=C prevents localized output from breaking parsing
+    result = subprocess.run(
         [
             "nmcli",
             "-t",
@@ -118,12 +127,16 @@ def detect_uplink_band() -> tuple[str, int]:
             "wifi",
             "list",
             "ifname",
-            "wlan0",
-        ]
+            uplink_iface,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        env={**__import__("os").environ, "LC_ALL": "C"},
     )
     if result.returncode == 0 and result.stdout.strip():
         for line in result.stdout.strip().splitlines():
-            # Format: "5220 MHz:44:*" — the * marks the connected network
+            # nmcli -t format: "5220 MHz:44:*" — * marks the connected network
             if not line.endswith("*"):
                 continue
             parts = line.split(":")
@@ -132,7 +145,13 @@ def detect_uplink_band() -> tuple[str, int]:
                     freq = int(parts[0].replace(" MHz", "").strip())
                     channel = int(parts[1].strip())
                     band = "5GHz" if freq > 3000 else "2.4GHz"
-                    logger.info("Uplink wlan0: %s ch%d (%d MHz)", band, channel, freq)
+                    logger.info(
+                        "Uplink %s: %s ch%d (%d MHz)",
+                        uplink_iface,
+                        band,
+                        channel,
+                        freq,
+                    )
                     return band, channel
                 except (ValueError, IndexError):
                     continue
@@ -253,10 +272,20 @@ def apply_client_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
         ["wpa_passphrase", config.client_ssid, config.client_password], timeout=5
     )
     if wpa_gen.returncode == 0:
+        # Strip #psk= comment line — wpa_passphrase includes the plaintext PSK
+        hashed_output = "\n".join(
+            line
+            for line in wpa_gen.stdout.splitlines()
+            if not line.strip().startswith("#")
+        )
         wpa_config = (
-            "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n"
-            "update_config=1\n\n"
-        ) + wpa_gen.stdout
+            (
+                "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n"
+                "update_config=1\n\n"
+            )
+            + hashed_output
+            + "\n"
+        )
     else:
         logger.warning("wpa_passphrase failed, using plaintext PSK")
         wpa_config = (
@@ -339,7 +368,9 @@ def apply_ap_mode(config: BackhaulConfig) -> tuple[bool, str, str | None]:
     try:
         import socket
 
-        hostname = socket.gethostname()
+        raw = socket.gethostname()
+        if raw.replace("-", "").isalnum() and len(raw) <= 63:
+            hostname = raw
     except OSError:
         pass
 
