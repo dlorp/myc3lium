@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MYC3LIUM API",
     description="Backend for MYC3LIUM - Mycelial Network Visualization",
-    version="0.6.0",
+    version="0.7.0",
 )
 
 # CORS middleware for frontend communication
@@ -157,6 +157,23 @@ meshtastic.set_service(meshtastic_service)  # Inject service into router
 @app.on_event("startup")
 async def start_mesh_monitor():
     """Start background mesh monitoring if live data is enabled."""
+    # Start BATMAN mesh before backhaul — bat0 must exist before br0 bridge setup
+    if settings.use_live_data:
+        from app.services import network_apply_service
+
+        mesh_cfg = config_svc.config.mesh
+        logger.info(
+            "Starting BATMAN mesh (SSID: %s, ch: %d, band: %s)",
+            mesh_cfg.batman_ssid,
+            mesh_cfg.batman_channel,
+            mesh_cfg.batman_band,
+        )
+        batman_result = network_apply_service.apply_batman(mesh_cfg)
+        if batman_result["success"]:
+            logger.info("BATMAN mesh active: %s", batman_result["details"])
+        else:
+            logger.error("BATMAN mesh failed: %s", batman_result["message"])
+
     # Apply backhaul config if enabled (auto-AP on first boot, or persisted config)
     backhaul = config_svc.config.backhaul
     if backhaul.enabled and backhaul.mode != "disabled":
@@ -250,13 +267,19 @@ async def shutdown_services():
         meshtastic_service.stop()
         logger.info("Meshtastic service stopped")
 
+    # Tear down BATMAN mesh
+    if settings.use_live_data:
+        from app.services.network_apply_service import teardown_batman
+
+        teardown_batman()
+
     logger.info("Shutdown complete")
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "MYC3LIUM API", "version": "0.6.0"}
+    return {"message": "MYC3LIUM API", "version": "0.7.0"}
 
 
 @app.get("/health")

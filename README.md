@@ -156,7 +156,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Project Status
 
-**v0.6.0** - Captive portal for seamless first-boot setup
+**v0.7.0** - BATMAN-adv mesh via IBSS (ad-hoc) mode for brcmfmac compatibility
 
 | Phase | Status | Details |
 |-------|--------|---------|
