@@ -19,6 +19,7 @@ wlan0  aa:bb:cc:dd:ee:02    0.430s ( 234)
 """
 
 import logging
+import platform
 import re
 import shutil
 import subprocess
@@ -27,9 +28,16 @@ from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
-BATCTL = shutil.which("batctl")
+# batctl is at /usr/sbin which may not be in the service user's PATH
+BATCTL = shutil.which("batctl") or "/usr/sbin/batctl"
 MESHIF = "bat0"
 BATCTL_TIMEOUT_SECONDS = 10
+_IS_LINUX = platform.system() == "Linux"
+
+# batctl requires root. Direct sudo fails from systemd sandbox (audit error).
+# Route through myc3lium-netctl which has NOPASSWD sudoers entry.
+NETCTL = "myc3lium-netctl"
+_NETCTL_CMD: list[str] = ["sudo", NETCTL] if _IS_LINUX else []
 
 # Security: Interface name validation pattern to prevent path traversal
 VALID_IFACE_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
@@ -75,18 +83,20 @@ def is_available() -> bool:
     Returns:
         True if batctl is available and responding, False otherwise
     """
-    if not BATCTL:
-        logger.debug("batctl not found in PATH")
+    if not _IS_LINUX:
+        logger.debug("batctl not available on non-Linux")
         return False
 
     try:
         result = subprocess.run(
-            [BATCTL, "meshif", MESHIF, "interface"],
+            [*_NETCTL_CMD, "batctl-interface"],
             capture_output=True,
             text=True,
             timeout=BATCTL_TIMEOUT_SECONDS,
         )
-        return result.returncode == 0
+        # sudo may return 234 (audit error) even though the command succeeded.
+        # Check stdout for valid output instead of relying on return code.
+        return "active" in result.stdout or result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         logger.debug("batctl availability check failed: %s", e)
         return False
@@ -104,12 +114,14 @@ def get_originators() -> Optional[list[Originator]]:
 
     try:
         result = subprocess.run(
-            [BATCTL, "meshif", MESHIF, "originators"],
+            [*_NETCTL_CMD, "batctl-originators"],
             capture_output=True,
             text=True,
             timeout=BATCTL_TIMEOUT_SECONDS,
         )
-        if result.returncode != 0:
+        # sudo returns 234 (audit error) but command still runs successfully.
+        # Only fail if there's no stdout AND return code is non-zero.
+        if result.returncode != 0 and not result.stdout.strip():
             logger.warning(
                 "batctl originators failed (rc=%d): %s",
                 result.returncode,
@@ -165,12 +177,12 @@ def get_neighbors() -> Optional[list[Neighbor]]:
 
     try:
         result = subprocess.run(
-            [BATCTL, "meshif", MESHIF, "neighbors"],
+            [*_NETCTL_CMD, "batctl-neighbors"],
             capture_output=True,
             text=True,
             timeout=BATCTL_TIMEOUT_SECONDS,
         )
-        if result.returncode != 0:
+        if result.returncode != 0 and not result.stdout.strip():
             logger.warning(
                 "batctl neighbors failed (rc=%d): %s",
                 result.returncode,
@@ -279,12 +291,12 @@ def get_statistics() -> Optional[dict[str, Union[int, str]]]:
 
     try:
         result = subprocess.run(
-            [BATCTL, "meshif", MESHIF, "statistics"],
+            [*_NETCTL_CMD, "batctl-statistics"],
             capture_output=True,
             text=True,
             timeout=BATCTL_TIMEOUT_SECONDS,
         )
-        if result.returncode != 0:
+        if result.returncode != 0 and not result.stdout.strip():
             logger.warning(
                 "batctl statistics failed (rc=%d): %s",
                 result.returncode,

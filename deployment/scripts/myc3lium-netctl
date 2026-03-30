@@ -61,6 +61,21 @@ reset_usb_adapter() {
     fi
 }
 
+# Ensure NetworkManager is not managing wlan0+bat0 for mesh use
+ensure_nm_unmanaged_mesh() {
+    local NM_CONF="/etc/NetworkManager/conf.d/99-myc3lium-mesh.conf"
+    local EXPECTED
+    EXPECTED=$(printf '[keyfile]\nunmanaged-devices=interface-name:wlan0;interface-name:bat0\n')
+    # Always reconcile content, not just existence
+    if [ -f "$NM_CONF" ] && [ "$(cat "$NM_CONF")" = "$EXPECTED" ]; then
+        return 0
+    fi
+    mkdir -p "$(dirname "$NM_CONF")"
+    printf '%s\n' "$EXPECTED" > "$NM_CONF"
+    systemctl reload NetworkManager 2>/dev/null || true
+    sleep 1
+}
+
 # Ensure NetworkManager is not managing the backhaul interface
 ensure_nm_unmanaged() {
     local IFACE="$1"
@@ -123,6 +138,19 @@ case "${1:-}" in
             systemctl start hostapd
         }
         systemctl restart dnsmasq
+
+        # hostapd with bridge=br0 tears down and recreates the bridge,
+        # ejecting any existing ports (including bat0). Re-add bat0 after
+        # hostapd stabilizes so mesh traffic can reach AP clients.
+        if ip link show bat0 > /dev/null 2>&1; then
+            for i in $(seq 1 5); do
+                sleep 1
+                ip link set bat0 master "$BRIDGE" 2>/dev/null || true
+                if ip link show bat0 2>/dev/null | grep -q "master $BRIDGE"; then
+                    break
+                fi
+            done
+        fi
         ;;
 
     stop-ap)
@@ -163,7 +191,9 @@ case "${1:-}" in
         ;;
 
     setup-bridge)
-        # Create br0 and add bat0
+        # Create br0 and add bat0.
+        # Note: hostapd with bridge=br0 will eject bat0 when it starts.
+        # The start-ap command re-adds bat0 after hostapd stabilizes.
         ip link show "$BRIDGE" > /dev/null 2>&1 || ip link add name "$BRIDGE" type bridge
         ip link set bat0 master "$BRIDGE" 2>/dev/null || true
         ip link set "$BRIDGE" up
@@ -250,6 +280,14 @@ case "${1:-}" in
             pkill -f "wpa_supplicant.*backhaul" 2>/dev/null || true
         fi
 
+        # Teardown mesh (same logic as mesh-down)
+        ip addr flush dev bat0 2>/dev/null || true
+        ip link set bat0 down 2>/dev/null || true
+        batctl meshif bat0 interface del wlan0 2>/dev/null || true
+        iw dev wlan0 ibss leave 2>/dev/null || true
+        ip link set wlan0 down 2>/dev/null || true
+        iw dev wlan0 set type managed 2>/dev/null || true
+
         # Teardown bridge
         ip link set "$BRIDGE" down 2>/dev/null || true
         ip link delete "$BRIDGE" type bridge 2>/dev/null || true
@@ -263,6 +301,132 @@ case "${1:-}" in
 
     sysctl-forward)
         sysctl -w net.ipv4.ip_forward=1 > /dev/null
+        ;;
+
+    mesh-up)
+        # Usage: mesh-up <ssid> <freq_mhz> <ip/mask>
+        SSID="${2:?ssid required}"
+        FREQ="${3:?frequency required}"
+        MESH_IP="${4:?mesh ip/mask required}"
+
+        # Validate SSID (alphanumeric, hyphens, underscores, max 32)
+        if ! printf '%s\n' "$SSID" | grep -qE '^[A-Za-z0-9_-]{1,32}$'; then
+            echo "ERROR: Invalid SSID: $SSID" >&2
+            exit 1
+        fi
+        # Validate frequency (WiFi 2.4GHz: 2412-2484, 5GHz: 5180-5825)
+        if ! printf '%s\n' "$FREQ" | grep -qE '^(24[0-9]{2}|5[0-8][0-9]{2})$'; then
+            echo "ERROR: Invalid frequency: $FREQ" >&2
+            exit 1
+        fi
+        # Validate IP/CIDR (strict: octets 0-255, mask 1-32)
+        if ! printf '%s\n' "$MESH_IP" | grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/(3[0-2]|[12]?[0-9])$'; then
+            echo "ERROR: Invalid IP/CIDR: $MESH_IP" >&2
+            exit 1
+        fi
+
+        # Run setup in subshell so set -e catches any failure and we can rollback
+        (
+            set -euo pipefail
+
+            # 1. Load kernel module
+            modprobe batman-adv
+
+            # 2. Unmanage wlan0 from NetworkManager
+            ensure_nm_unmanaged_mesh
+
+            # 3. Tear down existing mesh state (idempotent)
+            ip link set bat0 down 2>/dev/null || true
+            batctl meshif bat0 interface del wlan0 2>/dev/null || true
+            iw dev wlan0 ibss leave 2>/dev/null || true
+            ip link set wlan0 down 2>/dev/null || true
+
+            # 4. Kill wpa_supplicant on wlan0 — NM unmanage alone may not stop it
+            pkill -f "wpa_supplicant.*wlan0" 2>/dev/null || true
+
+            # 5. Set IBSS mode and MTU (sleep for brcmfmac firmware disassociation)
+            sleep 1
+            iw dev wlan0 set type ibss
+            ip link set wlan0 mtu 1532 2>/dev/null || true  # brcmfmac caps at 1500
+            ip link set wlan0 up
+
+            # 6. Join IBSS cell (no HT20 — brcmfmac has channel width bugs in IBSS)
+            iw dev wlan0 ibss join "$SSID" "$FREQ"
+
+            # 7. Verify IBSS join (brcmfmac can silently fail)
+            sleep 1
+            if ! iw dev wlan0 info 2>/dev/null | grep -qi "ibss"; then
+                echo "ERROR: wlan0 did not enter IBSS mode after join" >&2
+                exit 1
+            fi
+
+            # 8. Create bat0 and add wlan0
+            batctl meshif bat0 interface create 2>/dev/null || true
+            batctl meshif bat0 interface add wlan0
+
+            # 9. Bring up bat0, assign IP
+            ip link set bat0 up
+            # bat0 MTU = wlan0 MTU minus 32B batman header
+            # brcmfmac caps wlan0 at 1500, so bat0 max is 1468
+            WLAN_MTU=$(cat /sys/class/net/wlan0/mtu 2>/dev/null || echo 1500)
+            BAT_MTU=$((WLAN_MTU - 32))
+            ip link set bat0 mtu "$BAT_MTU"
+            ip addr flush dev bat0 2>/dev/null || true
+            ip addr add "$MESH_IP" dev bat0
+
+            # 10. Set batman parameters
+            batctl meshif bat0 hop_penalty 15
+            batctl meshif bat0 orig_interval 5000
+            # Prevent L2 loops when multiple mesh nodes bridge AP clients
+            batctl meshif bat0 bridge_loop_avoidance 1 2>/dev/null || true
+
+            echo "OK: mesh-up ssid=$SSID freq=$FREQ ip=$MESH_IP"
+        ) || {
+            echo "ERROR: mesh-up failed, rolling back" >&2
+            ip link set bat0 down 2>/dev/null || true
+            batctl meshif bat0 interface del wlan0 2>/dev/null || true
+            iw dev wlan0 ibss leave 2>/dev/null || true
+            ip link set wlan0 down 2>/dev/null || true
+            exit 1
+        }
+        ;;
+
+    mesh-down)
+        ip addr flush dev bat0 2>/dev/null || true
+        ip link set bat0 down 2>/dev/null || true
+        batctl meshif bat0 interface del wlan0 2>/dev/null || true
+        iw dev wlan0 ibss leave 2>/dev/null || true
+        ip link set wlan0 down 2>/dev/null || true
+        # Restore managed mode so wlan0 is usable for other purposes
+        iw dev wlan0 set type managed 2>/dev/null || true
+        echo "OK: mesh-down"
+        ;;
+
+    mesh-status)
+        if ip link show bat0 > /dev/null 2>&1; then
+            BAT_STATE=$(cat /sys/class/net/bat0/operstate 2>/dev/null || echo "unknown")
+            BAT_IP=$(ip -4 addr show bat0 2>/dev/null | grep -oP 'inet \K[0-9.]+' || echo "none")
+            WLAN_TYPE=$(iw dev wlan0 info 2>/dev/null | grep -i "type" | awk '{print $2}' || echo "unknown")
+            echo "bat0=$BAT_STATE ip=$BAT_IP wlan0_type=$WLAN_TYPE"
+        else
+            echo "bat0=absent"
+        fi
+        ;;
+
+    batctl-originators)
+        batctl meshif bat0 originators 2>/dev/null
+        ;;
+
+    batctl-neighbors)
+        batctl meshif bat0 neighbors 2>/dev/null
+        ;;
+
+    batctl-statistics)
+        batctl meshif bat0 statistics 2>/dev/null
+        ;;
+
+    batctl-interface)
+        batctl meshif bat0 interface 2>/dev/null
         ;;
 
     set-captive-portal)
@@ -284,6 +448,7 @@ case "${1:-}" in
         echo "Commands: write-hostapd write-dnsmasq write-wpa start-ap stop-ap" >&2
         echo "          start-client stop-client setup-bridge teardown-bridge" >&2
         echo "          setup-nat remove-nat set-ip flush-ip iface-up iface-down" >&2
+        echo "          mesh-up mesh-down mesh-status" >&2
         echo "          cleanup sysctl-forward set-captive-portal" >&2
         echo "          clear-captive-portal restart-dnsmasq" >&2
         exit 1
