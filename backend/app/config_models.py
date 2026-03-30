@@ -160,6 +160,14 @@ class BackhaulConfig(BaseModel):
     # NAT
     nat_enabled: bool = Field(True, description="Enable NAT for internet sharing")
 
+    # Mesh bridge
+    mesh_bridged: bool = Field(
+        False,
+        description="Bridge AP clients into BATMAN mesh (L2 access to all mesh nodes). "
+        "When disabled (default), AP clients are isolated from the mesh but "
+        "still receive internet access if NAT is enabled.",
+    )
+
     @field_validator("interface")
     @classmethod
     def validate_interface(cls, v: str) -> str:

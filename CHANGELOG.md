@@ -4,6 +4,22 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.1] - 2026-03-30
+
+### Added
+- `mesh_bridged` config toggle in `BackhaulConfig` — controls whether AP clients have L2 access to BATMAN mesh (default: false/isolated)
+- `bridge-mesh` netctl command: adds bat0 to br0 with hostapd retry loop, cleans stale isolation rules
+- `isolate-mesh` netctl command: removes bat0 from br0, inserts iptables FORWARD DROP rules (br0 <-> bat0)
+
+### Changed
+- `setup-bridge` no longer adds bat0 to br0 — mesh bridging is now conditional, applied after hostapd via `bridge-mesh` or `isolate-mesh`
+- `start-ap` no longer contains bat0 re-add retry loop — moved to `bridge-mesh` command
+- `apply_ap_mode()` calls `bridge-mesh` or `isolate-mesh` based on `config.mesh_bridged` after AP startup
+- Default network topology changed: AP clients are isolated from BATMAN mesh (management-only access to local Pi)
+
+### Security
+- AP clients can no longer reach arbitrary mesh nodes by default — iptables FORWARD DROP + bat0 not in br0 provides defense-in-depth isolation
+
 ## [0.7.0] - 2026-03-29
 
 ### Added
