@@ -31,6 +31,7 @@ from app.services.meshtastic_service import MeshtasticService
 from app.services.mock_data import MeshDataSource, MockMeshDataSource
 from app.services.reticulum_service import ReticulumBridge
 
+logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(

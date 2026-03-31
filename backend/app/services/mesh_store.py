@@ -379,3 +379,33 @@ class MeshStore:
             self._messages[message.id] = message
 
         self._emit_event("store_loaded", self.get_stats())
+
+    def merge_from_source(
+        self, nodes: list[Node], threads: list[Thread], messages: list[Message]
+    ):
+        """
+        Merge BATMAN data into the store without clearing Meshtastic-bridged nodes.
+
+        Removes stale BATMAN nodes (not prefixed with 'mesh_') and replaces them
+        with the new data, while preserving Meshtastic-bridged entries.
+
+        Args:
+            nodes: BATMAN nodes to merge
+            threads: BATMAN threads to merge
+            messages: BATMAN messages to merge
+        """
+        # Remove old BATMAN nodes/threads/messages (keep Meshtastic-bridged ones)
+        self._nodes = {k: v for k, v in self._nodes.items() if k.startswith("mesh_")}
+        self._threads = {
+            k: v for k, v in self._threads.items() if k.startswith("thread_mesh_")
+        }
+        # Messages don't have a mesh_ prefix convention — clear all and reload
+        self._messages.clear()
+
+        # Merge in BATMAN data
+        for node in nodes:
+            self._nodes[node.id] = node
+        for thread in threads:
+            self._threads[thread.id] = thread
+        for message in messages:
+            self._messages[message.id] = message
