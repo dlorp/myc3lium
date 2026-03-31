@@ -20,6 +20,7 @@ from app.routers import (
     threads,
     ws,
 )
+from app.services.camera_service import CameraService
 from app.services.config_service import ConfigService
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
@@ -92,6 +93,10 @@ mesh_store.load_from_source(
 # Initialize config service
 config_svc = ConfigService()
 config_router.config_service = config_svc
+
+# Initialize camera service (heartbeat-driven discovery)
+camera_service = CameraService()
+cameras.set_camera_service(camera_service)
 
 # Auto-AP on first boot: if no config file exists and a USB WiFi adapter
 # is detected, automatically enable AP mode so headless field deployments
@@ -166,6 +171,7 @@ app.include_router(meshtastic.router, dependencies=auth_and_setup_gate)
 app.include_router(sensors.router, dependencies=auth_and_setup_gate)
 app.include_router(satellites.router, dependencies=auth_and_setup_gate)
 app.include_router(cameras.router, dependencies=auth_and_setup_gate)
+app.include_router(cameras.heartbeat_router)  # Ungated — ESP32 has no JWT
 app.include_router(config_router.router)  # Ungated — needed by setup wizard
 app.include_router(auth_router.router)  # Ungated — login must work before auth
 
@@ -257,6 +263,9 @@ async def start_mesh_monitor():
                 backhaul_service.disable_captive_portal()
                 logger.warning("Cleaned up stale captive portal flag file")
 
+    # Start camera health sweep (heartbeat-driven discovery)
+    camera_service.start_sweep()
+
     # Start event processor (needs running event loop)
     await meshtastic.start_event_processor()
 
@@ -333,6 +342,9 @@ async def start_mesh_monitor():
 async def shutdown_services():
     """Clean up services on shutdown."""
     logger.info("Shutting down services...")
+
+    # Stop camera health sweep
+    await camera_service.stop_sweep()
 
     # Stop Meshtastic service and release serial port
     if meshtastic_service and meshtastic_service.available:
