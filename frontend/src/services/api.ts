@@ -221,6 +221,32 @@ export async function deleteMessage(messageId: string): Promise<void> {
 }
 
 // ============================================================================
+// Sensor API
+// ============================================================================
+
+export interface SensorData {
+  node_id: string;
+  sensor_type: string;
+  value: number;
+  unit: string;
+  timestamp: string;
+}
+
+/**
+ * Fetch sensor data for all nodes (bulk)
+ */
+export async function fetchAllSensorData(): Promise<SensorData[]> {
+  return apiFetch<SensorData[]>('/api/sensors');
+}
+
+/**
+ * Fetch sensor data for a single node
+ */
+export async function fetchNodeSensorData(nodeId: string): Promise<SensorData[]> {
+  return apiFetch<SensorData[]>(`/api/sensors/${nodeId}`);
+}
+
+// ============================================================================
 // Mesh Status API
 // ============================================================================
 
@@ -312,6 +338,10 @@ export interface MeshtasticNode {
   last_heard: number;
   snr: number | null;
   position: { lat: number; lon: number; alt: number } | null;
+  battery_level: number | null;
+  voltage: number | null;
+  channel_utilization: number | null;
+  air_util_tx: number | null;
 }
 
 /**

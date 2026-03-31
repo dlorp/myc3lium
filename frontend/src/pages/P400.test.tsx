@@ -233,8 +233,9 @@ describe('P400 - Sensor Grid Utilities', () => {
         },
       ];
 
-      // Mock URL.createObjectURL and document methods
+      // Mock URL.createObjectURL, revokeObjectURL and document methods
       global.URL.createObjectURL = () => 'blob:mock-url';
+      global.URL.revokeObjectURL = () => {};
       global.document.createElement = (tag) => {
         if (tag === 'a') {
           return {
