@@ -4,6 +4,39 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-03-30
+
+### Added
+- `GET /api/sensors` endpoint: bulk sensor data for all nodes with `limit` query param (default 500, max 2000)
+- `GET /api/sensors/{node_id}` endpoint: per-node sensor data with regex path validation
+- `GET /api/satellites` stub endpoint: placeholder for future NOAA satellite tracking
+- `GET /api/cameras` stub endpoint: placeholder for future camera stream integration
+- P400 Sensor Grid: VOLT and CH% sortable columns showing Meshtastic device metrics (voltage, channel utilization)
+- P400 expanded row details: voltage, channel utilization, air TX utilization from Meshtastic
+- `SensorData` TypeScript interface and `fetchAllSensorData()` / `fetchNodeSensorData()` API functions
+- `MeshtasticNode` interface: added `battery_level`, `voltage`, `channel_utilization`, `air_util_tx` fields
+- CSV export: formula injection guard (CWE-1236), `URL.revokeObjectURL` cleanup
+- Unified ESP32 firmware plan: `plans/2026-03-30_unified-esp32-cam-firmware.md`
+
+### Changed
+- P400 Sensor Grid fetches real data from `/api/sensors` + `/api/meshtastic/nodes` (was generating `Math.random()` locally)
+- P400 polling: self-rescheduling `setTimeout` at 10s (was `setInterval` at 3s with random drift)
+- P400 node dependency stabilized to sorted node IDs (prevents re-fetch on every WebSocket `node_updated` event)
+- P400 sorted readings memoized with `useMemo`
+- Meshtastic node matching: exact ID / suffix match (was loose substring — caused false positives)
+- CSV escaping: handles quotes and newlines, not just commas
+
+### Fixed
+- P400 empty timestamps array caused "Invalid Date" in expanded row — now shows "N/A"
+- P400 node ID always appended "..." even for short IDs — now conditional on length > 16
+- Sensors endpoint returns `[]` for known node with no data (was 404, conflating with unknown node)
+
+### Security
+- Path parameter validation on all new endpoints: regex `^[a-zA-Z0-9_!-]{1,64}$`
+- Bulk sensor endpoint capped at 2000 records (prevents unbounded response)
+- Error messages do not echo user input (prevents information disclosure)
+- CSV formula injection guard: cells starting with `=+\-@|` prefixed with `'`
+
 ## [0.8.0] - 2026-03-30
 
 ### Added

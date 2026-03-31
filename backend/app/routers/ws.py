@@ -168,12 +168,14 @@ async def mesh_monitor_loop():
                         }
                     )
 
-                    # Update MeshStore to keep REST API endpoints fresh
+                    # Update MeshStore with BATMAN data (merge, don't replace)
+                    # load_from_source() calls clear() which wipes Meshtastic-bridged
+                    # nodes. Use merge_from_source() to preserve them.
                     if _mesh_store and _data_source:
-                        nodes = _data_source.get_nodes()
-                        threads = _data_source.get_threads()
-                        msgs = _data_source.get_messages()
-                        _mesh_store.load_from_source(nodes, threads, msgs)
+                        bat_nodes = _data_source.get_nodes()
+                        bat_threads = _data_source.get_threads()
+                        bat_msgs = _data_source.get_messages()
+                        _mesh_store.merge_from_source(bat_nodes, bat_threads, bat_msgs)
 
                     last_state = current_state
 

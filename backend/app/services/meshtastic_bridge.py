@@ -73,6 +73,12 @@ def meshtastic_node_to_mesh_node(mnode: MeshtasticNode) -> Node:
         Node model suitable for MeshStore
     """
     raw_callsign = mnode.short_name or mnode.long_name or mnode.node_id
+    # Strip null values from position dict — Node.position is dict[str, float]
+    pos = (
+        {k: v for k, v in mnode.position.items() if v is not None}
+        if mnode.position
+        else None
+    )
     return Node(
         id=f"{MESH_ID_PREFIX}{mnode.node_id}",
         type="HYPHA",
@@ -81,7 +87,7 @@ def meshtastic_node_to_mesh_node(mnode: MeshtasticNode) -> Node:
         rssi=snr_to_rssi(mnode.snr),
         battery=mnode.battery_level,
         last_seen=datetime.fromtimestamp(mnode.last_heard, tz=timezone.utc),
-        position=mnode.position or None,
+        position=pos if pos else None,
     )
 
 
@@ -100,6 +106,9 @@ def meshtastic_data_to_mesh_node(data: dict) -> Node:
     snr = data.get("snr")
 
     raw_callsign = data.get("short_name") or data.get("long_name") or node_id
+    # Strip null values from position dict — Node.position is dict[str, float]
+    raw_pos = data.get("position")
+    pos = {k: v for k, v in raw_pos.items() if v is not None} if raw_pos else None
     return Node(
         id=f"{MESH_ID_PREFIX}{node_id}",
         type="HYPHA",
@@ -108,7 +117,7 @@ def meshtastic_data_to_mesh_node(data: dict) -> Node:
         rssi=snr_to_rssi(snr),
         battery=data.get("battery_level"),
         last_seen=datetime.fromtimestamp(last_heard, tz=timezone.utc),
-        position=data.get("position"),
+        position=pos if pos else None,
     )
 
 
