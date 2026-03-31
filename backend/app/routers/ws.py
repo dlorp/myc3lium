@@ -118,8 +118,12 @@ async def mesh_monitor_loop():
                 originators = batctl_service.get_originators()
                 neighbors = batctl_service.get_neighbors()
 
+                # None = batctl broken, [] = no peers (both valid states)
+                batctl_healthy = originators is not None and neighbors is not None
+
                 # Serialize state for comparison
                 current_state = {
+                    "batctl_healthy": batctl_healthy,
                     "originators": [
                         {
                             "mac": o.mac,
@@ -128,7 +132,7 @@ async def mesh_monitor_loop():
                             "next_hop": o.next_hop,
                             "interface": o.interface,
                         }
-                        for o in (originators or [])
+                        for o in (originators if originators is not None else [])
                     ],
                     "neighbors": [
                         {
@@ -137,7 +141,7 @@ async def mesh_monitor_loop():
                             "tq": n.tq,
                             "interface": n.interface,
                         }
-                        for n in (neighbors or [])
+                        for n in (neighbors if neighbors is not None else [])
                     ],
                 }
 
@@ -153,6 +157,7 @@ async def mesh_monitor_loop():
                         {
                             "event": "mesh_update",
                             "data": {
+                                "batctl_healthy": current_state["batctl_healthy"],
                                 "originators": current_state["originators"],
                                 "neighbors": current_state["neighbors"],
                                 "timestamp": time.time(),
