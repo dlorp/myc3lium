@@ -1,7 +1,14 @@
-import { useEffect, useState, startTransition } from 'react';
+import { useEffect, useCallback, useMemo, useState, useRef, startTransition } from 'react';
 import { TeletextPanel, TeletextText, Sparkline } from '../components';
 import useNavigationStore from '../store/navigationStore';
 import useMeshStore from '../store/meshStore';
+import {
+  fetchAllSensorData,
+  fetchMeshtasticNodes,
+  type SensorData,
+  type MeshtasticNode,
+  type Node,
+} from '../services/api';
 import {
   SensorReading,
   SortColumn,
@@ -154,32 +161,55 @@ const P400 = () => {
     };
   }, [setBreadcrumbs, loadAll, connectWS, disconnectWS]);
 
-  // Generate initial sensor readings from nodes
-  useEffect(() => {
-    if (nodes.length === 0) {
-      setIsLoading(false);
-      setSensorReadings([]);
-      return;
+  // Build SensorReading objects from API data
+  const buildReadings = useCallback((
+    nodeList: Node[],
+    sensorData: SensorData[],
+    meshtasticNodes: MeshtasticNode[],
+    prev: SensorReading[],
+  ): SensorReading[] => {
+    // Group sensor data by node_id
+    const sensorsByNode = new Map<string, SensorData[]>();
+    for (const sd of sensorData) {
+      const list = sensorsByNode.get(sd.node_id) || [];
+      list.push(sd);
+      sensorsByNode.set(sd.node_id, list);
     }
 
-    const readings: SensorReading[] = nodes.map((node) => {
-      const temp = 20 + Math.random() * 15;
-      const humidity = 40 + Math.random() * 40;
-      const pressure = 1000 + Math.random() * 30;
-      const battery = node.battery || 75;
+    // Index previous readings for history carry-forward
+    const prevMap = new Map(prev.map(r => [r.nodeId, r]));
 
-      // Generate 20-point history for each metric
-      const tempHistory = Array.from({ length: 20 }, () => 
-        temp + (Math.random() - 0.5) * 5
-      );
-      const humidityHistory = Array.from({ length: 20 }, () => 
-        humidity + (Math.random() - 0.5) * 10
-      );
-      const pressureHistory = Array.from({ length: 20 }, () => 
-        pressure + (Math.random() - 0.5) * 15
-      );
-      const batteryHistory = Array.from({ length: 20 }, () => 
-        Math.max(0, battery + (Math.random() - 0.5) * 10)
+    return nodeList.map((node) => {
+      const nodeData = sensorsByNode.get(node.id) || [];
+      const prevReading = prevMap.get(node.id);
+
+      // Extract temperature history (sorted chronologically)
+      const tempReadings = nodeData
+        .filter(d => d.sensor_type === 'temperature')
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      const tempHistory = tempReadings.length > 0
+        ? tempReadings.map(r => r.value)
+        : (prevReading?.tempHistory ?? []);
+      const timestamps = tempReadings.length > 0
+        ? tempReadings.map(r => new Date(r.timestamp).getTime())
+        : (prevReading?.timestamps ?? [Date.now()]);
+
+      const temp = tempHistory[tempHistory.length - 1] ?? 0;
+      const humidity = nodeData.find(d => d.sensor_type === 'humidity')?.value
+        ?? prevReading?.humidity ?? 0;
+      const pressure = nodeData.find(d => d.sensor_type === 'pressure')?.value
+        ?? prevReading?.pressure ?? 0;
+      const battery = node.battery ?? prevReading?.battery ?? 0;
+
+      // Carry forward and append to single-value histories
+      const humidityHistory = [...(prevReading?.humidityHistory ?? []), humidity].slice(-24);
+      const pressureHistory = [...(prevReading?.pressureHistory ?? []), pressure].slice(-24);
+      const batteryHistory = [...(prevReading?.batteryHistory ?? []), battery].slice(-24);
+
+      // Match Meshtastic node for device metrics (exact ID or ID suffix match)
+      const meshNode = meshtasticNodes.find(
+        mn => node.id === mn.node_id || node.id.endsWith(mn.node_id)
       );
 
       const aqi = calculateAQI(temp, humidity, pressure);
@@ -193,62 +223,108 @@ const P400 = () => {
         pressure,
         aqi,
         battery,
-        rssi: node.rssi || -80,
+        rssi: node.rssi ?? -80,
         status,
-        tempHistory,
+        tempHistory: tempHistory.slice(-24),
         humidityHistory,
         pressureHistory,
         batteryHistory,
-        timestamps: Array.from({ length: 20 }, (_, i) => Date.now() - (20 - i) * 5000),
+        timestamps: timestamps.slice(-24),
+        voltage: meshNode?.voltage ?? prevReading?.voltage ?? undefined,
+        channelUtilization: meshNode?.channel_utilization ?? prevReading?.channelUtilization ?? undefined,
+        airUtilTx: meshNode?.air_util_tx ?? prevReading?.airUtilTx ?? undefined,
       };
     });
-
-    startTransition(() => {
-      setSensorReadings(readings);
-      setIsLoading(false);
-    });
-  }, [nodes]);
-
-  // Live update sensor readings
-  useEffect(() => {
-    const interval = setInterval(() => {
-      startTransition(() => {
-        setSensorReadings((prev) =>
-          prev.map((reading) => {
-            const tempDelta = (Math.random() - 0.5) * 2;
-            const humidityDelta = (Math.random() - 0.5) * 3;
-            const pressureDelta = (Math.random() - 0.5) * 2;
-            const batteryDelta = (Math.random() - 0.5) * 0.5;
-
-            const newTemp = reading.temperature + tempDelta;
-            const newHumidity = reading.humidity + humidityDelta;
-            const newPressure = reading.pressure + pressureDelta;
-            const newBattery = Math.max(0, Math.min(100, reading.battery + batteryDelta));
-
-            const aqi = calculateAQI(newTemp, newHumidity, newPressure);
-            const status = getAlertStatus(newTemp, newHumidity, newBattery);
-
-            return {
-              ...reading,
-              temperature: newTemp,
-              humidity: newHumidity,
-              pressure: newPressure,
-              battery: newBattery,
-              aqi,
-              status,
-              tempHistory: [...reading.tempHistory.slice(1), newTemp],
-              humidityHistory: [...reading.humidityHistory.slice(1), newHumidity],
-              pressureHistory: [...reading.pressureHistory.slice(1), newPressure],
-              batteryHistory: [...reading.batteryHistory.slice(1), newBattery],
-              timestamps: [...reading.timestamps.slice(1), Date.now()],
-            };
-          })
-        );
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, []);
+
+  // Stable key: only re-fetch when nodes are added/removed, not on every status update
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const nodeIds = useMemo(() => nodes.map(n => n.id).sort().join(','), [nodes]);
+
+  // Fetch sensor data from backend
+  useEffect(() => {
+    if (!nodeIds) {
+      setIsLoading(false);
+      setSensorReadings([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSensorData = async () => {
+      try {
+        const [sensorData, meshtasticNodes] = await Promise.all([
+          fetchAllSensorData(),
+          fetchMeshtasticNodes().catch(() => [] as MeshtasticNode[]),
+        ]);
+
+        if (cancelled) return;
+
+        startTransition(() => {
+          setSensorReadings((prev) => {
+            const readings = buildReadings(nodesRef.current, sensorData, meshtasticNodes, prev);
+            setIsLoading(false);
+            return readings;
+          });
+        });
+      } catch {
+        if (cancelled) return;
+        // API unavailable — show nodes with zero sensor values
+        const currentNodes = nodesRef.current;
+        const readings: SensorReading[] = currentNodes.map((node) => ({
+          nodeId: node.id,
+          callsign: node.callsign,
+          temperature: 0, humidity: 0, pressure: 0, aqi: 0,
+          battery: node.battery ?? 0,
+          rssi: node.rssi ?? -80,
+          status: 'GOOD' as const,
+          tempHistory: [], humidityHistory: [], pressureHistory: [],
+          batteryHistory: [node.battery ?? 0],
+          timestamps: [Date.now()],
+        }));
+        startTransition(() => {
+          setSensorReadings(readings);
+          setIsLoading(false);
+        });
+      }
+    };
+
+    loadSensorData();
+    return () => { cancelled = true; };
+  }, [nodeIds, buildReadings]);
+
+  // Poll backend for live sensor updates (self-rescheduling to prevent overlap)
+  useEffect(() => {
+    if (nodesRef.current.length === 0) return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      try {
+        const [sensorData, meshtasticNodes] = await Promise.all([
+          fetchAllSensorData(),
+          fetchMeshtasticNodes().catch(() => [] as MeshtasticNode[]),
+        ]);
+        if (!cancelled) {
+          startTransition(() => {
+            setSensorReadings((prev) =>
+              buildReadings(nodesRef.current, sensorData, meshtasticNodes, prev)
+            );
+          });
+        }
+      } catch {
+        // Skip failed polls
+      }
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, 10000);
+      }
+    };
+
+    timeoutId = setTimeout(poll, 10000);
+    return () => { cancelled = true; clearTimeout(timeoutId); };
+  }, [nodeIds, buildReadings]);
 
   // Handle column sorting
   const handleSort = (column: SortColumn) => {
@@ -260,9 +336,10 @@ const P400 = () => {
     }
   };
 
-  // Get sorted readings
-  const sortedReadings = [...sensorReadings].sort(
-    getSortFunction(sortColumn, sortAscending)
+  // Get sorted readings (memoized to avoid re-sorting on unrelated state changes)
+  const sortedReadings = useMemo(
+    () => [...sensorReadings].sort(getSortFunction(sortColumn, sortAscending)),
+    [sensorReadings, sortColumn, sortAscending]
   );
 
   // Toggle row expansion
@@ -369,6 +446,12 @@ const P400 = () => {
           <div style={{ flex: '0 0 70px', cursor: 'pointer' }} onClick={() => handleSort('battery')}>
             BAT{renderSortIndicator('battery')}
           </div>
+          <div style={{ flex: '0 0 60px', cursor: 'pointer' }} onClick={() => handleSort('voltage')}>
+            VOLT{renderSortIndicator('voltage')}
+          </div>
+          <div style={{ flex: '0 0 60px', cursor: 'pointer' }} onClick={() => handleSort('channelUtil')}>
+            CH%{renderSortIndicator('channelUtil')}
+          </div>
           <div style={{ flex: '0 0 100px', cursor: 'pointer' }} onClick={() => handleSort('status')}>
             STATUS{renderSortIndicator('status')}
           </div>
@@ -436,6 +519,18 @@ const P400 = () => {
                   </TeletextText>
                 </div>
 
+                <div style={{ flex: '0 0 60px' }}>
+                  <TeletextText color={reading.voltage != null ? (reading.voltage > 3.5 ? 'green' : reading.voltage > 3.0 ? 'yellow' : 'red') : 'gray'}>
+                    {reading.voltage != null ? `${reading.voltage.toFixed(1)}V` : '--'}
+                  </TeletextText>
+                </div>
+
+                <div style={{ flex: '0 0 60px' }}>
+                  <TeletextText color={reading.channelUtilization != null ? (reading.channelUtilization < 50 ? 'green' : reading.channelUtilization < 80 ? 'yellow' : 'red') : 'gray'}>
+                    {reading.channelUtilization != null ? `${reading.channelUtilization.toFixed(0)}%` : '--'}
+                  </TeletextText>
+                </div>
+
                 <div style={{ flex: '0 0 100px' }}>
                   <TeletextText
                     color={reading.status === 'GOOD' ? 'green' : reading.status === 'WARNING' ? 'yellow' : 'red'}
@@ -500,14 +595,31 @@ const P400 = () => {
                       RSSI: {reading.rssi} dBm
                     </TeletextText>
                     <TeletextText color="gray">
-                      Node ID: {reading.nodeId.slice(0, 16)}...
+                      Node ID: {reading.nodeId.length > 16 ? reading.nodeId.slice(0, 16) + '...' : reading.nodeId}
                     </TeletextText>
                     <TeletextText color="gray">
                       Data Points: {reading.tempHistory.length}
                     </TeletextText>
                     <TeletextText color="gray">
-                      Last Update: {new Date(reading.timestamps[reading.timestamps.length - 1]).toLocaleTimeString()}
+                      Last Update: {reading.timestamps.length > 0
+                        ? new Date(reading.timestamps[reading.timestamps.length - 1]).toLocaleTimeString()
+                        : 'N/A'}
                     </TeletextText>
+                    {reading.voltage != null && (
+                      <TeletextText color="cyan">
+                        VOLTAGE: {reading.voltage.toFixed(2)}V
+                      </TeletextText>
+                    )}
+                    {reading.channelUtilization != null && (
+                      <TeletextText color="cyan">
+                        CH UTIL: {reading.channelUtilization.toFixed(1)}%
+                      </TeletextText>
+                    )}
+                    {reading.airUtilTx != null && (
+                      <TeletextText color="cyan">
+                        AIR TX: {reading.airUtilTx.toFixed(1)}%
+                      </TeletextText>
+                    )}
                   </div>
                 </div>
               )}
