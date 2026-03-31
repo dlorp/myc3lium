@@ -98,6 +98,7 @@
 #endif
 
 /* Ethernet header size (dest MAC + src MAC + EtherType) */
+#undef ETH_HEADER_LEN  /* Avoid conflict with esp_eth_com.h */
 #define ETH_HEADER_LEN 14
 #define ETH_TYPE_IPV4  0x0800
 
@@ -384,7 +385,8 @@ static SemaphoreHandle_t stream_sem = nullptr;
 static esp_err_t stream_handler(httpd_req_t* req)
 {
     if (xSemaphoreTake(stream_sem, 0) != pdTRUE) {
-        httpd_resp_send_err(req, HTTPD_429_TOO_MANY_REQUESTS, "Stream in use");
+        httpd_resp_set_status(req, "429 Too Many Requests");
+        httpd_resp_send(req, "Stream in use", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
 
