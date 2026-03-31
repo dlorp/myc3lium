@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MYC3LIUM API",
     description="Backend for MYC3LIUM - Mycelial Network Visualization",
-    version="0.7.1",
+    version="0.8.0",
 )
 
 # CORS middleware for frontend communication
@@ -331,7 +331,7 @@ async def shutdown_services():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "MYC3LIUM API", "version": "0.7.1"}
+    return {"message": "MYC3LIUM API", "version": "0.8.0"}
 
 
 @app.get("/health")
