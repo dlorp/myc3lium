@@ -8,7 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.middleware.auth import get_current_user
 from app.routers import config as config_router
-from app.routers import auth_router, messages, mesh, meshtastic, nodes, threads, ws
+from app.routers import (
+    auth_router,
+    cameras,
+    messages,
+    mesh,
+    meshtastic,
+    nodes,
+    satellites,
+    sensors,
+    threads,
+    ws,
+)
 from app.services.config_service import ConfigService
 from app.services.live_data_source import LiveDataSource
 from app.services.mesh_store import MeshStore
@@ -65,6 +76,9 @@ messages.reticulum = reticulum
 
 # Make services available to mesh router
 mesh.set_services(data_source, reticulum)
+
+# Make data source available to sensors router
+sensors.set_data_source(data_source)
 
 # Load initial data from chosen source
 mesh_store.load_from_source(
@@ -147,6 +161,9 @@ app.include_router(threads.router, dependencies=auth_and_setup_gate)
 app.include_router(ws.router)  # WebSocket — auth validated in handler (C3)
 app.include_router(mesh.router, dependencies=auth_and_setup_gate)
 app.include_router(meshtastic.router, dependencies=auth_and_setup_gate)
+app.include_router(sensors.router, dependencies=auth_and_setup_gate)
+app.include_router(satellites.router, dependencies=auth_and_setup_gate)
+app.include_router(cameras.router, dependencies=auth_and_setup_gate)
 app.include_router(config_router.router)  # Ungated — needed by setup wizard
 app.include_router(auth_router.router)  # Ungated — login must work before auth
 

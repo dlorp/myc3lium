@@ -3,7 +3,7 @@
  * Production-ready helpers for telemetry data processing, export, and visualization
  */
 
-export type SortColumn = 'nodeId' | 'temperature' | 'humidity' | 'pressure' | 'aqi' | 'battery' | 'status';
+export type SortColumn = 'nodeId' | 'temperature' | 'humidity' | 'pressure' | 'aqi' | 'battery' | 'voltage' | 'channelUtil' | 'status';
 export type AlertLevel = 'GOOD' | 'WARNING' | 'CRITICAL';
 export type MetricType = 'temperature' | 'humidity' | 'pressure' | 'battery';
 
@@ -22,6 +22,9 @@ export interface SensorReading {
   pressureHistory: number[];
   batteryHistory: number[];
   timestamps: number[];
+  voltage?: number;
+  channelUtilization?: number;
+  airUtilTx?: number;
 }
 
 export interface MetricHistoryPoint {
@@ -133,6 +136,14 @@ export const getSortFunction = (column: SortColumn, ascending: boolean) => {
         aVal = a.battery;
         bVal = b.battery;
         break;
+      case 'voltage':
+        aVal = a.voltage ?? -1;
+        bVal = b.voltage ?? -1;
+        break;
+      case 'channelUtil':
+        aVal = a.channelUtilization ?? -1;
+        bVal = b.channelUtilization ?? -1;
+        break;
       case 'status': {
         const statusOrder = { GOOD: 0, WARNING: 1, CRITICAL: 2 };
         aVal = statusOrder[a.status];
@@ -169,11 +180,14 @@ export const exportToCSV = (readings: SensorReading[], filename?: string): void 
     'AQI',
     'Battery (%)',
     'RSSI (dBm)',
+    'Voltage (V)',
+    'Channel Util (%)',
+    'Air TX Util (%)',
     'Status',
-    'Temp History (20 points)',
-    'Humidity History (20 points)',
-    'Pressure History (20 points)',
-    'Battery History (20 points)',
+    'Temp History',
+    'Humidity History',
+    'Pressure History',
+    'Battery History',
   ];
 
   const rows = readings.map((reading) => [
@@ -185,6 +199,9 @@ export const exportToCSV = (readings: SensorReading[], filename?: string): void 
     reading.aqi.toString(),
     reading.battery.toFixed(1),
     reading.rssi.toString(),
+    reading.voltage != null ? reading.voltage.toFixed(2) : '',
+    reading.channelUtilization != null ? reading.channelUtilization.toFixed(1) : '',
+    reading.airUtilTx != null ? reading.airUtilTx.toFixed(1) : '',
     reading.status,
     reading.tempHistory.map((v) => v.toFixed(1)).join(';'),
     reading.humidityHistory.map((v) => v.toFixed(1)).join(';'),
@@ -197,9 +214,13 @@ export const exportToCSV = (readings: SensorReading[], filename?: string): void 
     ...rows.map((row) =>
       row
         .map((cell) => {
-          // Escape quotes and wrap in quotes if contains comma
-          const escaped = String(cell).replace(/"/g, '""');
-          return escaped.includes(',') ? `"${escaped}"` : escaped;
+          let s = String(cell);
+          // Guard against CSV formula injection (CWE-1236)
+          if (/^[=+\-@|]/.test(s)) s = `'${s}`;
+          const escaped = s.replace(/"/g, '""');
+          return (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n'))
+            ? `"${escaped}"`
+            : escaped;
         })
         .join(',')
     ),
@@ -217,6 +238,7 @@ export const exportToCSV = (readings: SensorReading[], filename?: string): void 
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 /**
