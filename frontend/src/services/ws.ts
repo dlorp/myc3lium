@@ -88,8 +88,15 @@ export class MeshWebSocketClient {
     this.isManualClose = false;
 
     try {
+      // Append auth token as query param (browsers can't set WS headers)
+      let connectUrl = this.url;
+      const token = localStorage.getItem('myc3_token');
+      if (token) {
+        connectUrl += `?token=${encodeURIComponent(token)}`;
+      }
+
       console.log('[WS] Connecting to', this.url);
-      this.ws = new WebSocket(this.url);
+      this.ws = new WebSocket(connectUrl);
 
       this.ws.onopen = () => {
         const wasReconnect = this.reconnectAttempts > 0;
@@ -121,10 +128,18 @@ export class MeshWebSocketClient {
         console.error('[WS] Error:', error);
       };
 
-      this.ws.onclose = () => {
-        console.log('[WS] Disconnected');
+      this.ws.onclose = (event) => {
+        console.log('[WS] Disconnected (code:', event.code, ')');
         this._isConnected = false;
         this._connectionId = null;
+
+        // 1008 = Policy Violation (auth failure) — redirect to login
+        if (event.code === 1008) {
+          console.warn('[WS] Auth failure — redirecting to login');
+          localStorage.removeItem('myc3_token');
+          window.location.href = '/login';
+          return;
+        }
 
         if (!this.isManualClose) {
           this.scheduleReconnect();

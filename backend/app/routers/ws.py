@@ -183,6 +183,16 @@ async def mesh_monitor_loop():
         logger.info("Mesh monitor loop stopped")
 
 
+def _ws_auth_required() -> bool:
+    """Check if auth is required for WebSocket connections."""
+    try:
+        from app.services.config_service import ConfigService
+
+        return ConfigService().config.system.require_auth
+    except Exception:
+        return False
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """
@@ -205,6 +215,20 @@ async def websocket_endpoint(websocket: WebSocket):
     - `echo`: Response to client keepalive messages
     - `client_disconnected`: Broadcast when a client disconnects
     """
+    # C3: Validate auth token before accepting WebSocket connection
+    if _ws_auth_required():
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+        try:
+            from app.services.auth_service import AuthError, verify_token
+
+            verify_token(token)
+        except (AuthError, Exception):
+            await websocket.close(code=1008, reason="Invalid or expired token")
+            return
+
     # Accept connection and get client ID
     client_id = await manager.connect(websocket)
 

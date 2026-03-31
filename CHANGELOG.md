@@ -4,6 +4,56 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] - 2026-03-30
+
+### Added
+- **Multi-user JWT authentication system**: SQLite database (WAL mode), argon2id password hashing, JWT tokens (24h browser / 7d handheld), session management with revocation, role-based access control (admin/operator/observer)
+- `backend/app/db.py`: SQLite schema with users, sessions, node_bindings tables
+- `backend/app/services/auth_service.py`: user CRUD, login/logout, token minting/verification, node-to-user binding, session cleanup
+- `backend/app/middleware/auth.py`: FastAPI dependency for JWT extraction (Bearer header + WS query param), AnonymousUser fallback when auth disabled
+- `backend/app/routers/auth_router.py`: REST API endpoints — login, logout, refresh, /me, users CRUD, bind-node
+- First-user bootstrap: atomic INSERT (no TOCTOU race) creates first admin without auth
+- Login rate limiting: 5 attempts per 5 minutes per IP via existing `RateLimiter`
+- `require_auth` and `jwt_secret` fields on `SystemConfig` (auth off by default for backward compatibility)
+- `frontend/src/store/authStore.ts`: Zustand auth store with login/logout/refresh/checkAuth
+- `frontend/src/pages/Login.tsx`: teletext-styled "MYC3LIUM ACCESS TERMINAL" login page
+- AuthGuard + AuthProvider in Router.jsx: single checkAuth at app root, per-route auth gating
+- **HaLow as second BATMAN-adv transport**: `halow-up`, `halow-down`, `halow-status` commands in myc3lium-netctl with auto-detect (usb0 or halow0)
+- `HaLowConfig` Pydantic model: transport mode (usb-ecm/serial), serial device, interface auto-detect
+- `apply_halow()` and `halow_status()` in network_apply_service.py
+- `firmware/halow-bridge/`: recovered pi-slip-daemon.c source, halow-start.sh (fixed for bat0), Makefile, systemd service
+- Security headers middleware: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- PyJWT and argon2-cffi dependencies
+
+### Changed
+- All data routers (nodes, messages, threads, mesh, meshtastic) now enforce `get_current_user` dependency
+- WebSocket endpoint validates `?token=` before accepting connection (closes 1008 on auth failure)
+- `apiFetch()` injects Authorization Bearer header from localStorage token, redirects to /login on 401
+- `deleteThread()` / `deleteMessage()` routed through `apiFetch` (were using raw fetch, skipping auth)
+- WebSocket client appends `?token=` to URL, handles 1008 close code
+- ESP32 HaLow driver stubs now fail-safe: `is_connected()` returns false, `transmit()` returns false
+- `LORA_MAX_PACKET_SIZE` renamed to `HALOW_MAX_FRAME_SIZE` (255 -> 1500)
+- `halow-start.sh` adds halow0 to bat0 (was creating separate bat-halow — two isolated meshes)
+- Duplicate ESP32 driver at `firmware/src/halow/` deleted, cmake updated to use `components/myc3_halow/`
+- DB initialization moved from module import to startup event (prevents CI crashes)
+- `checkAuth` only treats 401/403 as auth failure (was clearing token on 5xx server errors)
+
+### Security
+- Atomic first-user bootstrap prevents TOCTOU race condition (INSERT WHERE NOT EXISTS)
+- Session revocation survives cleanup: verify_token treats missing session row as revoked
+- Tokens without `jti` claim rejected (prevents un-revocable tokens)
+- `_UPDATABLE_COLUMNS` frozenset guards SQL column interpolation in update_user
+- Deactivating a user revokes all their sessions immediately
+- Admin cannot deactivate themselves or the last remaining admin
+- Handheld token type (`handheld: true`) preserved through token refresh (was demoting 7d to 24h)
+- JWT secret cached with thread-safe lock (was re-reading TOML on every token operation)
+- Username/callsign character validation (alphanumeric + safe chars only)
+- Timing-safe login: dummy argon2 hash when user doesn't exist (prevents username enumeration)
+- SLIP decoder enters `dropping` state after frame overflow (prevents garbage injection into BATMAN)
+- Node rebinding clears stale `node_id` on previous owner
+- `halow-start.sh` verifies daemon PID alive before declaring success
+- `setup-halow.sh`: config file chmod 600, hardcoded PSK replaced with generated key
+
 ## [0.7.1] - 2026-03-30
 
 ### Added

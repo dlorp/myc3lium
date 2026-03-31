@@ -5,13 +5,12 @@ set(VARIANT_DISPLAY "none")
 
 idf_component_register(
     SRCS
-        "src/halow/halow_driver.cpp"
         "src/core/myc3_core.cpp"
         "src/main.cpp"
     INCLUDE_DIRS
         "include"
         "src/core"
-        "src/halow"
+        "components/myc3_halow"
     REQUIRES
         "freertos"
         "esp_system"

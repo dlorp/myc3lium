@@ -49,9 +49,10 @@ bool halow_driver_start_rx(void) {
         ESP_LOGW(TAG, "start_rx: driver not initialized");
         return false;
     }
-    
-    ESP_LOGI(TAG, "Starting RX mode (stub)");
-    return true;
+
+    // TODO: Implement MM6108 SPI RX mode via mm-iot-esp32 SDK
+    ESP_LOGW(TAG, "start_rx: STUB -- no hardware driver implemented");
+    return false;
 }
 
 bool halow_driver_stop_rx(void) {
@@ -59,9 +60,10 @@ bool halow_driver_stop_rx(void) {
         ESP_LOGW(TAG, "stop_rx: driver not initialized");
         return false;
     }
-    
-    ESP_LOGI(TAG, "Stopping RX mode (stub)");
-    return true;
+
+    // TODO: Implement MM6108 SPI RX stop
+    ESP_LOGW(TAG, "stop_rx: STUB -- no hardware driver implemented");
+    return false;
 }
 
 bool halow_driver_transmit(const uint8_t *data, size_t len) {
@@ -75,15 +77,17 @@ bool halow_driver_transmit(const uint8_t *data, size_t len) {
         return false;
     }
 
-    if (len > LORA_MAX_PACKET_SIZE) {
+    if (len > HALOW_MAX_FRAME_SIZE) {
         ESP_LOGE(TAG, "transmit: payload length %u exceeds max %u",
                  (unsigned int)len,
-                 (unsigned int)LORA_MAX_PACKET_SIZE);
+                 (unsigned int)HALOW_MAX_FRAME_SIZE);
         return false;
     }
-    
-    ESP_LOGI(TAG, "Transmitting %u bytes via HaLow (stub)", (unsigned int)len);
-    return true;
+
+    // TODO: Implement MM6108 SPI TX via mm-iot-esp32 SDK
+    ESP_LOGW(TAG, "transmit: STUB -- %u bytes dropped (no hardware driver)",
+             (unsigned int)len);
+    return false;
 }
 
 void halow_driver_set_tx_power(int8_t power_dbm) {
@@ -120,16 +124,19 @@ bool halow_driver_join_mesh(const char *ssid, const char *key) {
         return false;
     }
     
-    ESP_LOGI(TAG, "Joining HaLow mesh: %s (stub)", ssid);
-    return true;
+    // TODO: Implement MM6108 AT+WJOIN or SPI mesh join
+    ESP_LOGW(TAG, "join_mesh: STUB -- cannot join %s (no hardware driver)", ssid);
+    return false;
 }
 
 bool halow_driver_is_connected(void) {
     if (!halow_initialized) {
         return false;
     }
-    
-    return true;
+
+    // TODO: Implement MM6108 AT+WSTATUS? query
+    // Fail-safe: report disconnected until real driver exists
+    return false;
 }
 
 void halow_driver_reset(void) {

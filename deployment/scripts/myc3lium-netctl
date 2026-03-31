@@ -37,7 +37,7 @@ BRIDGE="br0"
 
 # Validate interface name (wlanN, br0, eth0, bat0)
 validate_iface() {
-    if ! echo "$1" | grep -qE '^(wlan[0-9]{1,2}|br0|eth[0-9]|bat0)$'; then
+    if ! echo "$1" | grep -qE '^(wlan[0-9]{1,2}|br0|eth[0-9]|bat0|halow0|usb[0-9])$'; then
         echo "ERROR: Invalid interface: $1" >&2
         exit 1
     fi
@@ -500,6 +500,85 @@ case "${1:-}" in
         systemctl restart dnsmasq
         ;;
 
+    # ---- HaLow BATMAN transport ----
+
+    halow-up)
+        # Add HaLow interface to bat0 as second BATMAN transport.
+        # Expects halow0 (TAP from slip bridge) or usb0 (USB-ECM) to already exist.
+        HALOW_IF="${2:-}"
+        if [ -z "$HALOW_IF" ]; then
+            # Auto-detect: prefer usb0 (USB-ECM), fall back to halow0 (TAP)
+            if ip link show usb0 >/dev/null 2>&1; then
+                HALOW_IF="usb0"
+            elif ip link show halow0 >/dev/null 2>&1; then
+                HALOW_IF="halow0"
+            else
+                echo "ERROR: No HaLow interface found (usb0 or halow0)" >&2
+                exit 1
+            fi
+        fi
+        validate_iface "$HALOW_IF"
+
+        # Ensure bat0 exists
+        if ! ip link show bat0 >/dev/null 2>&1; then
+            echo "ERROR: bat0 not found — run mesh-up first" >&2
+            exit 1
+        fi
+
+        # Remove from any stale bat-halow instance if it exists
+        batctl meshif bat-halow interface del "$HALOW_IF" 2>/dev/null || true
+        ip link set bat-halow down 2>/dev/null || true
+
+        # Set MTU to 1560 for BATMAN overhead headroom (only for TAP devices we control)
+        if [ "$HALOW_IF" = "halow0" ]; then
+            ip link set "$HALOW_IF" mtu 1560 2>/dev/null || true
+        fi
+
+        # Add to bat0
+        ip link set "$HALOW_IF" up
+        batctl meshif bat0 interface add "$HALOW_IF" 2>/dev/null || {
+            # May already be added
+            echo "WARNING: Could not add $HALOW_IF to bat0 (may already be a member)" >&2
+        }
+        echo "OK: halow-up interface=$HALOW_IF"
+        ;;
+
+    halow-down)
+        HALOW_IF="${2:-}"
+        if [ -z "$HALOW_IF" ]; then
+            # Auto-detect which is in bat0
+            for iface in usb0 halow0; do
+                if batctl meshif bat0 interface 2>/dev/null | grep -q "$iface"; then
+                    HALOW_IF="$iface"
+                    break
+                fi
+            done
+        fi
+        if [ -n "$HALOW_IF" ]; then
+            batctl meshif bat0 interface del "$HALOW_IF" 2>/dev/null || true
+            echo "OK: halow-down interface=$HALOW_IF"
+        else
+            echo "OK: halow-down (no HaLow interface was in bat0)"
+        fi
+        ;;
+
+    halow-status)
+        HALOW_STATUS="disabled"
+        HALOW_IF="none"
+        for iface in usb0 halow0; do
+            if batctl meshif bat0 interface 2>/dev/null | grep -q "$iface"; then
+                HALOW_STATUS="active"
+                HALOW_IF="$iface"
+                break
+            elif ip link show "$iface" >/dev/null 2>&1; then
+                HALOW_STATUS="up-not-meshed"
+                HALOW_IF="$iface"
+                break
+            fi
+        done
+        echo "halow=$HALOW_STATUS interface=$HALOW_IF"
+        ;;
+
     *)
         echo "Usage: myc3lium-netctl <command> [args...]" >&2
         echo "Commands: write-hostapd write-dnsmasq write-wpa start-ap stop-ap" >&2
@@ -507,6 +586,7 @@ case "${1:-}" in
         echo "          bridge-mesh isolate-mesh" >&2
         echo "          setup-nat remove-nat set-ip flush-ip iface-up iface-down" >&2
         echo "          mesh-up mesh-down mesh-status" >&2
+        echo "          halow-up halow-down halow-status" >&2
         echo "          cleanup sysctl-forward set-captive-portal" >&2
         echo "          clear-captive-portal restart-dnsmasq" >&2
         exit 1

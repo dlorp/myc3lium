@@ -1,0 +1,16 @@
+[Unit]
+Description=HaLow SLIP Bridge to ESP32
+After=network.target myc3lium-backend.service
+Wants=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/halow-start.sh
+Restart=on-failure
+RestartSec=10
+User=root
+StandardOutput=append:/var/log/halow-bridge.log
+StandardError=append:/var/log/halow-bridge.log
+
+[Install]
+WantedBy=multi-user.target

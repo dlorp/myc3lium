@@ -227,6 +227,38 @@ class BackhaulConfig(BaseModel):
         return self
 
 
+class HaLowConfig(BaseModel):
+    """HaLow radio settings (802.11ah via ESP32 HT-HC33)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False, description="Enable HaLow as BATMAN transport")
+    transport: Literal["usb-ecm", "serial"] = Field(
+        "serial",
+        description="Transport mode: usb-ecm (native USB Ethernet) or serial (SLIP bridge)",
+    )
+    serial_device: str = Field(
+        "/dev/ttyUSB0", description="Serial device for SLIP bridge (serial mode only)"
+    )
+    interface: str = Field(
+        "", description="HaLow network interface (auto-detect: usb0 or halow0)"
+    )
+
+    @field_validator("serial_device")
+    @classmethod
+    def validate_serial_device(cls, v: str) -> str:
+        if v and not re.match(r"^/dev/tty(USB|ACM|S|AMA)\d{1,3}$", v):
+            raise ValueError(f"Invalid serial device path: {v}")
+        return v
+
+    @field_validator("interface")
+    @classmethod
+    def validate_halow_interface(cls, v: str) -> str:
+        if v and not re.match(r"^(halow0|usb[0-9])$", v):
+            raise ValueError(f"Invalid HaLow interface: {v}. Must be halow0 or usbN.")
+        return v
+
+
 class DisplayConfig(BaseModel):
     """UI display settings."""
 
@@ -260,10 +292,16 @@ class SystemConfig(BaseModel):
         True, description="Start Meshtastic service on boot"
     )
     api_key: str = Field(
-        "", max_length=128, description="API key for protected endpoints"
+        "", max_length=128, description="API key for protected endpoints (legacy)"
     )
     setup_complete: bool = Field(
         False, description="Set to true after first-boot setup wizard completes"
+    )
+    require_auth: bool = Field(
+        False, description="Require user authentication (JWT) for all endpoints"
+    )
+    jwt_secret: str = Field(
+        "", max_length=128, description="JWT signing secret (auto-generated if empty)"
     )
 
     @field_validator("timezone")
@@ -280,6 +318,7 @@ class Myc3liumConfig(BaseModel):
     radio: RadioConfig = Field(default_factory=lambda: RadioConfig())
     mesh: MeshConfig = Field(default_factory=lambda: MeshConfig())
     backhaul: BackhaulConfig = Field(default_factory=lambda: BackhaulConfig())
+    halow: HaLowConfig = Field(default_factory=lambda: HaLowConfig())
     display: DisplayConfig = Field(default_factory=lambda: DisplayConfig())
     system: SystemConfig = Field(default_factory=lambda: SystemConfig())
 
@@ -290,6 +329,7 @@ class Myc3liumConfigPublic(BaseModel):
     radio: RadioConfig
     mesh: MeshConfig
     backhaul: dict
+    halow: HaLowConfig
     display: DisplayConfig
     system: dict
 
@@ -297,6 +337,7 @@ class Myc3liumConfigPublic(BaseModel):
     def from_config(config: Myc3liumConfig) -> Myc3liumConfigPublic:
         system_data = config.system.model_dump()
         system_data["api_key"] = "***" if system_data.get("api_key") else ""
+        system_data["jwt_secret"] = "***" if system_data.get("jwt_secret") else ""
 
         backhaul_data = config.backhaul.model_dump()
         backhaul_data["client_password"] = (
@@ -308,6 +349,7 @@ class Myc3liumConfigPublic(BaseModel):
             radio=config.radio,
             mesh=config.mesh,
             backhaul=backhaul_data,
+            halow=config.halow,
             display=config.display,
             system=system_data,
         )
