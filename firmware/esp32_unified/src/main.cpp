@@ -124,11 +124,22 @@ static std::atomic<uint32_t> slip_rx_packets{0};
 static std::atomic<uint32_t> slip_rx_errors{0};
 static int heartbeat_failures = 0;
 
-/* SLIP bridge uses Serial1 (UART1) for the data link.
- * Serial (UART0/USB-CDC) is reserved for debug logging. */
-#define SLIP_SERIAL Serial1
-#define SLIP_RX_PIN 44  /* USB-UART RX (CP2102) */
-#define SLIP_TX_PIN 43  /* USB-UART TX (CP2102) */
+/* The Heltec ESP32-S3-CAM has a CP2102 USB-UART on UART0.
+ * There is only ONE physical serial connection to the Pi.
+ * SLIP and debug share this UART — debug logging is disabled
+ * to avoid corrupting the SLIP stream.
+ * To enable debug output (breaks SLIP!), compile with -DDEBUG_SERIAL. */
+#define SLIP_SERIAL Serial
+
+#ifdef DEBUG_SERIAL
+#define DBG_PRINT(...)    Serial.print(__VA_ARGS__)
+#define DBG_PRINTLN(...)  Serial.println(__VA_ARGS__)
+#define DBG_PRINTF(...)   Serial.printf(__VA_ARGS__)
+#else
+#define DBG_PRINT(...)    ((void)0)
+#define DBG_PRINTLN(...)  ((void)0)
+#define DBG_PRINTF(...)   ((void)0)
+#endif
 
 /* SLIP decoder state (used only by Core 1 task) */
 static SlipDecoder slip_rx;
@@ -231,14 +242,14 @@ static bool init_slip_netif()
     /* Use tcpip_input (not netif_input) so packets are posted to the lwIP
      * thread's mailbox — safe to call from any FreeRTOS task/core. */
     if (netif_add(&slip_netif, &ip, &mask, &gw, nullptr, slip_netif_init, tcpip_input) == nullptr) {
-        Serial.println("SLIP: netif_add failed");
+        /* SLIP: netif_add failed */
         return false;
     }
 
     netif_set_up(&slip_netif);
     netif_set_link_up(&slip_netif);
 
-    Serial.printf("SLIP: netif up — %s/24 gw %s\n", ESP_IP, PI_IP);
+    DBG_PRINTF("SLIP: netif up — %s/24 gw %s\n", ESP_IP, PI_IP);
     slip_netif_up = true;
     return true;
 }
@@ -259,7 +270,7 @@ static void slip_bridge_task(void* param)
 {
     (void)param;
 
-    Serial.println("SLIP: bridge task started on Core 1");
+    DBG_PRINTLN("SLIP: bridge task started on Core 1");
     slip_rx.reset();
 
     uint8_t serial_buf[512];
@@ -346,12 +357,12 @@ static bool init_camera()
 
     if (psramFound()) {
         config.fb_location = CAMERA_FB_IN_PSRAM;
-        Serial.printf("PSRAM found (%d KB free)\n", ESP.getFreePsram() / 1024);
+        DBG_PRINTF("PSRAM found (%d KB free)\n", ESP.getFreePsram() / 1024);
     }
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("Camera init failed: 0x%x\n", err);
+        DBG_PRINTF("Camera init failed: 0x%x\n", err);
         return false;
     }
 
@@ -362,7 +373,7 @@ static bool init_camera()
         s->set_hmirror(s, 1);
     }
 
-    Serial.println("Camera initialized: QVGA 320x240");
+    DBG_PRINTLN("Camera initialized: QVGA 320x240");
     return true;
 }
 
@@ -403,7 +414,7 @@ static esp_err_t stream_handler(httpd_req_t* req)
     while (true) {
         camera_fb_t* fb = esp_camera_fb_get();
         if (!fb) {
-            Serial.println("Camera capture failed");
+            DBG_PRINTLN("Camera capture failed");
             res = ESP_FAIL;
             break;
         }
@@ -461,7 +472,7 @@ static esp_err_t status_handler(httpd_req_t* req)
     char buf[512];
     size_t len = serializeJson(doc, buf, sizeof(buf));
     if (len >= sizeof(buf)) {
-        Serial.println("WARNING: status JSON truncated");
+        DBG_PRINTLN("WARNING: status JSON truncated");
     }
 
     httpd_resp_set_type(req, "application/json");
@@ -500,7 +511,7 @@ static void start_http_server()
     config.max_uri_handlers = 4;
 
     if (httpd_start(&stream_httpd, &config) != ESP_OK) {
-        Serial.println("HTTP server failed to start");
+        DBG_PRINTLN("HTTP server failed to start");
         return;
     }
 
@@ -529,10 +540,10 @@ static void start_http_server()
     httpd_register_uri_handler(stream_httpd, &status_uri);
     httpd_register_uri_handler(stream_httpd, &snapshot_uri);
 
-    Serial.printf("HTTP server started on port %d\n", CAM_PORT);
-    Serial.printf("  /stream   — MJPEG stream (%d FPS)\n", CAM_FPS);
-    Serial.println("  /status   — JSON device status");
-    Serial.println("  /snapshot — Single JPEG capture");
+    DBG_PRINTF("HTTP server started on port %d\n", CAM_PORT);
+    DBG_PRINTF("  /stream   — MJPEG stream (%d FPS)\n", CAM_FPS);
+    DBG_PRINTLN("  /status   — JSON device status");
+    DBG_PRINTLN("  /snapshot — Single JPEG capture");
 }
 
 /* ------------------------------------------------------------------ */
@@ -567,7 +578,7 @@ static void send_heartbeat()
     char payload[512];
     size_t written = serializeJson(doc, payload, sizeof(payload));
     if (written >= sizeof(payload)) {
-        Serial.println("WARNING: heartbeat JSON truncated");
+        DBG_PRINTLN("WARNING: heartbeat JSON truncated");
         http.end();
         return;
     }
@@ -580,7 +591,7 @@ static void send_heartbeat()
     } else {
         heartbeat_failures++;
         if (heartbeat_failures <= 10 || heartbeat_failures % 60 == 0) {
-            Serial.printf("Heartbeat failed (code %d, attempt %d)\n",
+            DBG_PRINTF("Heartbeat failed (code %d, attempt %d)\n",
                           code, heartbeat_failures);
         }
     }
@@ -592,32 +603,23 @@ static void send_heartbeat()
 
 void setup()
 {
-    /* Debug serial — USB CDC (UART0) */
-    Serial.begin(115200);
-    delay(1000);
-    Serial.println("\n==============================");
-    Serial.println("MYC3LIUM Unified ESP32-S3-CAM");
-    Serial.println("==============================");
-    Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
-    Serial.printf("PSRAM: %s\n", psramFound() ? "yes" : "no");
+    /* SLIP serial — shares UART0 with CP2102 USB-UART.
+     * Must init at SLIP_BAUD (921600) since this is the data link.
+     * No debug prints after this — they'd corrupt the SLIP stream. */
+    SLIP_SERIAL.begin(SLIP_BAUD);
+    delay(500);
 
     /* Derive node_id from MAC address (unique per board) */
     uint8_t mac[6];
     esp_efuse_mac_get_default(mac);
     snprintf(node_id, sizeof(node_id), "m3l_cam_%02x%02x", mac[4], mac[5]);
-    Serial.printf("Node ID: %s\n", node_id);
-
-    /* SLIP serial — UART1 via CP2102 USB-UART */
-    SLIP_SERIAL.begin(SLIP_BAUD, SERIAL_8N1, SLIP_RX_PIN, SLIP_TX_PIN);
-    Serial.printf("SLIP serial: UART1 @ %d baud (RX=%d, TX=%d)\n",
-                  SLIP_BAUD, SLIP_RX_PIN, SLIP_TX_PIN);
 
     /* Disable WiFi — we use SLIP, not WiFi, for network connectivity */
     WiFi.mode(WIFI_OFF);
 
     /* Initialize lwIP SLIP network interface */
     if (!init_slip_netif()) {
-        Serial.println("FATAL: SLIP netif init failed");
+        DBG_PRINTLN("FATAL: SLIP netif init failed");
         while (true) { delay(1000); }
     }
 
@@ -635,21 +637,21 @@ void setup()
     /* Initialize camera */
     camera_ok = init_camera();
     if (!camera_ok) {
-        Serial.println("WARNING: Camera init failed — SLIP bridge still active");
-        Serial.println("         Camera endpoints will return errors");
+        DBG_PRINTLN("WARNING: Camera init failed — SLIP bridge still active");
+        DBG_PRINTLN("         Camera endpoints will return errors");
     }
 
     /* Start HTTP server (serves MJPEG, status, snapshot) */
     start_http_server();
 
-    Serial.println("\nStartup complete:");
-    Serial.printf("  SLIP:   %s/24 via serial @ %d baud\n", ESP_IP, SLIP_BAUD);
-    Serial.printf("  Camera: %s (QVGA @ %d FPS)\n",
+    DBG_PRINTLN("\nStartup complete:");
+    DBG_PRINTF("  SLIP:   %s/24 via serial @ %d baud\n", ESP_IP, SLIP_BAUD);
+    DBG_PRINTF("  Camera: %s (QVGA @ %d FPS)\n",
                   camera_ok ? "OK" : "FAILED", CAM_FPS);
-    Serial.printf("  HTTP:   port %d\n", CAM_PORT);
-    Serial.printf("  Heartbeat: every %lu ms to %s:%d\n",
+    DBG_PRINTF("  HTTP:   port %d\n", CAM_PORT);
+    DBG_PRINTF("  Heartbeat: every %lu ms to %s:%d\n",
                   HEARTBEAT_INTERVAL_MS, PI_IP, PI_PORT);
-    Serial.printf("  Free heap: %u bytes\n", ESP.getFreeHeap());
+    DBG_PRINTF("  Free heap: %u bytes\n", ESP.getFreeHeap());
 }
 
 void loop()
@@ -665,7 +667,7 @@ void loop()
     /* Periodic health log (every 60s) */
     static unsigned long last_health = 0;
     if (now - last_health >= 60000) {
-        Serial.printf("[health] heap=%u psram=%u frames=%u slip_tx=%u slip_rx=%u err=%u\n",
+        DBG_PRINTF("[health] heap=%u psram=%u frames=%u slip_tx=%u slip_rx=%u err=%u\n",
                       ESP.getFreeHeap(),
                       psramFound() ? ESP.getFreePsram() : 0,
                       frame_count.load(std::memory_order_relaxed),
