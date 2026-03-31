@@ -227,14 +227,17 @@ export async function deleteMessage(messageId: string): Promise<void> {
 export interface MeshStatus {
   batman: {
     available: boolean;
-    originators: number;
-    neighbors: number;
+    healthy: boolean;
+    originator_count: number;
+    neighbor_count: number;
+    interfaces: string[];
   };
   reticulum: {
     available: boolean;
-    status: string;
-    interfaces: string[];
-  } | null;
+    identity: string | null;
+    address: string | null;
+    inbox_count: number;
+  };
 }
 
 export interface RadioStatus {

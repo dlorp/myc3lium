@@ -71,8 +71,9 @@ async def mesh_status():
     return MeshStatus(
         batman={
             "available": bat_available,
-            "originator_count": len(originators) if originators else 0,
-            "neighbor_count": len(neighbors) if neighbors else 0,
+            "healthy": originators is not None and neighbors is not None,
+            "originator_count": len(originators) if originators is not None else 0,
+            "neighbor_count": len(neighbors) if neighbors is not None else 0,
             "interfaces": ["halow0", "lora0"] if bat_available else [],
         },
         reticulum={
@@ -93,15 +94,14 @@ async def radio_status():
         Dictionary mapping interface names to RadioStatus objects
     """
     radios = {}
+    all_neighbors = batctl_service.get_neighbors()
 
     # Check each radio interface
     for iface, radio_type in [("halow0", "HaLow"), ("lora0", "LoRa")]:
         stats = batctl_service.get_interface_stats(iface)
-        # Fix: get_neighbors() takes no arguments, filter by interface instead (H-3)
-        all_neighbors = batctl_service.get_neighbors() if stats else None
         neighbors = (
-            [n for n in (all_neighbors or []) if n.interface == iface]
-            if all_neighbors
+            [n for n in all_neighbors if n.interface == iface]
+            if all_neighbors is not None
             else None
         )
 
@@ -110,7 +110,7 @@ async def radio_status():
             "type": radio_type,
             "status": "up" if stats else "down",
             "throughput": stats.tx_bytes + stats.rx_bytes if stats else None,
-            "neighbors": len(neighbors) if neighbors else 0,
+            "neighbors": len(neighbors) if neighbors is not None else 0,
             "stats": (
                 {
                     "tx_bytes": stats.tx_bytes,
