@@ -66,11 +66,11 @@ def _get_service() -> CameraService:
 def _validate_stream_url(url: str) -> bool:
     """Validate stream_url points to an allowed camera network (SSRF prevention)."""
     parsed = urlparse(url)
-    if parsed.scheme != "http":
+    if parsed.scheme != "http" or not parsed.hostname:
         return False
     try:
         ip = ipaddress.ip_address(parsed.hostname)
-    except (ValueError, TypeError):
+    except ValueError:
         return False
     return any(ip in net for net in ALLOWED_CAMERA_NETWORKS)
 
