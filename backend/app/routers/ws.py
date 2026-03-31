@@ -122,35 +122,37 @@ async def mesh_monitor_loop():
                 batctl_healthy = originators is not None and neighbors is not None
 
                 # Serialize state for comparison
+                orig_list = [
+                    {
+                        "mac": o.mac,
+                        "last_seen": o.last_seen,
+                        "tq": o.tq,
+                        "next_hop": o.next_hop,
+                        "interface": o.interface,
+                    }
+                    for o in (originators if originators is not None else [])
+                ]
+                neigh_list = [
+                    {
+                        "mac": n.mac,
+                        "last_seen": n.last_seen,
+                        "tq": n.tq,
+                        "interface": n.interface,
+                    }
+                    for n in (neighbors if neighbors is not None else [])
+                ]
                 current_state = {
                     "batctl_healthy": batctl_healthy,
-                    "originators": [
-                        {
-                            "mac": o.mac,
-                            "last_seen": o.last_seen,
-                            "tq": o.tq,
-                            "next_hop": o.next_hop,
-                            "interface": o.interface,
-                        }
-                        for o in (originators if originators is not None else [])
-                    ],
-                    "neighbors": [
-                        {
-                            "mac": n.mac,
-                            "last_seen": n.last_seen,
-                            "tq": n.tq,
-                            "interface": n.interface,
-                        }
-                        for n in (neighbors if neighbors is not None else [])
-                    ],
+                    "originators": orig_list,
+                    "neighbors": neigh_list,
                 }
 
                 # Only broadcast if state changed (or first run)
                 if current_state != last_state:
                     logger.info(
                         "Mesh state changed: %d originators, %d neighbors",
-                        len(current_state["originators"]),
-                        len(current_state["neighbors"]),
+                        len(orig_list),
+                        len(neigh_list),
                     )
 
                     await manager.broadcast(
