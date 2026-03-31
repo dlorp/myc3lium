@@ -78,8 +78,9 @@ messages.reticulum = reticulum
 # Make services available to mesh router
 mesh.set_services(data_source, reticulum)
 
-# Make data source available to sensors router
+# Make data source and mesh store available to sensors router
 sensors.set_data_source(data_source)
+sensors.set_mesh_store(mesh_store)
 
 # Load initial data from chosen source
 mesh_store.load_from_source(
@@ -172,6 +173,7 @@ app.include_router(auth_router.router)  # Ungated — login must work before aut
 # Initialize Meshtastic service
 meshtastic_service = MeshtasticService()
 meshtastic.set_service(meshtastic_service)  # Inject service into router
+sensors.set_meshtastic_service(meshtastic_service)  # Device metrics for /api/sensors
 
 
 # M2: Security headers middleware
