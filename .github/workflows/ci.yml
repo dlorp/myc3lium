@@ -81,3 +81,19 @@ jobs:
             exit 1
           fi
           echo "All checks passed!"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: cd backend && pip install -e '.[dev]' pip-audit 2>/dev/null || pip install -e . pip-audit
+      - name: Backend audit
+        run: pip-audit --strict || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Frontend audit
+        run: cd frontend && npm install && npm audit --audit-level=high || true
