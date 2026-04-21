@@ -20,7 +20,7 @@ meshtastic>=2.0.0
 pypubsub>=4.0.3
 
 # Security
-cryptography>=41.0.0
+cryptography>=46.0.6  # CVE-2026-39892
 
 # Authentication
 PyJWT>=2.8.0
