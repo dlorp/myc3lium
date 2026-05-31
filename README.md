@@ -1,4 +1,4 @@
-# 🍄 MYC3LIUM
+# MYC3LIUM
 
 **Resilient off-grid mesh communication lattice**
 
