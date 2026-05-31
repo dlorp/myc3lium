@@ -20,26 +20,22 @@ Routes to WebUI pages:
 import os
 import sys
 import time
-import json
 import asyncio
 import logging
-import struct
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Set, Any
 from datetime import datetime, timezone
 from pathlib import Path
-from collections import defaultdict
 
 # FastAPI
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 
 # Reticulum
 import RNS
-from RNS import Identity, Destination, Packet, Transport
+from RNS import Identity, Transport
 import LXMF
 
 # Meshtastic (install: pip3 install meshtastic)
@@ -467,7 +463,7 @@ class ReticulumManager:
     def _lxmf_delivery(self, message):
         """Handle LXMF message delivery"""
         try:
-            logger.info(f"📨 LXMF message received")
+            logger.info("📨 LXMF message received")
             
             for callback in self.message_callbacks:
                 callback({

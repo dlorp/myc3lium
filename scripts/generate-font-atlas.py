@@ -88,7 +88,7 @@ for i in range(256):
     # Draw character (white on black)
     try:
         draw.text((x + 1, y), char, fill=(255, 255, 255, 255), font=font)
-    except Exception as e:
+    except Exception:
         # Some characters might not render in all fonts
         pass
 
@@ -100,7 +100,7 @@ file_size = os.path.getsize(out_path)
 print(f'\n✓ Font atlas generated: {out_path}')
 print(f'  Size: {file_size} bytes')
 print(f'  Dimensions: {ATLAS_SIZE}×{ATLAS_SIZE}px')
-print(f'  Characters: 256 (CP437 charset)\n')
+print('  Characters: 256 (CP437 charset)\n')
 
 # Generate metadata JSON
 metadata = {
