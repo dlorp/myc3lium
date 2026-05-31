@@ -212,7 +212,7 @@ class MeshtasticBridge:
                 payload = decoded.get("payload", {})
                 lat = payload.get("latitude", 0) / 1e7
                 lon = payload.get("longitude", 0) / 1e7
-                alt = payload.get("altitude", 0)
+                payload.get("altitude", 0)
 
                 logger.info(f"📍 Position update from {from_id}: {lat}, {lon}")
 
@@ -648,7 +648,7 @@ async def broadcast_to_websockets(message: Dict):
     for ws in websocket_connections:
         try:
             await ws.send_json(message)
-        except:
+        except Exception:
             dead.add(ws)
 
     websocket_connections.difference_update(dead)

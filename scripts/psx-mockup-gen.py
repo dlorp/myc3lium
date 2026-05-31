@@ -72,7 +72,7 @@ def panel_split(
     """Generate a two-panel layout"""
     lines = []
     c_blue = COLORS["blue"]
-    c_cyan = COLORS["cyan"]
+    COLORS["cyan"]
     r = COLORS["reset"]
 
     left_width = int((width - 3) * split_ratio)
@@ -141,7 +141,7 @@ def menu_items(
 def status_bar(left_text: str, right_text: str, width: int = 80) -> str:
     """Generate a status bar footer"""
     c_blue = COLORS["blue"]
-    c_white = COLORS["white"]
+    COLORS["white"]
     r = COLORS["reset"]
     bold = COLORS["bold"]
 
