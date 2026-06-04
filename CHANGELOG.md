@@ -4,6 +4,40 @@ All notable changes to MYC3LIUM will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.0] - 2026-03-30
+
+### Added
+- **Unified ESP32-S3-CAM firmware** (`firmware/esp32_unified/`): dual-core architecture with SLIP serial bridge on Core 1 and MJPEG camera + HTTP server on Core 0
+- SLIP encoder/decoder module (`slip.h`, `slip.cpp`): RFC 1055 byte-compatible with `pi-slip-daemon.c`, overflow drop mode, input-length guard
+- TAP Ethernet framing: strip/prepend 14-byte Ethernet header for Pi TAP compatibility
+- MJPEG HTTP server on ESP32: `/stream` (rate-limited to 2 FPS), `/status` (JSON), `/snapshot` (single JPEG)
+- Camera heartbeat via HTTP POST to backend every 10s with device metrics (free_heap, uptime, resolution)
+- `CameraService` (`backend/app/services/camera_service.py`): in-memory registry with heartbeat upsert, health sweep (active->inactive@30s->error@60s), graceful shutdown
+- `POST /api/cameras/heartbeat`: ungated endpoint for ESP32 camera registration with IP validation and SSRF prevention
+- `GET /api/cameras/{id}/stream`: authenticated MJPEG reverse-proxy via httpx with connection semaphore (max 2 concurrent)
+- `GET /api/cameras/{id}/snapshot`: authenticated snapshot proxy with proper URL construction
+- `httpx>=0.27.0` dependency for async MJPEG proxy
+- MAC-derived node ID on ESP32 (unique per board, no hardcoded collision)
+
+### Security
+- SSRF prevention: `_validate_stream_url()` validates camera stream URLs against allowed networks (192.168.1.0/24, 10.13.0.0/16)
+- Heartbeat source IP rejection: non-mesh IPs return 403 (not just logged)
+- Camera registry capped at 16 entries (prevents memory exhaustion on Pi)
+- Heartbeat `node_id` pattern validation: `^[a-zA-Z0-9_-]{1,64}$`
+- Integer field bounds: `ge=0, le=2**32-1` for ESP32 32-bit metrics
+- MJPEG proxy: semaphore limits concurrent streams, 300s read timeout, explicit `GeneratorExit` cleanup
+- Snapshot URL via `urlparse`/`urlunparse` (not string replace)
+- ESP32 stream handler: FreeRTOS semaphore limits to 1 concurrent MJPEG client (DMA safety)
+- `tcpip_input` used for cross-core lwIP packet injection (thread-safe mailbox, not direct call)
+- `std::atomic<uint32_t>` for all cross-core telemetry counters
+- `slip_encode` rejects frames > SLIP_MTU (prevents buffer overflow)
+- Compile-time guard: `#error` if `CAM_FPS < 1`
+
+### Changed
+- Camera router rewritten from stub to full implementation with heartbeat discovery pipeline
+- Proxy connects to upstream before returning StreamingResponse (returns 502 on connect failure, not silent 200)
+- `get_camera_metadata()` returns defensive copy of internal dict
+
 ## [0.9.0] - 2026-03-30
 
 ### Added
