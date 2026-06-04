@@ -14,6 +14,7 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from hardware_interfaces import HardwareManager
 from intelligence import ATAKIntegration, IntelligenceGathering, SensorFusion
@@ -56,6 +57,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],  # Specific methods only
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# CVE-2026-48710: Validate Host header to prevent Host header poisoning.
+# Default permissive for mesh network. Set ALLOWED_HOSTS env var in production.
+_allowed_hosts = os.getenv("ALLOWED_HOSTS", "*").split(",")
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 
 # Global state (initialized after security)
 atak = None

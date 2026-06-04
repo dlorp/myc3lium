@@ -1,9 +1,11 @@
 """FastAPI application entry point"""
 
 import logging
+import os
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
 from app.middleware.auth import get_current_user
@@ -49,6 +51,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# CVE-2026-48710: Validate Host header to prevent Host header poisoning.
+# Default permissive for mesh network (nodes accessed by dynamic IPs).
+# Set MYC3LIUM_ALLOWED_HOSTS env var to restrict in production.
+_allowed_hosts = os.environ.get("MYC3LIUM_ALLOWED_HOSTS", "*").split(",")
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 
 # Initialize Reticulum bridge (gracefully no-ops on Mac)
 reticulum = ReticulumBridge()
