@@ -17,7 +17,7 @@ smbus2>=0.4.2; platform_machine == "armv7l" or platform_machine == "aarch64"
 
 # Meshtastic (optional - install on device with Heltec V3)
 meshtastic>=2.0.0
-pypubsub>=4.0.3
+pypubsub>=4.0.7
 
 # Security
 cryptography>=46.0.7  # CVE-2026-39892
