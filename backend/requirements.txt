@@ -13,7 +13,7 @@ scipy>=1.11.0
 # Serial/Hardware (optional - install on Raspberry Pi)
 pyserial>=3.5
 spidev>=3.6; platform_machine == "armv7l" or platform_machine == "aarch64"
-smbus2>=0.4.2; platform_machine == "armv7l" or platform_machine == "aarch64"
+smbus2>=0.6.1; platform_machine == "armv7l" or platform_machine == "aarch64"
 
 # Meshtastic (optional - install on device with Heltec V3)
 meshtastic>=2.0.0
